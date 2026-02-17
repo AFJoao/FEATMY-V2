@@ -271,12 +271,29 @@
 
   // Load students
   try {
-    const students=await dbManager.getMyStudents();
-    const sel=document.getElementById('studentSelect');
-    students.forEach(s=>{const o=document.createElement('option');o.value=s.uid;o.textContent=s.name;sel.appendChild(o);});
-    const editId=sessionStorage.getItem('editWorkoutId');
-    if(editId){sessionStorage.removeItem('editWorkoutId');await loadWorkout(editId);}
-  } catch(e){console.warn('Alunos:',e);}
+  const students = await dbManager.getMyStudents();
+  const sel = document.getElementById('studentSelect');
+  students.forEach(s => {
+    const o = document.createElement('option');
+    o.value = s.uid;
+    o.textContent = s.name;
+    sel.appendChild(o);
+  });
+
+  // Pré-selecionar aluno se vier do perfil do aluno
+  const preSelected = sessionStorage.getItem('preSelectedStudent');
+  if (preSelected) {
+    sel.value = preSelected;
+    sessionStorage.removeItem('preSelectedStudent');
+  }
+
+  // Carregar treino para edição
+  const editId = sessionStorage.getItem('editWorkoutId');
+  if (editId) {
+    sessionStorage.removeItem('editWorkoutId');
+    await loadWorkout(editId);
+  }
+} catch(e) { console.warn('Alunos:', e); }
 
   // Load exercises library
   try {

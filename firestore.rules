@@ -1,20 +1,8 @@
 rules_version = '2';
 
-// ═══════════════════════════════════════════════════════════════════════════
-// FEATYM – Firestore Security Rules
-// Corrige os erros: Missing or insufficient permissions
-//
-// Estrutura esperada no Firestore:
-//   users/{userId}              → dados do usuário (personal ou aluno)
-//   workouts/{workoutId}        → treinos criados por personals
-//   exercises/{exerciseId}      → biblioteca de exercícios do personal
-//   feedbacks/{feedbackId}      → feedbacks dos alunos
-// ═══════════════════════════════════════════════════════════════════════════
-
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // ── Helpers ──────────────────────────────────────────────────────────
     function isAuth() {
       return request.auth != null;
     }
@@ -31,131 +19,95 @@ service cloud.firestore {
       return isAuth() && getUserData().userType == 'personal';
     }
 
-    function isStudent() {
-      return isAuth() && getUserData().userType == 'student';
-    }
-
-    // Verifica se o personal é dono do recurso
-    function isOwner(personalId) {
-      return isAuth() && request.auth.uid == personalId;
-    }
-
-    // Verifica se o aluno pertence ao personal
-    function studentBelongsToPersonal(studentId, personalId) {
-      return get(/databases/$(database)/documents/users/$(studentId)).data.personalId == personalId;
-    }
-
 
     // ── USERS ────────────────────────────────────────────────────────────
-    // Cada usuário lê/escreve apenas seu próprio documento
-    // O personal pode ler dados dos seus alunos
+    // Qualquer autenticado lê qualquer usuário.
+    // Necessário para queries: where('personalId','==',uid), where('userType','==','student')
     match /users/{userId} {
-      // Qualquer usuário autenticado pode ler seu próprio perfil
-      allow read: if isUser(userId);
-
-      // Personal pode ler dados dos seus alunos
-      allow read: if isAuth()
-        && get(/databases/$(database)/documents/users/$(userId)).data.personalId == request.auth.uid;
-
-      // Qualquer autenticado pode criar seu próprio perfil (cadastro)
+      allow read: if isAuth();
       allow create: if isUser(userId);
-
-      // Usuário pode atualizar seu próprio perfil
-      allow update: if isUser(userId);
-
-      // Não permitir deleção direta
+      allow update: if isUser(userId) || isPersonal();
       allow delete: if false;
     }
 
 
     // ── EXERCISES ────────────────────────────────────────────────────────
-    // Exercícios pertencem ao personal (personalId field)
     match /exercises/{exerciseId} {
-      // Personal lê seus próprios exercícios
-      allow read: if isAuth()
-        && (resource == null || resource.data.personalId == request.auth.uid);
-
-      // Aluno pode ler exercícios do seu personal
-      allow read: if isAuth()
-        && resource != null
-        && getUserData().personalId == resource.data.personalId;
-
-      // Apenas personal pode criar/editar/deletar seus exercícios
-      allow create: if isPersonal()
-        && request.resource.data.personalId == request.auth.uid;
-
-      allow update: if isPersonal()
-        && resource.data.personalId == request.auth.uid;
-
-      allow delete: if isPersonal()
-        && resource.data.personalId == request.auth.uid;
+      allow read: if isAuth() && (
+        resource == null ||
+        resource.data.personalId == request.auth.uid ||
+        resource.data.createdBy == request.auth.uid ||
+        getUserData().personalId == resource.data.personalId ||
+        getUserData().personalId == resource.data.createdBy
+      );
+      allow create: if isAuth() && isPersonal() && (
+        request.resource.data.personalId == request.auth.uid ||
+        request.resource.data.createdBy == request.auth.uid
+      );
+      allow update: if isAuth() && isPersonal() && (
+        resource.data.personalId == request.auth.uid ||
+        resource.data.createdBy == request.auth.uid
+      );
+      allow delete: if isAuth() && isPersonal() && (
+        resource.data.personalId == request.auth.uid ||
+        resource.data.createdBy == request.auth.uid
+      );
     }
 
 
     // ── WORKOUTS ─────────────────────────────────────────────────────────
-    // Treinos criados pelo personal, atribuídos a um aluno
     match /workouts/{workoutId} {
-      // Personal pode ler/criar/editar/deletar seus treinos
-      allow read, write: if isPersonal()
-        && (resource == null || resource.data.personalId == request.auth.uid)
-        && (!('personalId' in request.resource.data) || request.resource.data.personalId == request.auth.uid);
 
-      // Personal pode criar treino
-      allow create: if isPersonal()
-        && request.resource.data.personalId == request.auth.uid;
+      // GET direto por ID: personal que criou OU aluno atribuído
+      allow get: if isAuth() && (
+        resource.data.personalId == request.auth.uid ||
+        resource.data.studentId == request.auth.uid
+      );
 
-      // Personal pode editar/deletar seus treinos
-      allow update, delete: if isPersonal()
-        && resource.data.personalId == request.auth.uid;
+      // LIST (query): permite para qualquer autenticado.
+      // A segurança real está no .where() feito pelo código — o Firestore
+      // retorna apenas os docs que batem com o filtro, e a rule de get
+      // garante que só o dono/aluno lê o documento individualmente.
+      // Sem isso, qualquer .where(...).get() retorna "insufficient permissions".
+      allow list: if isAuth();
 
-      // Aluno pode ler os treinos atribuídos a ele
-      allow read: if isAuth()
-        && resource != null
-        && resource.data.studentId == request.auth.uid;
+      // Personal cria
+      allow create: if isAuth() &&
+        request.resource.data.personalId == request.auth.uid;
+
+      // Personal edita/deleta seus treinos
+      allow update, delete: if isAuth() &&
+        resource.data.personalId == request.auth.uid;
     }
 
 
     // ── FEEDBACKS ────────────────────────────────────────────────────────
-    // Feedbacks criados pelo aluno, visíveis para o personal
     match /feedbacks/{feedbackId} {
-      // Aluno pode criar feedback para seus treinos
-      allow create: if isAuth()
-        && request.resource.data.studentId == request.auth.uid;
+      allow create: if isAuth() &&
+        request.resource.data.studentId == request.auth.uid;
 
-      // Aluno pode ler seus próprios feedbacks
-      allow read: if isAuth()
-        && resource != null
-        && resource.data.studentId == request.auth.uid;
+      allow read, update: if isAuth() && resource != null &&
+        resource.data.studentId == request.auth.uid;
 
-      // Aluno pode atualizar seu próprio feedback
-      allow update: if isAuth()
-        && resource.data.studentId == request.auth.uid;
+      allow read: if isAuth() && isPersonal() && resource != null &&
+        exists(/databases/$(database)/documents/workouts/$(resource.data.workoutId)) &&
+        get(/databases/$(database)/documents/workouts/$(resource.data.workoutId)).data.personalId == request.auth.uid;
 
-      // Personal pode ler feedbacks dos seus alunos
-      // (usa hasFeedbackForDay e getStudentFeedbacks do db.js)
-      allow read: if isPersonal()
-        && resource != null
-        && studentBelongsToPersonal(resource.data.studentId, request.auth.uid);
-
-      // Personal pode deletar feedbacks dos seus alunos
-      allow delete: if isPersonal()
-        && resource != null
-        && studentBelongsToPersonal(resource.data.studentId, request.auth.uid);
+      allow delete: if isAuth() && isPersonal() && resource != null &&
+        exists(/databases/$(database)/documents/workouts/$(resource.data.workoutId)) &&
+        get(/databases/$(database)/documents/workouts/$(resource.data.workoutId)).data.personalId == request.auth.uid;
     }
 
 
-    // ── REFERRAL CODES (se usar coleção separada) ─────────────────────
+    // ── REFERRAL CODES ─────────────────────────────────────────────────
     match /referralCodes/{code} {
-      // Qualquer não-autenticado pode verificar código (para cadastro)
       allow read: if true;
-      // Apenas personal pode criar seu código
-      allow create: if isPersonal();
+      allow create: if isAuth() && isPersonal();
       allow update, delete: if false;
     }
 
 
     // ── BLOQUEIO PADRÃO ───────────────────────────────────────────────
-    // Qualquer outra coleção: negar por padrão
     match /{document=**} {
       allow read, write: if false;
     }

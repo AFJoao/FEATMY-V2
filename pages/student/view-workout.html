@@ -1,127 +1,161 @@
-<div class="view-workout-page" style="font-family: 'DM Sans', system-ui, sans-serif; background: #FFFFFF; min-height: 100vh;">
+<div class="view-workout-page" style="font-family: 'DM Sans', system-ui, sans-serif; background: #F8F9FA; min-height: 100vh;">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/mobile-responsive-fixes.css">
 
   <style>
-    .logout-btn { color: rgba(255,255,255,0.75); font-weight: 500; font-size: 0.875rem; padding: 8px 16px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.14); transition: all 0.2s ease; display: flex; align-items: center; gap: 7px; cursor: pointer; background: transparent; }
-    .logout-btn:hover { color: #fff; background: rgba(255,255,255,0.09); border-color: rgba(255,255,255,0.25); }
-    .back-btn { color: rgba(255,255,255,0.75); font-weight: 500; font-size: 0.875rem; padding: 8px 10px; border-radius: 8px; border: 1px solid transparent; transition: all 0.2s ease; display: flex; align-items: center; cursor: pointer; background: transparent; }
-    .back-btn:hover { color: #fff; background: rgba(255,255,255,0.09); }
-    .exercise-item { background: #fff; border: 1px solid #EBEBEB; border-radius: 16px; overflow: hidden; transition: all 0.2s; }
-    .exercise-item:hover { border-color: #D1D5DB; box-shadow: 0 4px 16px rgba(0,0,0,0.05); }
-    .stat-chip { background: #F4F4F4; border-radius: 8px; padding: 10px 14px; text-align: center; }
-    .feedback-btn { background: #00E676; color: #0A0A0A; border: none; border-radius: 12px; padding: 14px 28px; font-size: 0.95rem; font-weight: 800; cursor: pointer; transition: all 0.25s cubic-bezier(0.4,0,0.2,1); font-family: inherit; display: flex; align-items: center; gap: 8px; }
-    .feedback-btn:hover { background: #00C853; box-shadow: 0 8px 24px rgba(0,230,118,0.35); transform: translateY(-1px); }
+    * { box-sizing: border-box; }
+
+    /* Header */
+    .vw-header { background: #0A0A0A; position: sticky; top: 0; z-index: 50; border-bottom: 1px solid rgba(255,255,255,0.06); }
+    .vw-header-inner { max-width: 860px; margin: 0 auto; padding: 0 24px; height: 64px; display: flex; justify-content: space-between; align-items: center; }
+    .vw-back-btn { color: rgba(255,255,255,0.7); background: transparent; border: 1px solid transparent; padding: 8px 10px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; transition: all 0.2s; }
+    .vw-back-btn:hover { color: #fff; background: rgba(255,255,255,0.09); }
+    .vw-logout-btn { color: rgba(255,255,255,0.7); background: transparent; border: 1px solid rgba(255,255,255,0.14); padding: 8px 16px; border-radius: 8px; font-size: 0.875rem; font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 7px; transition: all 0.2s; font-family: inherit; }
+    .vw-logout-btn:hover { color: #fff; background: rgba(255,255,255,0.09); border-color: rgba(255,255,255,0.3); }
+
+    /* Day tabs */
+    .day-tabs { display: flex; gap: 8px; overflow-x: auto; padding: 0 4px 4px; scrollbar-width: none; }
+    .day-tabs::-webkit-scrollbar { display: none; }
+    .day-tab { flex-shrink: 0; padding: 10px 18px; border-radius: 10px; border: 2px solid #E5E7EB; background: #fff; font-size: 0.82rem; font-weight: 700; cursor: pointer; transition: all 0.2s; font-family: inherit; color: #6B7280; white-space: nowrap; }
+    .day-tab:hover { border-color: #9CA3AF; color: #374151; }
+    .day-tab.active { background: #0A0A0A; border-color: #0A0A0A; color: #fff; }
+    .day-tab.today { border-color: #00E676; color: #00C853; }
+    .day-tab.today.active { background: #00E676; border-color: #00E676; color: #0A0A0A; }
+    .day-tab.rest { opacity: 0.45; cursor: default; }
+
+    /* Exercise card */
+    .ex-card { background: #fff; border: 2px solid #E5E7EB; border-radius: 16px; overflow: hidden; transition: all 0.2s; }
+    .ex-card.done { border-color: #00E676; background: #F0FDF4; }
+    .ex-card-body { padding: 18px 20px; }
+    .ex-chip { display: inline-flex; align-items: center; padding: 5px 12px; border-radius: 8px; font-size: 0.75rem; font-weight: 700; }
+    .check-btn { width: 100%; padding: 12px; border: none; border-radius: 10px; font-size: 0.875rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: all 0.25s cubic-bezier(0.4,0,0.2,1); font-family: inherit; }
+    .check-btn-todo { background: #0A0A0A; color: #fff; }
+    .check-btn-todo:hover { background: #1a1a1a; transform: translateY(-1px); box-shadow: 0 4px 14px rgba(0,0,0,0.2); }
+    .check-btn-done { background: #D1FAE5; color: #065F46; }
+    .check-btn-done:hover { background: #A7F3D0; }
+
+    /* Video embed */
+    .video-wrap { position: relative; width: 100%; padding-bottom: 56.25%; border-radius: 10px; overflow: hidden; background: #000; margin-top: 14px; }
+    .video-wrap iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: none; }
+
+    /* Progress bar */
+    .progress-bar-bg { background: #E5E7EB; border-radius: 99px; height: 6px; overflow: hidden; }
+    .progress-bar-fill { background: #00E676; height: 100%; border-radius: 99px; transition: width 0.4s ease; }
+
+    /* Spinner */
     .spinner { width: 28px; height: 28px; border: 3px solid rgba(0,0,0,0.08); border-top-color: #00E676; border-radius: 50%; animation: spin 0.8s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
-    /* Feedback Modal */
-    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); z-index: 100; display: flex; align-items: flex-end; justify-content: center; padding: 20px; }
-    @media (min-width: 640px) { .modal-overlay { align-items: center; } }
-    .modal-box { background: #fff; border-radius: 24px 24px 0 0; padding: 32px 28px 28px; width: 100%; max-width: 500px; max-height: 90vh; overflow-y: auto; }
-    @media (min-width: 640px) { .modal-box { border-radius: 20px; } }
-    .range-input { width: 100%; height: 6px; border-radius: 3px; outline: none; cursor: pointer; accent-color: #00E676; }
-    .sensation-opt { flex: 1; padding: 12px 8px; border: 2px solid #EBEBEB; border-radius: 12px; cursor: pointer; text-align: center; transition: all 0.2s; }
-    .sensation-opt:hover { border-color: #D1D5DB; }
-    .sensation-opt.selected { border-color: #00E676; background: rgba(0,230,118,0.04); }
-    .sensation-opt input { display: none; }
-    .toggle-btn { padding: 10px 20px; border-radius: 10px; border: 2px solid #EBEBEB; font-size: 0.85rem; font-weight: 700; cursor: pointer; transition: all 0.2s; background: #fff; font-family: inherit; }
-    .toggle-btn.active-yes { background: #FEE2E2; border-color: #FCA5A5; color: #991B1B; }
-    .toggle-btn.active-no { background: #D1FAE5; border-color: #6EE7B7; color: #065F46; }
+
+    /* Feedback modal */
+    .fb-overlay { display: none; position: fixed; inset: 0; background: rgba(10,10,10,0.6); backdrop-filter: blur(4px); z-index: 200; align-items: flex-end; justify-content: center; padding: 0; }
+    .fb-overlay.open { display: flex; }
+    @media (min-width: 600px) { .fb-overlay { align-items: center; padding: 20px; } }
+    .fb-box { background: #fff; border-radius: 24px 24px 0 0; padding: 28px 24px 32px; width: 100%; max-width: 500px; max-height: 90vh; overflow-y: auto; }
+    @media (min-width: 600px) { .fb-box { border-radius: 20px; } }
+    .fb-range { width: 100%; height: 6px; border-radius: 3px; outline: none; cursor: pointer; accent-color: #00E676; }
+    .fb-option { flex: 1; padding: 11px 8px; border: 2px solid #EBEBEB; border-radius: 10px; cursor: pointer; text-align: center; transition: all 0.2s; }
+    .fb-option:hover { border-color: #D1D5DB; }
+    .fb-option.sel { border-color: #00E676; background: rgba(0,230,118,0.05); }
+    .fb-toggle { flex: 1; padding: 10px; border: 2px solid #EBEBEB; border-radius: 10px; cursor: pointer; text-align: center; font-size: 0.85rem; font-weight: 700; transition: all 0.2s; background: #fff; font-family: inherit; }
+    .fb-toggle.sel-yes { border-color: #FCA5A5; background: #FEE2E2; color: #991B1B; }
+    .fb-toggle.sel-no { border-color: #6EE7B7; background: #D1FAE5; color: #065F46; }
+    .fb-input { width: 100%; padding: 11px 14px; border: 2px solid #EBEBEB; border-radius: 10px; font-size: 0.875rem; outline: none; font-family: inherit; background: #FAFAFA; transition: border-color 0.2s; }
+    .fb-input:focus { border-color: #0A0A0A; background: #fff; }
   </style>
 
   <!-- HEADER -->
-  <header style="background: #0A0A0A; position: sticky; top: 0; z-index: 50; border-bottom: 1px solid rgba(255,255,255,0.06);">
-    <div style="max-width: 900px; margin: 0 auto; padding: 0 24px; height: 64px; display: flex; justify-content: space-between; align-items: center;">
-      <div style="display: flex; align-items: center; gap: 12px;">
-        <button onclick="router.goToStudentDashboard()" class="back-btn">
+  <header class="vw-header">
+    <div class="vw-header-inner">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <button onclick="router.goToStudentDashboard()" class="vw-back-btn">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
         </button>
-        <div style="width: 1px; height: 24px; background: rgba(255,255,255,0.1);"></div>
-        <img src="assets/branca_larga.png" alt="Featym" style="height: 26px; object-fit: contain;" onerror="this.style.display='none'">
+        <div style="width:1px;height:24px;background:rgba(255,255,255,0.1);"></div>
+        <img src="assets/branca_larga.png" alt="Featym" style="height:26px;object-fit:contain;" onerror="this.style.display='none'">
       </div>
-      <button id="logoutBtn" class="logout-btn">
+      <button id="logoutBtn" class="vw-logout-btn">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
         Sair
       </button>
     </div>
   </header>
 
-  <!-- MAIN -->
-  <main style="max-width: 900px; margin: 0 auto; padding: 40px 24px 80px;" id="mainContent">
-    <div style="text-align:center;padding:64px 20px;">
+  <!-- CONTENT -->
+  <main id="mainContent" style="max-width:860px;margin:0 auto;padding:32px 24px 80px;">
+    <div style="text-align:center;padding:80px 20px;">
       <div class="spinner" style="margin:0 auto 16px;"></div>
       <p style="color:#9CA3AF;font-size:0.875rem;margin:0;">Carregando treino...</p>
     </div>
   </main>
 
   <!-- FEEDBACK MODAL -->
-  <div id="feedbackModal" class="modal-overlay" style="display: none;">
-    <div class="modal-box">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
-        <h2 style="font-size: 1.2rem; font-weight: 800; color: #0A0A0A; margin: 0; letter-spacing: -0.02em;">Como foi o treino?</h2>
-        <button id="closeFeedbackModal" style="background: #F4F4F4; border: none; width: 32px; height: 32px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #6B7280; transition: background 0.2s;" onmouseover="this.style.background='#EBEBEB'" onmouseout="this.style.background='#F4F4F4'">✕</button>
+  <div id="fbOverlay" class="fb-overlay">
+    <div class="fb-box">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:22px;">
+        <div>
+          <p style="color:#9CA3AF;font-size:0.68rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;margin:0 0 3px;">AVALIAÇÃO</p>
+          <h3 style="font-size:1.2rem;font-weight:800;color:#0A0A0A;margin:0;letter-spacing:-0.02em;">Como foi o treino?</h3>
+        </div>
+        <button id="fbClose" style="background:#F4F4F4;border:none;width:32px;height:32px;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1.1rem;color:#6B7280;transition:background 0.2s;" onmouseover="this.style.background='#EBEBEB'" onmouseout="this.style.background='#F4F4F4'">✕</button>
       </div>
 
       <!-- Esforço -->
-      <div style="margin-bottom: 22px;">
-        <label style="display:block;font-size:0.78rem;font-weight:700;color:#374151;margin-bottom:12px;">Nível de esforço: <span id="effortLabel" style="color:#00E676;font-weight:800;">5</span>/10</label>
-        <input type="range" id="effortRange" class="range-input" min="1" max="10" value="5">
-        <div style="display:flex;justify-content:space-between;margin-top:6px;">
-          <span style="font-size:0.72rem;color:#9CA3AF;">Leve</span>
-          <span style="font-size:0.72rem;color:#9CA3AF;">Exaustivo</span>
+      <div style="margin-bottom:20px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+          <label style="font-size:0.82rem;font-weight:700;color:#0A0A0A;">Nível de esforço</label>
+          <span style="background:#0A0A0A;color:#00E676;border-radius:8px;padding:3px 11px;font-size:1rem;font-weight:800;" id="effortVal">5</span>
+        </div>
+        <input type="range" id="effortRange" class="fb-range" min="1" max="10" value="5">
+        <div style="display:flex;justify-content:space-between;margin-top:5px;">
+          <span style="font-size:0.7rem;color:#9CA3AF;">Leve</span>
+          <span style="font-size:0.7rem;color:#9CA3AF;">Máximo</span>
         </div>
       </div>
 
       <!-- Sensação -->
-      <div style="margin-bottom: 22px;">
-        <label style="display:block;font-size:0.78rem;font-weight:700;color:#374151;margin-bottom:10px;">Sensação geral</label>
+      <div style="margin-bottom:20px;">
+        <label style="display:block;font-size:0.82rem;font-weight:700;color:#0A0A0A;margin-bottom:10px;">Sensação geral</label>
         <div style="display:flex;gap:8px;">
-          <label class="sensation-opt" id="sOtimo" onclick="selectSensation('otimo')">
-            <input type="radio" name="sensation" value="otimo">
-            <div style="font-size:1.3rem;margin-bottom:4px;">🔥</div>
-            <div style="font-size:0.75rem;font-weight:700;color:#0A0A0A;">Ótimo</div>
+          <label class="fb-option" id="sLeve" onclick="selSensation('leve')">
+            <input type="radio" name="fbSensation" value="leve" style="display:none;">
+            <div style="font-size:1.2rem;margin-bottom:3px;">😌</div>
+            <div style="font-size:0.75rem;font-weight:700;color:#374151;">Leve</div>
           </label>
-          <label class="sensation-opt" id="sBom" onclick="selectSensation('bom')">
-            <input type="radio" name="sensation" value="bom">
-            <div style="font-size:1.3rem;margin-bottom:4px;">💪</div>
-            <div style="font-size:0.75rem;font-weight:700;color:#0A0A0A;">Bom</div>
+          <label class="fb-option sel" id="sIdeal" onclick="selSensation('ideal')">
+            <input type="radio" name="fbSensation" value="ideal" checked style="display:none;">
+            <div style="font-size:1.2rem;margin-bottom:3px;">🎯</div>
+            <div style="font-size:0.75rem;font-weight:700;color:#374151;">Ideal</div>
           </label>
-          <label class="sensation-opt" id="sRegular" onclick="selectSensation('regular')">
-            <input type="radio" name="sensation" value="regular">
-            <div style="font-size:1.3rem;margin-bottom:4px;">😐</div>
-            <div style="font-size:0.75rem;font-weight:700;color:#0A0A0A;">Regular</div>
-          </label>
-          <label class="sensation-opt" id="sRuim" onclick="selectSensation('ruim')">
-            <input type="radio" name="sensation" value="ruim">
-            <div style="font-size:1.3rem;margin-bottom:4px;">😓</div>
-            <div style="font-size:0.75rem;font-weight:700;color:#0A0A0A;">Ruim</div>
+          <label class="fb-option" id="sPesado" onclick="selSensation('pesado')">
+            <input type="radio" name="fbSensation" value="pesado" style="display:none;">
+            <div style="font-size:1.2rem;margin-bottom:3px;">🔥</div>
+            <div style="font-size:0.75rem;font-weight:700;color:#374151;">Pesado</div>
           </label>
         </div>
       </div>
 
       <!-- Dor -->
-      <div style="margin-bottom: 22px;">
-        <label style="display:block;font-size:0.78rem;font-weight:700;color:#374151;margin-bottom:10px;">Sentiu alguma dor?</label>
+      <div style="margin-bottom:20px;">
+        <label style="display:block;font-size:0.82rem;font-weight:700;color:#0A0A0A;margin-bottom:10px;">Sentiu dor ou desconforto?</label>
         <div style="display:flex;gap:10px;">
-          <button class="toggle-btn" id="painYes" onclick="setPain(true)">😣 Sim</button>
-          <button class="toggle-btn" id="painNo" onclick="setPain(false)">✓ Não</button>
+          <button class="fb-toggle" id="painYes" onclick="setPain(true)">😣 Sim</button>
+          <button class="fb-toggle" id="painNo" onclick="setPain(false)">✓ Não</button>
         </div>
-        <div id="painLocationGroup" style="margin-top:12px;display:none;">
-          <label style="display:block;font-size:0.78rem;font-weight:700;color:#374151;margin-bottom:7px;">Onde? <span style="color:#9CA3AF;font-weight:400;">(opcional)</span></label>
-          <input type="text" id="painLocation" style="width:100%;padding:11px 14px;border:2px solid #EBEBEB;border-radius:10px;font-size:0.875rem;outline:none;font-family:inherit;background:#FAFAFA;box-sizing:border-box;transition:border-color 0.2s;" placeholder="Ex: joelho esquerdo" onfocus="this.style.borderColor='#0A0A0A'" onblur="this.style.borderColor='#EBEBEB'">
+        <div id="painLocGroup" style="display:none;margin-top:12px;">
+          <label style="display:block;font-size:0.78rem;font-weight:700;color:#374151;margin-bottom:6px;">Local da dor</label>
+          <input type="text" id="painLoc" class="fb-input" placeholder="Ex: joelho esquerdo, ombro direito...">
         </div>
       </div>
 
       <!-- Comentário -->
-      <div style="margin-bottom: 24px;">
-        <label style="display:block;font-size:0.78rem;font-weight:700;color:#374151;margin-bottom:7px;">Comentário <span style="color:#9CA3AF;font-weight:400;">opcional</span></label>
-        <textarea id="feedbackComment" rows="3" style="width:100%;padding:11px 14px;border:2px solid #EBEBEB;border-radius:10px;font-size:0.875rem;outline:none;font-family:inherit;background:#FAFAFA;box-sizing:border-box;resize:vertical;transition:border-color 0.2s;" placeholder="Conte como foi o treino, dificuldades, observações..." onfocus="this.style.borderColor='#0A0A0A'" onblur="this.style.borderColor='#EBEBEB'"></textarea>
+      <div style="margin-bottom:22px;">
+        <label style="display:block;font-size:0.82rem;font-weight:700;color:#0A0A0A;margin-bottom:6px;">Comentário <span style="font-weight:400;color:#9CA3AF;">opcional</span></label>
+        <textarea id="fbComment" class="fb-input" rows="3" placeholder="Como foi o treino hoje? Dificuldades, observações..." style="resize:vertical;"></textarea>
       </div>
 
-      <div id="feedbackError" style="display:none;background:#FFF1F2;border:1px solid #FECDD3;border-radius:8px;padding:10px 13px;margin-bottom:14px;font-size:0.82rem;color:#BE123C;font-weight:500;"></div>
+      <div id="fbError" style="display:none;background:#FFF1F2;border:1px solid #FECDD3;border-radius:8px;padding:10px 13px;margin-bottom:14px;font-size:0.82rem;color:#BE123C;font-weight:500;"></div>
 
-      <button id="submitFeedbackBtn" style="width:100%;padding:14px;background:#00E676;color:#0A0A0A;border:none;border-radius:12px;font-size:0.95rem;font-weight:800;cursor:pointer;transition:all 0.25s cubic-bezier(0.4,0,0.2,1);font-family:inherit;" onmouseover="this.style.background='#00C853'" onmouseout="this.style.background='#00E676'">
+      <button id="fbSubmit" style="width:100%;padding:14px;background:#00E676;color:#0A0A0A;border:none;border-radius:12px;font-size:0.95rem;font-weight:800;cursor:pointer;transition:all 0.25s;font-family:inherit;" onmouseover="this.style.background='#00C853'" onmouseout="this.style.background='#00E676'">
         Enviar Feedback
       </button>
     </div>
@@ -131,173 +165,367 @@
 
 <script>
 (function() {
-  let currentWorkout = null;
-  let painValue = null;
-  let sensationValue = null;
 
-  document.getElementById('logoutBtn').onclick = async () => { await authManager.logout(); router.goToLogin(); };
-  document.getElementById('closeFeedbackModal').onclick = () => { document.getElementById('feedbackModal').style.display = 'none'; };
-  document.getElementById('feedbackModal').addEventListener('click', (e) => {
-    if (e.target === document.getElementById('feedbackModal')) document.getElementById('feedbackModal').style.display = 'none';
-  });
+  const DAYS_ORDER = ['monday','tuesday','wednesday','thursday','friday','saturday','sunday'];
+  const DAYS_PT = { monday:'Segunda', tuesday:'Terça', wednesday:'Quarta', thursday:'Quinta', friday:'Sexta', saturday:'Sábado', sunday:'Domingo' };
+  const DAYS_SHORT = { monday:'SEG', tuesday:'TER', wednesday:'QUA', thursday:'QUI', friday:'SEX', saturday:'SÁB', sunday:'DOM' };
 
-  document.getElementById('effortRange').addEventListener('input', (e) => {
-    document.getElementById('effortLabel').textContent = e.target.value;
-  });
+  // Dia atual (0=Dom, 1=Seg, ...)
+  const todayJS = new Date().getDay();
+  const jsToKey = { 0:'sunday', 1:'monday', 2:'tuesday', 3:'wednesday', 4:'thursday', 5:'friday', 6:'saturday' };
+  const todayKey = jsToKey[todayJS];
 
-  function selectSensation(val) {
-    sensationValue = val;
-    ['otimo','bom','regular','ruim'].forEach(s => {
-      document.getElementById('s' + s.charAt(0).toUpperCase() + s.slice(1)).classList.toggle('selected', s === val);
-    });
-  }
-  window.selectSensation = selectSensation;
+  // Estado
+  let workout = null;
+  let currentDay = null;
+  let checkedExercises = {}; // { dayKey: Set(indices) }
+  let fbPain = null;
+  let fbSensation = 'ideal';
+  let currentFbDay = null;
 
-  function setPain(val) {
-    painValue = val;
-    document.getElementById('painYes').className = 'toggle-btn' + (val ? ' active-yes' : '');
-    document.getElementById('painNo').className = 'toggle-btn' + (!val ? ' active-no' : '');
-    document.getElementById('painLocationGroup').style.display = val ? 'block' : 'none';
-  }
-  window.setPain = setPain;
-
-  window.openFeedbackModal = function() {
-    document.getElementById('feedbackModal').style.display = 'flex';
-    document.getElementById('effortRange').value = 5;
-    document.getElementById('effortLabel').textContent = '5';
-    painValue = null; sensationValue = null;
-    ['sOtimo','sBom','sRegular','sRuim'].forEach(id => document.getElementById(id).classList.remove('selected'));
-    document.getElementById('painYes').className = 'toggle-btn';
-    document.getElementById('painNo').className = 'toggle-btn';
-    document.getElementById('painLocationGroup').style.display = 'none';
-    document.getElementById('painLocation').value = '';
-    document.getElementById('feedbackComment').value = '';
-    document.getElementById('feedbackError').style.display = 'none';
+  // ── Logout ─────────────────────────────────────────────────────
+  document.getElementById('logoutBtn').onclick = async () => {
+    await authManager.logout();
+    router.goToLogin();
   };
 
-  document.getElementById('submitFeedbackBtn').onclick = async () => {
-    const errDiv = document.getElementById('feedbackError');
-    errDiv.style.display = 'none';
-    if (!sensationValue) { errDiv.textContent = 'Selecione a sensação geral.'; return errDiv.style.display = 'block'; }
-    if (painValue === null) { errDiv.textContent = 'Informe se sentiu dor.'; return errDiv.style.display = 'block'; }
+  // ── Obter workoutId ────────────────────────────────────────────
+  function getWorkoutId() {
+    // 1. sessionStorage (setado pelo dashboard)
+    const id = sessionStorage.getItem('viewWorkoutId');
+    if (id) return id;
+    // 2. Hash: #/student/view-workout/ID
+    const parts = (window.location.hash || '').replace('#','').split('/').filter(Boolean);
+    return parts[parts.length - 1] || '';
+  }
 
-    const btn = document.getElementById('submitFeedbackBtn');
-    btn.innerHTML = '<span style="display:inline-block;width:20px;height:20px;border:3px solid rgba(0,0,0,0.15);border-top-color:#0A0A0A;border-radius:50%;animation:spin 0.8s linear infinite;"></span>';
+  // ── Obter dia inicial ──────────────────────────────────────────
+  function getInitialDay(days) {
+    // Prefere o dia que foi clicado no dashboard
+    const fromDash = sessionStorage.getItem('viewWorkoutDay');
+    if (fromDash && days[fromDash] && days[fromDash].length > 0) return fromDash;
+    // Senão, hoje se tiver treino
+    if (days[todayKey] && days[todayKey].length > 0) return todayKey;
+    // Senão, primeiro dia com treino
+    return DAYS_ORDER.find(d => days[d] && days[d].length > 0) || DAYS_ORDER[0];
+  }
+
+  // ── Render completo ────────────────────────────────────────────
+  function renderPage() {
+    const main = document.getElementById('mainContent');
+    const days = workout.days || {};
+    const activeDays = DAYS_ORDER.filter(d => days[d] && days[d].length > 0);
+
+    // Inicializar checkedExercises
+    DAYS_ORDER.forEach(d => {
+      if (!checkedExercises[d]) checkedExercises[d] = new Set();
+    });
+
+    main.innerHTML = `
+      <!-- Título -->
+      <div style="margin-bottom:28px;">
+        <p style="color:#9CA3AF;font-size:0.72rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;margin:0 0 5px;">SEU TREINO</p>
+        <h1 style="font-size:1.7rem;font-weight:800;color:#0A0A0A;margin:0 0 6px;letter-spacing:-0.03em;">${workout.name}</h1>
+        <p style="font-size:0.85rem;color:#6B7280;margin:0;">${activeDays.length} dias ativos na semana</p>
+      </div>
+
+      <!-- Abas de dias -->
+      <div class="day-tabs" style="margin-bottom:24px;" id="dayTabs"></div>
+
+      <!-- Progresso do dia -->
+      <div id="dayProgress" style="margin-bottom:20px;"></div>
+
+      <!-- Exercícios do dia -->
+      <div id="dayExercises"></div>
+
+      <!-- Botão de Feedback -->
+      <div id="fbCta" style="margin-top:28px;"></div>
+    `;
+
+    renderTabs(activeDays, days);
+    renderDay(currentDay, days);
+  }
+
+  function renderTabs(activeDays, days) {
+    const tabsEl = document.getElementById('dayTabs');
+    tabsEl.innerHTML = DAYS_ORDER.map(d => {
+      const hasWorkout = days[d] && days[d].length > 0;
+      const isToday = d === todayKey;
+      const isActive = d === currentDay;
+      let cls = 'day-tab';
+      if (!hasWorkout) cls += ' rest';
+      if (isToday) cls += ' today';
+      if (isActive) cls += ' active';
+
+      return `<button class="${cls}" ${hasWorkout ? `onclick="switchDay('${d}')"` : 'disabled'}>
+        ${DAYS_SHORT[d]}
+        ${isToday ? '<span style="font-size:0.6rem;display:block;margin-top:1px;">hoje</span>' : ''}
+      </button>`;
+    }).join('');
+  }
+
+  function renderDay(dayKey, days) {
+    const exercises = (days && days[dayKey]) ? days[dayKey] : [];
+    const checked = checkedExercises[dayKey] || new Set();
+    const total = exercises.length;
+    const done = checked.size;
+    const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+
+    // Progresso
+    document.getElementById('dayProgress').innerHTML = total > 0 ? `
+      <div style="background:#fff;border:1px solid #EBEBEB;border-radius:12px;padding:14px 18px;display:flex;align-items:center;gap:14px;">
+        <div style="flex:1;">
+          <div style="display:flex;justify-content:space-between;margin-bottom:7px;">
+            <span style="font-size:0.78rem;font-weight:700;color:#374151;">${DAYS_PT[dayKey]}</span>
+            <span style="font-size:0.78rem;font-weight:700;color:${pct===100?'#059669':'#6B7280'};">${done}/${total} exercícios</span>
+          </div>
+          <div class="progress-bar-bg">
+            <div class="progress-bar-fill" style="width:${pct}%;"></div>
+          </div>
+        </div>
+        ${pct === 100 ? `<span style="font-size:1.4rem;">🎉</span>` : ''}
+      </div>
+    ` : '';
+
+    // Exercícios
+    if (exercises.length === 0) {
+      document.getElementById('dayExercises').innerHTML = `
+        <div style="text-align:center;padding:40px 20px;background:#fff;border-radius:16px;border:2px dashed #E5E7EB;">
+          <p style="font-size:1rem;font-weight:600;color:#374151;margin:0 0 4px;">Dia de descanso</p>
+          <p style="font-size:0.85rem;color:#9CA3AF;margin:0;">Nenhum exercício para hoje</p>
+        </div>`;
+      document.getElementById('fbCta').innerHTML = '';
+      return;
+    }
+
+    document.getElementById('dayExercises').innerHTML = exercises.map((ex, idx) => {
+      const isDone = checked.has(idx);
+      const name = ex.exerciseName || ex.name || 'Exercício';
+      const muscle = ex.muscleGroup || ex.muscle || '';
+      const sets = ex.sets || '—';
+      const reps = ex.reps || '—';
+      const rest = ex.rest || '';
+      const obs = ex.obs || ex.notes || '';
+      const video = ex.videoUrl || ex.video || '';
+
+      return `
+        <div class="ex-card ${isDone ? 'done' : ''}" id="ex-card-${idx}" style="margin-bottom:12px;">
+          <div class="ex-card-body">
+            <!-- Nome + grupo -->
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:12px;">
+              <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;">
+                <span style="width:30px;height:30px;border-radius:8px;background:${isDone?'#00E676':'#0A0A0A'};color:${isDone?'#0A0A0A':'#fff'};display:flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:800;flex-shrink:0;">${isDone?'✓':idx+1}</span>
+                <h3 style="font-size:0.95rem;font-weight:700;color:#0A0A0A;margin:0;line-height:1.3;">${name}</h3>
+              </div>
+              ${muscle ? `<span class="ex-chip" style="background:#F4F4F4;color:#374151;flex-shrink:0;">${muscle}</span>` : ''}
+            </div>
+
+            <!-- Chips de séries/reps/descanso -->
+            <div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:${video||obs?'14px':'12px'};">
+              <span class="ex-chip" style="background:#0A0A0A;color:#fff;">${sets} séries × ${reps}</span>
+              ${rest ? `<span class="ex-chip" style="background:#F4F4F4;color:#6B7280;">⏱ ${rest}</span>` : ''}
+            </div>
+
+            <!-- Observação -->
+            ${obs ? `
+              <div style="background:#FFFBEB;border:1px solid #FDE68A;border-radius:8px;padding:9px 12px;margin-bottom:12px;display:flex;gap:7px;align-items:flex-start;">
+                <span style="font-size:0.85rem;flex-shrink:0;">💡</span>
+                <p style="font-size:0.8rem;color:#92400E;margin:0;line-height:1.5;">${obs}</p>
+              </div>
+            ` : ''}
+
+            <!-- Vídeo embed -->
+            ${video ? `
+              <div class="video-wrap">
+                <iframe src="${video}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen loading="lazy"></iframe>
+              </div>
+            ` : ''}
+
+            <!-- Botão marcar -->
+            <div style="margin-top:14px;">
+              <button class="check-btn ${isDone ? 'check-btn-done' : 'check-btn-todo'}"
+                onclick="toggleCheck('${dayKey}', ${idx})">
+                ${isDone
+                  ? `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Concluído`
+                  : `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 8 12 12 14 14"/></svg> Marcar como feito`
+                }
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    // CTA Feedback
+    renderFbCta(dayKey, done, total);
+  }
+
+  function renderFbCta(dayKey, done, total) {
+    const ctaEl = document.getElementById('fbCta');
+    if (total === 0) { ctaEl.innerHTML = ''; return; }
+
+    ctaEl.innerHTML = `
+      <div style="background:#fff;border:1px solid #EBEBEB;border-radius:16px;padding:20px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;">
+        <div>
+          <p style="font-size:0.95rem;font-weight:700;color:#0A0A0A;margin:0 0 3px;">
+            ${done === total ? '🎉 Treino concluído!' : `${done} de ${total} exercícios feitos`}
+          </p>
+          <p style="font-size:0.82rem;color:#6B7280;margin:0;">Envie seu feedback para o personal</p>
+        </div>
+        <button onclick="openFeedback('${dayKey}')"
+          style="padding:12px 22px;background:#00E676;color:#0A0A0A;border:none;border-radius:12px;font-size:0.875rem;font-weight:800;cursor:pointer;transition:all 0.25s;display:flex;align-items:center;gap:7px;font-family:inherit;white-space:nowrap;"
+          onmouseover="this.style.background='#00C853';this.style.boxShadow='0 6px 20px rgba(0,230,118,0.35)'"
+          onmouseout="this.style.background='#00E676';this.style.boxShadow='none'">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          Enviar Feedback
+        </button>
+      </div>
+    `;
+  }
+
+  // ── Trocar dia ─────────────────────────────────────────────────
+  window.switchDay = function(dayKey) {
+    currentDay = dayKey;
+    renderTabs(DAYS_ORDER.filter(d => workout.days[d]?.length > 0), workout.days);
+    renderDay(dayKey, workout.days);
+  };
+
+  // ── Marcar/desmarcar exercício ─────────────────────────────────
+  window.toggleCheck = function(dayKey, idx) {
+    if (!checkedExercises[dayKey]) checkedExercises[dayKey] = new Set();
+    const set = checkedExercises[dayKey];
+    if (set.has(idx)) set.delete(idx);
+    else set.add(idx);
+    renderDay(dayKey, workout.days);
+    // Manter scroll position
+  };
+
+  // ── Feedback modal ─────────────────────────────────────────────
+  window.openFeedback = function(dayKey) {
+    currentFbDay = dayKey;
+    fbPain = null;
+    fbSensation = 'ideal';
+    // Reset UI
+    document.getElementById('effortRange').value = 5;
+    document.getElementById('effortVal').textContent = '5';
+    ['sLeve','sIdeal','sPesado'].forEach(id => document.getElementById(id).classList.remove('sel'));
+    document.getElementById('sIdeal').classList.add('sel');
+    document.getElementById('painYes').className = 'fb-toggle';
+    document.getElementById('painNo').className = 'fb-toggle';
+    document.getElementById('painLocGroup').style.display = 'none';
+    document.getElementById('painLoc').value = '';
+    document.getElementById('fbComment').value = '';
+    document.getElementById('fbError').style.display = 'none';
+    document.getElementById('fbOverlay').classList.add('open');
+  };
+
+  function closeFeedback() {
+    document.getElementById('fbOverlay').classList.remove('open');
+  }
+
+  document.getElementById('fbClose').onclick = closeFeedback;
+  document.getElementById('fbOverlay').addEventListener('click', e => {
+    if (e.target === document.getElementById('fbOverlay')) closeFeedback();
+  });
+
+  document.getElementById('effortRange').addEventListener('input', e => {
+    document.getElementById('effortVal').textContent = e.target.value;
+  });
+
+  window.selSensation = function(val) {
+    fbSensation = val;
+    ['sLeve','sIdeal','sPesado'].forEach(id => document.getElementById(id).classList.remove('sel'));
+    document.getElementById({ leve:'sLeve', ideal:'sIdeal', pesado:'sPesado' }[val]).classList.add('sel');
+  };
+
+  window.setPain = function(val) {
+    fbPain = val;
+    document.getElementById('painYes').className = 'fb-toggle' + (val ? ' sel-yes' : '');
+    document.getElementById('painNo').className = 'fb-toggle' + (!val ? ' sel-no' : '');
+    document.getElementById('painLocGroup').style.display = val ? 'block' : 'none';
+  };
+
+  document.getElementById('fbSubmit').onclick = async () => {
+    const errDiv = document.getElementById('fbError');
+    errDiv.style.display = 'none';
+
+    if (fbPain === null) {
+      errDiv.textContent = 'Informe se sentiu dor.';
+      return errDiv.style.display = 'block';
+    }
+
+    const btn = document.getElementById('fbSubmit');
+    btn.innerHTML = '<span style="display:inline-block;width:18px;height:18px;border:3px solid rgba(0,0,0,0.15);border-top-color:#0A0A0A;border-radius:50%;animation:spin 0.8s linear infinite;"></span>';
     btn.disabled = true;
 
     try {
-      const data = {
-        workoutId: currentWorkout?.id,
-        workoutName: currentWorkout?.name,
-        effort: +document.getElementById('effortRange').value,
-        sensation: sensationValue,
-        hasPain: painValue,
-        painLocation: painValue ? document.getElementById('painLocation').value.trim() : '',
-        comment: document.getElementById('feedbackComment').value.trim(),
-        date: new Date().toISOString()
-      };
-      const result = await dbManager.submitFeedback(data);
+      const result = await dbManager.createFeedback({
+        workoutId: workout.id,
+        dayOfWeek: currentFbDay,
+        effortLevel: parseInt(document.getElementById('effortRange').value),
+        sensation: fbSensation,
+        hasPain: fbPain,
+        painLocation: fbPain ? document.getElementById('painLoc').value.trim() : '',
+        comment: document.getElementById('fbComment').value.trim(),
+      });
+
       if (result.success !== false) {
-        document.getElementById('feedbackModal').style.display = 'none';
-        // Show success toast
-        const toast = document.createElement('div');
-        toast.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#0A0A0A;color:#fff;padding:13px 22px;border-radius:12px;font-size:0.875rem;font-weight:600;z-index:999;box-shadow:0 8px 32px rgba(0,0,0,0.2);display:flex;align-items:center;gap:8px;';
-        toast.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#00E676" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Feedback enviado com sucesso!';
-        document.body.appendChild(toast);
-        setTimeout(() => toast.remove(), 3000);
+        closeFeedback();
+        // Toast
+        const t = document.createElement('div');
+        t.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#0A0A0A;color:#fff;padding:12px 22px;border-radius:12px;font-size:0.875rem;font-weight:600;z-index:999;box-shadow:0 8px 32px rgba(0,0,0,0.2);display:flex;align-items:center;gap:8px;white-space:nowrap;';
+        t.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#00E676" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Feedback enviado!';
+        document.body.appendChild(t);
+        setTimeout(() => t.remove(), 3000);
       } else {
-        errDiv.textContent = result.error || 'Erro ao enviar feedback.';
+        errDiv.textContent = result.error || 'Erro ao enviar. Tente novamente.';
         errDiv.style.display = 'block';
       }
     } catch(e) {
-      errDiv.textContent = 'Erro inesperado. Tente novamente.';
+      errDiv.textContent = 'Erro inesperado: ' + e.message;
       errDiv.style.display = 'block';
     }
-    btn.textContent = 'Enviar Feedback';
+
+    btn.innerHTML = 'Enviar Feedback';
     btn.disabled = false;
     btn.onmouseover = () => btn.style.background = '#00C853';
     btn.onmouseout = () => btn.style.background = '#00E676';
   };
 
-  async function loadWorkout() {
-    const workoutId = router.getCurrentWorkoutId ? router.getCurrentWorkoutId() : (window.location.hash.split('/').pop() || '');
-    const main = document.getElementById('mainContent');
+  // ── Init ───────────────────────────────────────────────────────
+  async function init() {
+    const workoutId = getWorkoutId();
+
+    if (!workoutId) {
+      document.getElementById('mainContent').innerHTML =
+        '<p style="text-align:center;color:#BE123C;padding:80px;">Treino não encontrado. <button onclick="router.goToStudentDashboard()" style="background:#0A0A0A;color:#fff;border:none;padding:8px 16px;border-radius:8px;cursor:pointer;margin-left:8px;">Voltar</button></p>';
+      return;
+    }
+
     try {
-      currentWorkout = await dbManager.getWorkoutById(workoutId);
-      if (!currentWorkout) {
-        main.innerHTML = '<p style="text-align:center;color:#BE123C;padding:64px;">Treino não encontrado.</p>';
+      workout = await dbManager.getWorkout(workoutId);
+
+      if (!workout) {
+        document.getElementById('mainContent').innerHTML =
+          '<p style="text-align:center;color:#BE123C;padding:80px;">Treino não encontrado.</p>';
         return;
       }
 
-      const exercises = currentWorkout.exercises || [];
-      main.innerHTML = `
-        <!-- Workout Header -->
-        <div style="margin-bottom:32px;">
-          <p style="color:#9CA3AF;font-size:0.75rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;margin:0 0 6px;">TREINO</p>
-          <h1 style="font-size:1.9rem;font-weight:800;color:#0A0A0A;margin:0 0 12px;letter-spacing:-0.03em;">${currentWorkout.name}</h1>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;">
-            ${(currentWorkout.days||[]).map(d => `<span style="padding:5px 12px;border-radius:8px;font-size:0.78rem;font-weight:700;background:#F4F4F4;color:#374151;">${d}</span>`).join('')}
-          </div>
-        </div>
+      // Limpar sessionStorage
+      sessionStorage.removeItem('viewWorkoutId');
+      sessionStorage.removeItem('viewWorkoutDay');
 
-        <!-- Stats bar -->
-        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:32px;">
-          <div class="stat-chip">
-            <p style="color:#9CA3AF;font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;margin:0 0 4px;">Exercícios</p>
-            <p style="font-size:1.4rem;font-weight:800;color:#0A0A0A;margin:0;">${exercises.length}</p>
-          </div>
-          <div class="stat-chip">
-            <p style="color:#9CA3AF;font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;margin:0 0 4px;">Séries total</p>
-            <p style="font-size:1.4rem;font-weight:800;color:#0A0A0A;margin:0;">${exercises.reduce((s,e)=>s+(+e.sets||0),0)}</p>
-          </div>
-          <div class="stat-chip">
-            <p style="color:#9CA3AF;font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;margin:0 0 4px;">Grupos</p>
-            <p style="font-size:1.4rem;font-weight:800;color:#0A0A0A;margin:0;">${new Set(exercises.map(e=>e.muscleGroup)).size}</p>
-          </div>
-        </div>
+      currentDay = getInitialDay(workout.days || {});
+      renderPage();
 
-        <!-- Exercises list -->
-        <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:36px;">
-          ${exercises.map((ex, idx) => `
-            <div class="exercise-item">
-              <div style="padding:18px 20px;">
-                <div style="display:flex;align-items:flex-start;gap:14px;">
-                  <span style="background:#0A0A0A;color:#00E676;min-width:28px;height:28px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:800;flex-shrink:0;">${idx+1}</span>
-                  <div style="flex:1;min-width:0;">
-                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:6px;">
-                      <h3 style="font-size:0.95rem;font-weight:700;color:#0A0A0A;margin:0;">${ex.exerciseName||ex.name||'Exercício'}</h3>
-                      ${ex.muscleGroup ? `<span style="font-size:0.7rem;font-weight:700;padding:3px 8px;border-radius:6px;background:#F4F4F4;color:#374151;">${ex.muscleGroup}</span>` : ''}
-                    </div>
-                    <div style="display:flex;gap:8px;flex-wrap:wrap;">
-                      <span style="background:#F4F4F4;padding:6px 12px;border-radius:8px;font-size:0.78rem;font-weight:700;color:#374151;">${ex.sets||3} séries</span>
-                      <span style="background:#F4F4F4;padding:6px 12px;border-radius:8px;font-size:0.78rem;font-weight:700;color:#374151;">${ex.reps||12} reps</span>
-                      ${ex.rest ? `<span style="background:#F4F4F4;padding:6px 12px;border-radius:8px;font-size:0.78rem;font-weight:600;color:#6B7280;">⏱ ${ex.rest}</span>` : ''}
-                      ${ex.obs ? `<span style="background:rgba(0,230,118,0.08);border:1px solid rgba(0,230,118,0.2);padding:6px 12px;border-radius:8px;font-size:0.78rem;font-weight:600;color:#065F46;">${ex.obs}</span>` : ''}
-                    </div>
-                    ${ex.videoUrl ? `<a href="${ex.videoUrl}" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:5px;margin-top:10px;font-size:0.75rem;font-weight:600;color:#6B7280;text-decoration:none;background:#F4F4F4;padding:5px 10px;border-radius:7px;transition:background 0.2s;" onmouseover="this.style.background='#EBEBEB'" onmouseout="this.style.background='#F4F4F4'"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg> Ver vídeo</a>` : ''}
-                  </div>
-                </div>
-              </div>
-            </div>`).join('')}
-        </div>
-
-        <!-- Feedback CTA -->
-        <div style="background:#FAFAFA;border:1px solid #EBEBEB;border-radius:16px;padding:24px;display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;">
-          <div>
-            <p style="font-size:0.95rem;font-weight:700;color:#0A0A0A;margin:0 0 4px;">Treino concluído?</p>
-            <p style="font-size:0.85rem;color:#6B7280;margin:0;">Envie seu feedback para o personal trainer</p>
-          </div>
-          <button class="feedback-btn" onclick="openFeedbackModal()">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-            Enviar Feedback
-          </button>
-        </div>
-      `;
     } catch(e) {
-      main.innerHTML = '<p style="text-align:center;color:#BE123C;padding:64px;">Erro ao carregar treino.</p>';
+      console.error('Erro ao carregar treino:', e);
+      document.getElementById('mainContent').innerHTML =
+        `<p style="text-align:center;color:#BE123C;padding:80px;">Erro ao carregar treino: ${e.message}</p>`;
     }
   }
 
-  loadWorkout();
+  init();
+
 })();
 </script>

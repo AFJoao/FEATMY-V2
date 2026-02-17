@@ -6,14 +6,16 @@
   <style>
     .nav-link { color: rgba(255,255,255,0.75); font-weight: 500; font-size: 0.875rem; padding: 8px 16px; border-radius: 8px; border: 1px solid transparent; transition: all 0.2s ease; display: flex; align-items: center; gap: 7px; text-decoration: none; white-space: nowrap; cursor: pointer; background: transparent; }
     .nav-link:hover { color: #fff; background: rgba(255,255,255,0.09); border-color: rgba(255,255,255,0.15); }
-    .nav-link-accent { background: #00E676; color: #0A0A0A; font-weight: 700; padding: 8px 18px; border-radius: 8px; font-size: 0.875rem; transition: all 0.2s ease; display: flex; align-items: center; gap: 7px; text-decoration: none; white-space: nowrap; border: none; cursor: pointer; font-family: inherit; }
+    .nav-link-accent { background: #00E676; color: #0A0A0A; font-weight: 700; padding: 8px 18px; border-radius: 8px; font-size: 0.875rem; transition: all 0.2s ease; display: inline-flex; align-items: center; gap: 7px; text-decoration: none; white-space: nowrap; border: none; cursor: pointer; font-family: inherit; }
     .nav-link-accent:hover { background: #00C853; box-shadow: 0 4px 16px rgba(0,230,118,0.3); }
     .workout-card { background: #fff; border: 1px solid #EBEBEB; border-radius: 16px; transition: all 0.25s cubic-bezier(0.4,0,0.2,1); overflow: hidden; }
     .workout-card:hover { border-color: #00E676; transform: translateY(-2px); box-shadow: 0 12px 32px rgba(0,0,0,0.08); }
-    .day-badge { padding: 4px 10px; border-radius: 6px; font-size: 0.72rem; font-weight: 700; background: #F4F4F4; color: #374151; }
     .spinner { width: 28px; height: 28px; border: 3px solid rgba(0,0,0,0.08); border-top-color: #00E676; border-radius: 50%; animation: spin 0.8s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
     .stat-box { background: #F8F9FA; border-radius: 12px; padding: 16px 18px; }
+    .day-tag { display: inline-flex; align-items: center; padding: 4px 10px; border-radius: 6px; font-size: 0.72rem; font-weight: 700; background: #F4F4F4; color: #374151; }
+    .ex-row { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid #F4F4F4; }
+    .ex-row:last-child { border-bottom: none; }
   </style>
 
   <!-- HEADER -->
@@ -27,10 +29,6 @@
         <img src="assets/branca_larga.png" alt="Featym" style="height: 26px; object-fit: contain;" onerror="this.style.display='none'">
       </div>
       <nav style="display: flex; align-items: center; gap: 6px;">
-        <a href="#/personal/create-workout" class="nav-link-accent">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          Novo Treino
-        </a>
         <a href="#/personal/feedbacks" class="nav-link">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
           Feedbacks
@@ -50,7 +48,7 @@
     <div style="background: #0A0A0A; border-radius: 20px; padding: 32px; margin-bottom: 32px; position: relative; overflow: hidden;">
       <div style="position: absolute; inset: 0; background: radial-gradient(ellipse at 80% 50%, rgba(0,230,118,0.06) 0%, transparent 60%); pointer-events: none;"></div>
       <div style="position: relative; display: flex; align-items: center; gap: 20px; flex-wrap: wrap;">
-        <div id="studentAvatar" style="width: 60px; height: 60px; background: rgba(0,230,118,0.15); border-radius: 16px; display: flex; align-items: center; justify-content: center; border: 1px solid rgba(0,230,118,0.25); flex-shrink: 0;">
+        <div style="width: 60px; height: 60px; background: rgba(0,230,118,0.15); border-radius: 16px; display: flex; align-items: center; justify-content: center; border: 1px solid rgba(0,230,118,0.25); flex-shrink: 0;">
           <span id="avatarInitials" style="color: #00E676; font-size: 1.3rem; font-weight: 800;">—</span>
         </div>
         <div style="flex: 1; min-width: 0;">
@@ -74,14 +72,14 @@
     <!-- Workouts Section -->
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
       <h2 style="font-size: 1.25rem; font-weight: 700; color: #0A0A0A; margin: 0; letter-spacing: -0.02em;">Treinos do Aluno</h2>
-      <a href="#/personal/create-workout" class="nav-link-accent" style="font-size: 0.8rem; padding: 8px 16px;">
+      <button id="createWorkoutBtn" class="nav-link-accent" style="font-size: 0.8rem; padding: 8px 16px;">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         Criar Treino
-      </a>
+      </button>
     </div>
 
-    <div id="workoutsList" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px;">
-      <div style="grid-column:1/-1;text-align:center;padding:64px 20px;">
+    <div id="workoutsList" style="display: flex; flex-direction: column; gap: 16px;">
+      <div style="text-align:center;padding:64px 20px;">
         <div class="spinner" style="margin:0 auto 16px;"></div>
         <p style="color:#9CA3AF;font-size:0.875rem;margin:0;">Carregando treinos...</p>
       </div>
@@ -92,72 +90,196 @@
 
 <script>
 (function() {
-  const dayColors = { 'Segunda': '#DBEAFE', 'Terça': '#EDE9FE', 'Quarta': '#D1FAE5', 'Quinta': '#FEF3C7', 'Sexta': '#FCE7F3', 'Sábado': '#FFF7ED', 'Domingo': '#FEE2E2' };
-  const dayText = { 'Segunda': '#1E40AF', 'Terça': '#5B21B6', 'Quarta': '#065F46', 'Quinta': '#92400E', 'Sexta': '#9D174D', 'Sábado': '#9A3412', 'Domingo': '#991B1B' };
 
-  document.getElementById('logoutBtn').onclick = async () => { await authManager.logout(); router.goToLogin(); };
+  const DAYS_PT = {
+    monday: 'Segunda',
+    tuesday: 'Terça',
+    wednesday: 'Quarta',
+    thursday: 'Quinta',
+    friday: 'Sexta',
+    saturday: 'Sábado',
+    sunday: 'Domingo'
+  };
 
-  // Get studentId from route
-  const studentId = router.getCurrentStudentId ? router.getCurrentStudentId() : (window.location.hash.split('/').pop() || '');
+  const DAYS_ORDER = ['monday','tuesday','wednesday','thursday','friday','saturday','sunday'];
 
-  async function loadStudent() {
-    try {
-      const student = await dbManager.getStudentById(studentId);
-      if (!student) return;
-      const initials = (student.name || 'A').split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
-      document.getElementById('avatarInitials').textContent = initials;
-      document.getElementById('studentName').textContent = student.name;
-      document.getElementById('studentEmail').textContent = student.email;
-    } catch(e) {}
+  // ── Obter studentId da URL de forma robusta ──────────────────────
+  function getStudentId() {
+    // 1. Parâmetros da rota (definidos pelo router)
+    if (window.routeParams && window.routeParams.id) {
+      return window.routeParams.id;
+    }
+    // 2. Hash da URL: #/personal/student/UID
+    const hash = window.location.hash || '';
+    const parts = hash.replace('#', '').split('/').filter(Boolean);
+    const idx = parts.indexOf('student');
+    if (idx !== -1 && parts[idx + 1]) {
+      return parts[idx + 1];
+    }
+    // 3. sessionStorage como fallback
+    return sessionStorage.getItem('currentStudentId') || '';
   }
 
+  const studentId = getStudentId();
+  console.log('StudentID resolvido:', studentId);
+
+  // ── Logout ───────────────────────────────────────────────────────
+  document.getElementById('logoutBtn').onclick = async () => {
+    await authManager.logout();
+    router.goToLogin();
+  };
+
+  // ── Criar treino (pré-seleciona o aluno) ─────────────────────────
+  document.getElementById('createWorkoutBtn').onclick = () => {
+    if (studentId) sessionStorage.setItem('preSelectedStudent', studentId);
+    router.goTo('/personal/create-workout');
+  };
+
+  // ── Carregar dados do aluno ──────────────────────────────────────
+  async function loadStudent() {
+    if (!studentId) return;
+    try {
+      const student = await dbManager.getUserData(studentId);
+      if (!student) return;
+      const initials = (student.name || 'A')
+        .split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
+      document.getElementById('avatarInitials').textContent = initials;
+      document.getElementById('studentName').textContent = student.name || '—';
+      document.getElementById('studentEmail').textContent = student.email || '';
+    } catch(e) {
+      console.error('Erro ao carregar aluno:', e);
+    }
+  }
+
+  // ── Carregar treinos ─────────────────────────────────────────────
   async function loadWorkouts() {
     const list = document.getElementById('workoutsList');
+
+    if (!studentId) {
+      list.innerHTML = `<div style="text-align:center;padding:48px;color:#BE123C;">ID do aluno não encontrado. Volte e tente novamente.</div>`;
+      return;
+    }
+
     try {
       const workouts = await dbManager.getStudentWorkouts(studentId) || [];
       document.getElementById('workoutsCount').textContent = workouts.length;
 
       if (workouts.length === 0) {
         list.innerHTML = `
-          <div style="grid-column:1/-1;padding:48px 32px;background:#FAFAFA;border-radius:16px;border:2px dashed #E5E7EB;text-align:center;">
+          <div style="padding:48px 32px;background:#FAFAFA;border-radius:16px;border:2px dashed #E5E7EB;text-align:center;">
+            <div style="width:48px;height:48px;background:#F4F4F4;border-radius:12px;margin:0 auto 14px;display:flex;align-items:center;justify-content:center;">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            </div>
             <p style="font-size:1rem;font-weight:600;color:#374151;margin:0 0 6px;">Nenhum treino cadastrado</p>
-            <p style="font-size:0.85rem;color:#9CA3AF;margin:0 0 16px;">Crie o primeiro treino para este aluno</p>
-            <a href="#/personal/create-workout" class="nav-link-accent" style="display:inline-flex;font-size:0.8rem;padding:8px 18px;">
+            <p style="font-size:0.85rem;color:#9CA3AF;margin:0 0 18px;">Crie o primeiro treino para este aluno</p>
+            <button onclick="document.getElementById('createWorkoutBtn').click()" class="nav-link-accent" style="margin:0 auto;">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
               Criar Treino
-            </a>
+            </button>
           </div>`;
         return;
       }
 
       list.innerHTML = '';
+
       workouts.forEach(w => {
+        // Calcular dias ativos e total de exercícios
+        const days = w.days || {};
+        const activeDays = DAYS_ORDER.filter(d => days[d] && days[d].length > 0);
+        const totalExercises = activeDays.reduce((sum, d) => sum + (days[d]?.length || 0), 0);
+
         const card = document.createElement('div');
         card.className = 'workout-card';
-        const days = (w.days || []).slice(0, 4);
-        const moreDays = (w.days || []).length - 4;
+
+        // Montar preview dos dias com exercícios
+        const daysPreviewHtml = activeDays.map(d => {
+          const exList = days[d] || [];
+          return `
+            <div style="flex:1;min-width:140px;">
+              <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">
+                <span class="day-tag">${DAYS_PT[d]}</span>
+                <span style="font-size:0.7rem;color:#9CA3AF;">${exList.length} ex.</span>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:3px;">
+                ${exList.slice(0,3).map(ex => `
+                  <div class="ex-row">
+                    <span style="width:5px;height:5px;border-radius:50%;background:#00E676;flex-shrink:0;"></span>
+                    <span style="font-size:0.78rem;color:#374151;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+                      ${ex.exerciseName || ex.name || '—'}
+                    </span>
+                    <span style="font-size:0.7rem;color:#9CA3AF;margin-left:auto;flex-shrink:0;">${ex.sets||'?'}×${ex.reps||'?'}</span>
+                  </div>
+                `).join('')}
+                ${exList.length > 3 ? `<span style="font-size:0.72rem;color:#9CA3AF;padding-top:2px;">+${exList.length - 3} mais</span>` : ''}
+              </div>
+            </div>
+          `;
+        }).join('');
+
         card.innerHTML = `
-          <div style="padding:20px 20px 16px;">
-            <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;">
-              <h3 style="font-size:0.95rem;font-weight:700;color:#0A0A0A;margin:0;line-height:1.4;flex:1;">${w.name}</h3>
+          <div style="padding:20px 22px 16px;">
+            <!-- Header do treino -->
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;gap:12px;">
+              <div style="flex:1;min-width:0;">
+                <h3 style="font-size:1rem;font-weight:700;color:#0A0A0A;margin:0 0 6px;line-height:1.3;">${w.name}</h3>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+                  <span style="font-size:0.75rem;color:#6B7280;">${activeDays.length} dia${activeDays.length !== 1 ? 's' : ''} ativos</span>
+                  <span style="color:#D1D5DB;font-size:0.7rem;">•</span>
+                  <span style="font-size:0.75rem;color:#6B7280;">${totalExercises} exercício${totalExercises !== 1 ? 's' : ''}</span>
+                </div>
+              </div>
+              <div style="display:flex;gap:8px;flex-shrink:0;">
+                <button onclick="editWorkout('${w.id}')"
+                  style="padding:7px 14px;background:#F4F4F4;border:none;border-radius:8px;font-size:0.78rem;font-weight:600;color:#374151;cursor:pointer;transition:all 0.2s;font-family:inherit;"
+                  onmouseover="this.style.background='#EBEBEB'" onmouseout="this.style.background='#F4F4F4'">
+                  ✏️ Editar
+                </button>
+                <button onclick="deleteWorkout('${w.id}', '${(w.name||'').replace(/'/g,"\\'")}')"
+                  style="padding:7px 14px;background:#FEF2F2;border:none;border-radius:8px;font-size:0.78rem;font-weight:600;color:#DC2626;cursor:pointer;transition:all 0.2s;font-family:inherit;"
+                  onmouseover="this.style.background='#FECACA'" onmouseout="this.style.background='#FEF2F2'">
+                  🗑️ Remover
+                </button>
+              </div>
             </div>
-            <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;">
-              ${days.map(d => `<span class="day-badge" style="background:${dayColors[d]||'#F4F4F4'};color:${dayText[d]||'#374151'};">${d.slice(0,3)}</span>`).join('')}
-              ${moreDays > 0 ? `<span class="day-badge">+${moreDays}</span>` : ''}
-            </div>
-            <div style="display:flex;justify-content:space-between;align-items:center;">
-              <span style="font-size:0.78rem;color:#9CA3AF;">${(w.exercises||[]).length} exercício${(w.exercises||[]).length !== 1 ? 's' : ''}</span>
-              <button onclick="router.goTo('/personal/workout/${w.id}')" style="background:#F4F4F4;border:none;padding:7px 14px;border-radius:8px;font-size:0.78rem;font-weight:600;color:#374151;cursor:pointer;transition:all 0.2s;font-family:inherit;" onmouseover="this.style.background='#EBEBEB'" onmouseout="this.style.background='#F4F4F4'">Ver detalhes →</button>
-            </div>
-          </div>`;
+
+            <!-- Dias + Exercícios -->
+            ${activeDays.length > 0 ? `
+              <div style="border-top:1px solid #F4F4F4;padding-top:14px;display:flex;flex-wrap:wrap;gap:16px;">
+                ${daysPreviewHtml}
+              </div>
+            ` : `<p style="color:#9CA3AF;font-size:0.82rem;margin:0;">Nenhum exercício adicionado ainda.</p>`}
+          </div>
+        `;
+
         list.appendChild(card);
       });
+
     } catch(e) {
-      list.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:48px;"><p style="color:#BE123C;">Erro ao carregar treinos.</p></div>`;
+      console.error('Erro ao carregar treinos:', e);
+      list.innerHTML = `<div style="text-align:center;padding:48px;color:#BE123C;">Erro ao carregar treinos: ${e.message}</div>`;
     }
   }
 
+  // ── Editar treino ────────────────────────────────────────────────
+  window.editWorkout = function(workoutId) {
+    sessionStorage.setItem('editWorkoutId', workoutId);
+    router.goTo('/personal/create-workout');
+  };
+
+  // ── Deletar treino ───────────────────────────────────────────────
+  window.deleteWorkout = async function(workoutId, workoutName) {
+    if (!confirm(`Remover o treino "${workoutName}"? Esta ação não pode ser desfeita.`)) return;
+    try {
+      await dbManager.deleteWorkout(workoutId);
+      await loadWorkouts();
+    } catch(e) {
+      alert('Erro ao remover treino: ' + e.message);
+    }
+  };
+
+  // ── Init ─────────────────────────────────────────────────────────
   loadStudent();
   loadWorkouts();
+
 })();
 </script>

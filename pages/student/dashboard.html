@@ -327,6 +327,19 @@ if (typeof window.feedbackModel === 'undefined') {
   };
   const daysOrder = ['monday','tuesday','wednesday','thursday','friday','saturday','sunday'];
 
+  // Mapa: índice JS (getDay()) → chave do dia
+  // 0=Dom, 1=Seg, 2=Ter, 3=Qua, 4=Qui, 5=Sex, 6=Sáb
+  const jsToKey = {
+    0: 'sunday',
+    1: 'monday',
+    2: 'tuesday',
+    3: 'wednesday',
+    4: 'thursday',
+    5: 'friday',
+    6: 'saturday'
+  };
+  const todayKey = jsToKey[new Date().getDay()];
+
   await new Promise(resolve => document.readyState === 'loading' ? document.addEventListener('DOMContentLoaded', resolve) : resolve());
   await new Promise(resolve => setTimeout(resolve, 100));
 
@@ -338,8 +351,10 @@ if (typeof window.feedbackModel === 'undefined') {
     });
   }
 
-  window.viewWorkoutFunc = function(workoutId) {
+  // Navegar para o treino abrindo direto no dia clicado
+  window.viewWorkoutFunc = function(workoutId, dayKey) {
     sessionStorage.setItem('viewWorkoutId', workoutId);
+    if (dayKey) sessionStorage.setItem('viewWorkoutDay', dayKey);
     router.goToViewWorkout();
   };
 
@@ -352,7 +367,7 @@ if (typeof window.feedbackModel === 'undefined') {
   async function loadWorkouts() {
     const workouts = await dbManager.getStudentWorkouts();
     const weeklyContainer = document.getElementById('weeklyWorkouts');
-    
+
     if (!workouts || workouts.length === 0) {
       weeklyContainer.innerHTML = `
         <div style="grid-column:1/-1;text-align:center;padding:60px 20px;background:#FAFAFA;border-radius:16px;border:2px dashed #E5E7EB;">
@@ -366,24 +381,22 @@ if (typeof window.feedbackModel === 'undefined') {
       return;
     }
 
+    // Montar mapa semanal: { monday: [workout, ...], ... }
     const weeklyWorkouts = {};
     daysOrder.forEach(day => { weeklyWorkouts[day] = []; });
     workouts.forEach(workout => {
       if (workout.days) {
         Object.keys(workout.days).forEach(day => {
-          if (workout.days[day] && workout.days[day].length > 0) weeklyWorkouts[day].push(workout);
+          if (workout.days[day] && workout.days[day].length > 0) {
+            weeklyWorkouts[day].push(workout);
+          }
         });
       }
     });
 
-    const todayJS = new Date().getDay();
-    
+    // Render colunas
     weeklyContainer.innerHTML = daysOrder.map(day => {
-      const dayIdx = daysOrder.indexOf(day);
-      const adjustedIdx = dayIdx === 6 ? 0 : dayIdx + 1;
-      const isToday = todayJS === adjustedIdx;
-      const hasWorkout = weeklyWorkouts[day].length > 0;
-
+      const isToday = day === todayKey;
       return `
         <div class="day-col ${isToday ? 'day-col-today' : ''}">
           <div style="padding:14px 14px 10px;${isToday ? 'border-bottom:1px solid rgba(255,255,255,0.1);' : 'border-bottom:1px solid #EBEBEB;'}">
@@ -400,12 +413,11 @@ if (typeof window.feedbackModel === 'undefined') {
       `;
     }).join('');
 
+    // Preencher cada coluna
     for (const day of daysOrder) {
       const dayWorkouts = weeklyWorkouts[day];
       const dayContainer = document.getElementById(`day-${day}-workouts`);
-      const dayIdx = daysOrder.indexOf(day);
-      const adjustedIdx = dayIdx === 6 ? 0 : dayIdx + 1;
-      const isToday = todayJS === adjustedIdx;
+      const isToday = day === todayKey;
 
       if (dayWorkouts.length === 0) {
         dayContainer.innerHTML = `
@@ -421,33 +433,22 @@ if (typeof window.feedbackModel === 'undefined') {
         continue;
       }
 
-      console.log(`✅ Renderizando ${dayWorkouts.length} treino(s) para ${day}`);
       let dayHTML = '';
-      
+
       for (const w of dayWorkouts) {
         const exercises = w.days[day] || [];
-        let weekIdentifier = '';
+
         let hasFeedback = false;
-        
         try {
-          if (window.feedbackModel && typeof window.feedbackModel.getCurrentWeekIdentifier === 'function') {
-            weekIdentifier = window.feedbackModel.getCurrentWeekIdentifier();
-          } else {
-            const now = new Date();
-            const startOfYear = new Date(now.getFullYear(), 0, 1);
-            const pastDaysOfYear = (now - startOfYear) / 86400000;
-            const weekNumber = Math.ceil((pastDaysOfYear + startOfYear.getDay() + 1) / 7);
-            weekIdentifier = `${now.getFullYear()}-${weekNumber}`;
-          }
-          if (dbManager && typeof dbManager.hasFeedbackForDay === 'function') {
+          const weekIdentifier = window.feedbackModel.getCurrentWeekIdentifier();
+          if (typeof dbManager.hasFeedbackForDay === 'function') {
             hasFeedback = await dbManager.hasFeedbackForDay(w.id, day, weekIdentifier);
           }
-        } catch (error) {
+        } catch (e) {
           hasFeedback = false;
         }
 
-        console.log(`📊 Treino: ${w.id}, Dia: ${day}, Exercícios: ${exercises.length}, Feedback: ${hasFeedback}`);
-
+        // Card de cada exercício — passa workoutId E day para abrir na aba correta
         for (const exercise of exercises) {
           const exerciseName = exercise.exerciseName || exercise.name || 'Exercício';
           const sets = exercise.sets || '-';
@@ -455,7 +456,9 @@ if (typeof window.feedbackModel === 'undefined') {
           const weight = exercise.weight || '';
 
           dayHTML += `
-            <div class="exercise-pill" style="background:${isToday ? 'rgba(255,255,255,0.07)' : '#F8F9FA'};border:1px solid ${isToday ? 'rgba(255,255,255,0.1)' : '#EBEBEB'};cursor:pointer;" onclick="viewWorkoutFunc('${w.id}')">
+            <div class="exercise-pill"
+              style="background:${isToday ? 'rgba(255,255,255,0.07)' : '#F8F9FA'};border:1px solid ${isToday ? 'rgba(255,255,255,0.1)' : '#EBEBEB'};cursor:pointer;"
+              onclick="viewWorkoutFunc('${w.id}', '${day}')">
               <p style="font-weight:700;font-size:0.78rem;color:${isToday ? '#fff' : '#0A0A0A'};margin:0 0 6px;line-height:1.3;">${exerciseName}</p>
               <div style="display:flex;gap:5px;flex-wrap:wrap;">
                 <span style="background:${isToday ? 'rgba(0,230,118,0.2)' : '#0A0A0A'};color:${isToday ? '#00E676' : '#fff'};padding:2px 8px;border-radius:5px;font-size:0.68rem;font-weight:700;">${sets}×${reps}</span>
@@ -465,13 +468,16 @@ if (typeof window.feedbackModel === 'undefined') {
           `;
         }
 
+        // Botão de feedback ou badge de enviado
         if (exercises.length > 0) {
           dayHTML += hasFeedback
             ? `<div style="display:flex;align-items:center;justify-content:center;gap:5px;padding:7px;border-radius:8px;background:${isToday ? 'rgba(0,230,118,0.1)' : '#F0FFF4'};border:1px solid ${isToday ? 'rgba(0,230,118,0.2)' : '#D1FAE5'};">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="${isToday ? '#00E676' : '#059669'}" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
                 <span style="font-size:0.72rem;font-weight:700;color:${isToday ? '#00E676' : '#059669'};">Feedback enviado</span>
               </div>`
-            : `<button onclick="event.stopPropagation(); openFeedbackModal('${w.id}', '${day}')" class="feedback-btn ${isToday ? 'feedback-btn-dark' : 'feedback-btn-light'}">
+            : `<button
+                onclick="event.stopPropagation(); openFeedbackModal('${w.id}', '${day}')"
+                class="feedback-btn ${isToday ? 'feedback-btn-dark' : 'feedback-btn-light'}">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
                 Feedback
               </button>`;
@@ -482,8 +488,8 @@ if (typeof window.feedbackModel === 'undefined') {
     }
   }
 
+  // Modal de feedback inline (sem navegar para outra página)
   window.openFeedbackModal = function(workoutId, dayOfWeek) {
-    console.log('Abrindo modal de feedback:', workoutId, dayOfWeek);
     const modal = document.getElementById('feedbackModal');
     document.getElementById('feedbackWorkoutId').value = workoutId;
     document.getElementById('feedbackDayOfWeek').value = dayOfWeek;
@@ -569,10 +575,8 @@ if (typeof window.feedbackModel === 'undefined') {
     });
   }
 
-  console.log('✓ Dashboard Aluno carregado - VERSÃO CORRIGIDA com exercícios individuais');
   await loadStudentData();
   await loadWorkouts();
-  console.log('✓ Treinos carregados - cada exercício aparece como um card separado');
 })();
 </script>
 

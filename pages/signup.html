@@ -152,111 +152,138 @@
 <script>
 (function() {
   function selectUserType(type) {
-    document.getElementById('labelPersonal').classList.toggle('selected', type === 'personal');
-    document.getElementById('labelStudent').classList.toggle('selected', type === 'student');
+    const labelPersonal = document.getElementById('labelPersonal');
+    const labelStudent = document.getElementById('labelStudent');
+    if (!labelPersonal || !labelStudent) return;
+
+    labelPersonal.classList.toggle('selected', type === 'personal');
+    labelStudent.classList.toggle('selected', type === 'student');
+
     const group = document.getElementById('referralGroup');
     const ref = document.getElementById('referralCode');
+    if (!group || !ref) return;
+
     if (type === 'student') {
       group.style.display = 'block';
       ref.required = true;
-      document.getElementById('typeStudent').checked = true;
+      const typeStudent = document.getElementById('typeStudent');
+      if (typeStudent) typeStudent.checked = true;
     } else {
       group.style.display = 'none';
       ref.required = false;
       ref.value = '';
-      document.getElementById('codeValidation').style.display = 'none';
-      document.getElementById('typePersonal').checked = true;
+      const cv = document.getElementById('codeValidation');
+      if (cv) cv.style.display = 'none';
+      const typePersonal = document.getElementById('typePersonal');
+      if (typePersonal) typePersonal.checked = true;
     }
   }
   window.selectUserType = selectUserType;
 
+  // Validação do código de referência
   let valTimeout;
-  document.getElementById('referralCode').addEventListener('input', function(e) {
-    const code = e.target.value.toUpperCase();
-    e.target.value = code;
-    const div = document.getElementById('codeValidation');
-    if (code.length === 6) {
-      clearTimeout(valTimeout);
-      valTimeout = setTimeout(async () => {
-        div.innerHTML = '<span style="color:#6B7280;">Verificando...</span>';
-        div.style.display = 'block';
-        try {
-          const result = await authManager.checkReferralCode(code);
-          if (result.exists) {
-            div.innerHTML = `<span style="background:#ECFDF5;border:1px solid #A7F3D0;color:#047857;padding:5px 10px;border-radius:8px;display:inline-block;">✓ Personal: ${result.personalName}</span>`;
-          } else {
-            div.innerHTML = `<span style="background:#FFF1F2;border:1px solid #FECDD3;color:#BE123C;padding:5px 10px;border-radius:8px;display:inline-block;">✗ Código inválido</span>`;
+  const refCodeInput = document.getElementById('referralCode');
+  if (refCodeInput) {
+    refCodeInput.addEventListener('input', function(e) {
+      const code = e.target.value.toUpperCase();
+      e.target.value = code;
+      const div = document.getElementById('codeValidation');
+      if (!div) return;
+      if (code.length === 6) {
+        clearTimeout(valTimeout);
+        valTimeout = setTimeout(async () => {
+          div.innerHTML = '<span style="color:#6B7280;">Verificando...</span>';
+          div.style.display = 'block';
+          try {
+            const result = await authManager.checkReferralCode(code);
+            if (result.exists) {
+              div.innerHTML = `<span style="background:#ECFDF5;border:1px solid #A7F3D0;color:#047857;padding:5px 10px;border-radius:8px;display:inline-block;">✓ Personal: ${result.personalName}</span>`;
+            } else {
+              div.innerHTML = `<span style="background:#FFF1F2;border:1px solid #FECDD3;color:#BE123C;padding:5px 10px;border-radius:8px;display:inline-block;">✗ Código inválido</span>`;
+            }
+          } catch(e) {
+            div.innerHTML = `<span style="color:#BE123C;">Erro ao verificar</span>`;
           }
-        } catch(e) {}
-      }, 500);
-    } else {
-      div.style.display = 'none';
-    }
-  });
-
-  document.getElementById('signupForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const name = document.getElementById('signupName').value.trim();
-    const email = document.getElementById('signupEmail').value.trim();
-    const password = document.getElementById('signupPassword').value;
-    const confirm = document.getElementById('signupPasswordConfirm').value;
-    const typeEl = document.querySelector('input[name="userType"]:checked');
-    const refCode = document.getElementById('referralCode').value.trim();
-    const errDiv = document.getElementById('signupError');
-    const okDiv = document.getElementById('signupSuccess');
-    const btn = document.getElementById('signupSubmitBtn');
-
-    errDiv.style.display = 'none';
-    okDiv.style.display = 'none';
-
-    if (password !== confirm) {
-      errDiv.textContent = 'As senhas não conferem.';
-      return errDiv.style.display = 'block';
-    }
-    if (!typeEl) {
-      errDiv.textContent = 'Selecione o tipo de usuário.';
-      return errDiv.style.display = 'block';
-    }
-    const userType = typeEl.value;
-    if (userType === 'student') {
-      if (!refCode || refCode.length !== 6) {
-        errDiv.textContent = 'Digite o código de 6 caracteres do seu Personal Trainer.';
-        return errDiv.style.display = 'block';
-      }
-      const check = await authManager.checkReferralCode(refCode);
-      if (!check.exists) {
-        errDiv.textContent = 'Código de referência inválido. Verifique com seu Personal Trainer.';
-        return errDiv.style.display = 'block';
-      }
-    }
-
-    btn.innerHTML = '<span class="spinner"></span>';
-    btn.disabled = true;
-
-    try {
-      const result = await authManager.signup(email, password, name, userType, userType === 'student' ? refCode : null);
-      if (result.success) {
-        if (result.userType === 'personal' && result.referralCode) {
-          okDiv.innerHTML = `<strong>Conta criada!</strong> Seu código de referência: <strong style="font-family:'DM Mono',monospace;letter-spacing:0.1em;">${result.referralCode}</strong> — Compartilhe com seus alunos. Redirecionando...`;
-          okDiv.style.display = 'block';
-          setTimeout(() => router.goToPersonalDashboard(), 4000);
-        } else {
-          okDiv.innerHTML = '<strong>Conta criada com sucesso!</strong> Redirecionando...';
-          okDiv.style.display = 'block';
-          setTimeout(() => router.goToStudentDashboard(), 2000);
-        }
+        }, 500);
       } else {
-        errDiv.textContent = result.error || 'Erro ao criar conta.';
+        div.style.display = 'none';
+      }
+    });
+  }
+
+  // Submit do formulário
+  const signupForm = document.getElementById('signupForm');
+  if (signupForm) {
+    signupForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const name = document.getElementById('signupName').value.trim();
+      const email = document.getElementById('signupEmail').value.trim();
+      const password = document.getElementById('signupPassword').value;
+      const confirm = document.getElementById('signupPasswordConfirm').value;
+      const typeEl = document.querySelector('input[name="userType"]:checked');
+      const refCode = document.getElementById('referralCode')?.value.trim() || '';
+      const errDiv = document.getElementById('signupError');
+      const okDiv = document.getElementById('signupSuccess');
+      const btn = document.getElementById('signupSubmitBtn');
+
+      errDiv.style.display = 'none';
+      okDiv.style.display = 'none';
+
+      if (password !== confirm) {
+        errDiv.textContent = 'As senhas não conferem.';
+        return errDiv.style.display = 'block';
+      }
+      if (!typeEl) {
+        errDiv.textContent = 'Selecione o tipo de usuário.';
+        return errDiv.style.display = 'block';
+      }
+
+      const userType = typeEl.value;
+
+      if (userType === 'student') {
+        if (!refCode || refCode.length !== 6) {
+          errDiv.textContent = 'Digite o código de 6 caracteres do seu Personal Trainer.';
+          return errDiv.style.display = 'block';
+        }
+        const check = await authManager.checkReferralCode(refCode);
+        if (!check.exists) {
+          errDiv.textContent = 'Código de referência inválido. Verifique com seu Personal Trainer.';
+          return errDiv.style.display = 'block';
+        }
+      }
+
+      btn.innerHTML = '<span class="spinner"></span>';
+      btn.disabled = true;
+
+      try {
+        const result = await authManager.signup(
+          email, password, name, userType,
+          userType === 'student' ? refCode : null
+        );
+
+        if (result.success) {
+          if (result.userType === 'personal' && result.referralCode) {
+            okDiv.innerHTML = `<strong>Conta criada!</strong> Seu código: <strong style="font-family:'DM Mono',monospace;letter-spacing:0.1em;">${result.referralCode}</strong> — Compartilhe com seus alunos. Redirecionando...`;
+            okDiv.style.display = 'block';
+            setTimeout(() => router.goToPersonalDashboard(), 4000);
+          } else {
+            okDiv.innerHTML = '<strong>Conta criada com sucesso!</strong> Redirecionando...';
+            okDiv.style.display = 'block';
+            setTimeout(() => router.goToStudentDashboard(), 2000);
+          }
+        } else {
+          errDiv.textContent = result.error || 'Erro ao criar conta.';
+          errDiv.style.display = 'block';
+          btn.textContent = 'Criar conta';
+          btn.disabled = false;
+        }
+      } catch (err) {
+        errDiv.textContent = 'Erro inesperado. Tente novamente.';
         errDiv.style.display = 'block';
         btn.textContent = 'Criar conta';
         btn.disabled = false;
       }
-    } catch (err) {
-      errDiv.textContent = 'Erro inesperado. Tente novamente.';
-      errDiv.style.display = 'block';
-      btn.textContent = 'Criar conta';
-      btn.disabled = false;
-    }
-  });
+    });
+  }
 })();
 </script>

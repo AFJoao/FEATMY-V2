@@ -1,61 +1,40 @@
 /**
- * Módulo de Banco de Dados
+ * Módulo de Banco de Dados - CORRIGIDO
  * Operações com Firestore para usuários, exercícios e treinos
  */
 
 class DatabaseManager {
-  /**
-   * Converter URL do YouTube para formato embed
-   */
+
+  // ── YouTube URL converter ─────────────────────────────────────────
   convertYouTubeUrl(url) {
     if (!url || url.trim() === '') return '';
-    
-    // Se já está no formato embed, retornar como está
-    if (url.includes('/embed/')) {
-      return url;
-    }
-    
-    // Extrair ID do vídeo de diferentes formatos de URL
+    if (url.includes('/embed/')) return url;
+
     let videoId = null;
-    
-    // Formato: youtube.com/watch?v=VIDEO_ID
     const watchMatch = url.match(/[?&]v=([^&]+)/);
-    if (watchMatch) {
-      videoId = watchMatch[1];
-    }
-    
-    // Formato: youtu.be/VIDEO_ID
+    if (watchMatch) videoId = watchMatch[1];
+
     const shortMatch = url.match(/youtu\.be\/([^?]+)/);
-    if (shortMatch) {
-      videoId = shortMatch[1];
-    }
-    
-    // Formato: youtube.com/embed/VIDEO_ID (já tratado acima, mas por segurança)
+    if (shortMatch) videoId = shortMatch[1];
+
     const embedMatch = url.match(/\/embed\/([^?]+)/);
-    if (embedMatch) {
-      videoId = embedMatch[1];
-    }
-    
-    // Se encontrou o ID, retornar URL embed
+    if (embedMatch) videoId = embedMatch[1];
+
     if (videoId) {
-      // Remover qualquer parâmetro extra do ID
       videoId = videoId.split('&')[0].split('?')[0];
       return `https://www.youtube.com/embed/${videoId}`;
     }
-    
-    // Se não conseguiu converter, retornar URL original
+
     console.warn('Não foi possível converter URL do YouTube:', url);
     return url;
   }
 
-  /**
-   * Obter dados do usuário atual
-   */
+  // ── Users ─────────────────────────────────────────────────────────
+
   async getCurrentUserData() {
     try {
       const user = authManager.getCurrentUser();
       if (!user) return null;
-
       const userDoc = await db.collection('users').doc(user.uid).get();
       return userDoc.exists ? { id: userDoc.id, ...userDoc.data() } : null;
     } catch (error) {
@@ -64,9 +43,6 @@ class DatabaseManager {
     }
   }
 
-  /**
-   * Obter dados de um usuário específico
-   */
   async getUserData(uid) {
     try {
       const userDoc = await db.collection('users').doc(uid).get();
@@ -77,148 +53,134 @@ class DatabaseManager {
     }
   }
 
-  /**
-   * Obter alunos vinculados ao Personal atual
-   */
+  // Alias para getUserData (usado em student-details.html)
+  async getStudentById(studentId) {
+    return await this.getUserData(studentId);
+  }
+
   async getMyStudents() {
     try {
       const user = authManager.getCurrentUser();
-      if (!user) {
-        console.log('Usuário não autenticado');
-        return [];
-      }
+      if (!user) return [];
 
-      console.log('=== BUSCANDO ALUNOS ===');
-      console.log('Personal UID:', user.uid);
+      console.log('=== BUSCANDO ALUNOS ===', user.uid);
 
       const snapshot = await db.collection('users')
         .where('personalId', '==', user.uid)
         .where('userType', '==', 'student')
         .get();
 
-      console.log('Documentos encontrados:', snapshot.docs.length);
-
-      const students = [];
-      snapshot.docs.forEach(doc => {
-        const data = doc.data();
-        console.log('Aluno encontrado:', doc.id, data.name);
-        students.push({
-          uid: doc.id,
-          ...data
-        });
-      });
-
-      console.log('Total de alunos:', students.length);
+      const students = snapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() }));
+      console.log('Alunos encontrados:', students.length);
 
       if (students.length > 0) {
-        const studentIds = students.map(s => s.uid);
         try {
           await db.collection('users').doc(user.uid).update({
-            students: studentIds
+            students: students.map(s => s.uid)
           });
-          console.log('Lista de alunos atualizada no Personal');
-        } catch (updateError) {
-          console.error('Erro ao atualizar lista:', updateError);
-        }
+        } catch (e) { /* não crítico */ }
       }
 
       return students;
     } catch (error) {
-      console.error('=== ERRO AO BUSCAR ALUNOS ===');
-      console.error('Erro completo:', error);
+      console.error('=== ERRO AO BUSCAR ALUNOS ===', error);
       return [];
     }
   }
 
+  // Alias
+  async getAllStudents() {
+    return await this.getMyStudents();
+  }
+
+  // ── Exercises ─────────────────────────────────────────────────────
+
   /**
-   * Criar novo exercício (com conversão automática de URL)
+   * Criar exercício (aceita objeto ou parâmetros individuais)
    */
-  async createExercise(name, description, videoUrl) {
+  async createExercise(nameOrObj, description, videoUrl) {
     try {
       const user = authManager.getCurrentUser();
       if (!user) throw new Error('Usuário não autenticado');
 
-      console.log('=== CRIANDO EXERCÍCIO ===');
-      console.log('Nome:', name);
-      console.log('URL original:', videoUrl);
+      let name, desc, vUrl, muscleGroup;
 
-      // Converter URL do YouTube automaticamente
-      const embedUrl = this.convertYouTubeUrl(videoUrl);
-      console.log('URL convertida:', embedUrl);
+      if (typeof nameOrObj === 'object') {
+        name = nameOrObj.name;
+        desc = nameOrObj.description || '';
+        vUrl = nameOrObj.videoUrl || '';
+        muscleGroup = nameOrObj.muscleGroup || '';
+      } else {
+        name = nameOrObj;
+        desc = description || '';
+        vUrl = videoUrl || '';
+        muscleGroup = '';
+      }
 
+      const embedUrl = this.convertYouTubeUrl(vUrl);
       const exerciseRef = db.collection('exercises').doc();
+
       const exerciseData = {
         id: exerciseRef.id,
-        name: name,
-        description: description || '',
+        name,
+        description: desc,
+        muscleGroup,
         videoUrl: embedUrl,
+        personalId: user.uid,
         createdBy: user.uid,
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
       };
 
-      console.log('Dados a salvar:', exerciseData);
-
       await exerciseRef.set(exerciseData);
-      console.log('✓ Exercício criado com sucesso!');
-
-      return {
-        success: true,
-        id: exerciseRef.id
-      };
+      console.log('✓ Exercício criado:', name);
+      return { success: true, id: exerciseRef.id };
     } catch (error) {
-      console.error('=== ERRO AO CRIAR EXERCÍCIO ===');
-      console.error('Erro completo:', error);
-      return {
-        success: false,
-        error: error.message
-      };
+      console.error('Erro ao criar exercício:', error);
+      return { success: false, error: error.message };
     }
   }
 
-  /**
-   * Obter exercícios do Personal Trainer atual (CORRIGIDO - sem orderBy)
-   */
+  // Alias usado em exercises.html
+  async addExercise(data) {
+    return await this.createExercise(data);
+  }
+
   async getPersonalExercises() {
     try {
       const user = authManager.getCurrentUser();
       if (!user) throw new Error('Usuário não autenticado');
 
-      console.log('=== BUSCANDO EXERCÍCIOS ===');
-      console.log('Personal UID:', user.uid);
-
-      // REMOVIDO orderBy para evitar erro de índice
-      const snapshot = await db.collection('exercises')
+      // Tenta por createdBy primeiro, fallback para personalId
+      let snapshot = await db.collection('exercises')
         .where('createdBy', '==', user.uid)
         .get();
 
-      console.log('Exercícios encontrados:', snapshot.docs.length);
+      // Se não encontrou, tenta personalId (compatibilidade)
+      if (snapshot.empty) {
+        snapshot = await db.collection('exercises')
+          .where('personalId', '==', user.uid)
+          .get();
+      }
 
-      // Ordenar manualmente por data de criação (mais recentes primeiro)
-      const exercises = snapshot.docs.map(doc => {
-        const data = doc.data();
-        console.log('Exercício:', data.name, '- ID:', data.id);
-        return data;
-      }).sort((a, b) => {
-        // Se não tem createdAt, colocar no final
+      const exercises = snapshot.docs.map(doc => doc.data()).sort((a, b) => {
         if (!a.createdAt) return 1;
         if (!b.createdAt) return -1;
-        // Ordenar do mais recente para o mais antigo
         return b.createdAt.seconds - a.createdAt.seconds;
       });
 
-      console.log('Total após ordenação:', exercises.length);
-
+      console.log('Exercícios encontrados:', exercises.length);
       return exercises;
     } catch (error) {
-      console.error('=== ERRO AO OBTER EXERCÍCIOS ===');
-      console.error('Erro completo:', error);
+      console.error('Erro ao obter exercícios:', error);
       return [];
     }
   }
 
-  /**
-   * Obter exercício específico
-   */
+  // Alias usado em exercises.html
+  async getExercises() {
+    return await this.getPersonalExercises();
+  }
+
   async getExercise(exerciseId) {
     try {
       const doc = await db.collection('exercises').doc(exerciseId).get();
@@ -229,235 +191,203 @@ class DatabaseManager {
     }
   }
 
-  /**
-   * Deletar exercício
-   */
   async deleteExercise(exerciseId) {
     try {
       await db.collection('exercises').doc(exerciseId).delete();
       return { success: true };
     } catch (error) {
       console.error('Erro ao deletar exercício:', error);
-      return {
-        success: false,
-        error: error.message
-      };
+      return { success: false, error: error.message };
     }
   }
 
+  // ── Workouts ──────────────────────────────────────────────────────
+
   /**
-   * Criar novo treino
+   * Criar treino (aceita objeto ou parâmetros individuais)
    */
-  async createWorkout(name, description, days, studentId = null) {
+  async createWorkout(nameOrObj, description, days, studentId) {
     try {
       const user = authManager.getCurrentUser();
       if (!user) throw new Error('Usuário não autenticado');
 
+      let name, desc, daysData, stdId;
+
+      if (typeof nameOrObj === 'object') {
+        name = nameOrObj.name;
+        desc = nameOrObj.description || '';
+        daysData = nameOrObj.days || {};
+        stdId = nameOrObj.studentId || null;
+      } else {
+        name = nameOrObj;
+        desc = description || '';
+        daysData = days || {};
+        stdId = studentId || null;
+      }
+
       const workoutRef = db.collection('workouts').doc();
       await workoutRef.set({
         id: workoutRef.id,
-        name: name,
-        description: description,
+        name,
+        description: desc,
         personalId: user.uid,
-        studentId: studentId || null,
-        days: days,
+        studentId: stdId,
+        days: daysData,
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
       });
 
-      if (studentId) {
-        await db.collection('users').doc(studentId).update({
-          assignedWorkouts: firebase.firestore.FieldValue.arrayUnion(workoutRef.id)
-        });
+      if (stdId) {
+        try {
+          await db.collection('users').doc(stdId).update({
+            assignedWorkouts: firebase.firestore.FieldValue.arrayUnion(workoutRef.id)
+          });
+        } catch (e) { /* não crítico */ }
       }
 
-      return {
-        success: true,
-        id: workoutRef.id
-      };
+      return { success: true, id: workoutRef.id };
     } catch (error) {
       console.error('Erro ao criar treino:', error);
-      return {
-        success: false,
-        error: error.message
-      };
+      return { success: false, error: error.message };
     }
   }
 
-  /**
-   * Obter treinos do Personal Trainer atual (CORRIGIDO - sem orderBy)
-   */
   async getPersonalWorkouts() {
     try {
       const user = authManager.getCurrentUser();
       if (!user) throw new Error('Usuário não autenticado');
 
-      // REMOVIDO orderBy para evitar erro de índice
       const snapshot = await db.collection('workouts')
         .where('personalId', '==', user.uid)
         .get();
 
-      // Ordenar manualmente
       return snapshot.docs.map(doc => doc.data()).sort((a, b) => {
         if (!a.createdAt) return 1;
         if (!b.createdAt) return -1;
         return b.createdAt.seconds - a.createdAt.seconds;
       });
     } catch (error) {
-      console.error('Erro ao obter treinos:', error);
+      console.error('Erro ao obter treinos do personal:', error);
       return [];
     }
   }
 
   /**
-   * Obter treinos do Aluno atual (CORRIGIDO - sem orderBy)
+   * Busca treinos do aluno.
+   * Estratégia: lê assignedWorkouts do doc do aluno -> busca cada workout por ID (get direto).
+   * Isso evita query em coleção que falha nas regras do Firestore.
+   * Fallback: tenta query .where('studentId') caso assignedWorkouts esteja vazio.
    */
-  async getStudentWorkouts() {
+  async getStudentWorkouts(studentIdParam) {
     try {
       const user = authManager.getCurrentUser();
       if (!user) throw new Error('Usuário não autenticado');
 
-      // REMOVIDO orderBy para evitar erro de índice
+      const targetId = studentIdParam || user.uid;
+
+      // Estratégia 1: usar assignedWorkouts do perfil do aluno (get direto, sem query)
+      const userDoc = await db.collection('users').doc(targetId).get();
+      const assignedWorkouts = userDoc.exists ? (userDoc.data().assignedWorkouts || []) : [];
+
+      if (assignedWorkouts.length > 0) {
+        const workoutPromises = assignedWorkouts.map(id =>
+          db.collection('workouts').doc(id).get()
+            .then(doc => doc.exists ? { id: doc.id, ...doc.data() } : null)
+            .catch(() => null)
+        );
+        const workouts = (await Promise.all(workoutPromises)).filter(Boolean);
+        return workouts.sort((a, b) => {
+          if (!a.createdAt) return 1;
+          if (!b.createdAt) return -1;
+          return b.createdAt.seconds - a.createdAt.seconds;
+        });
+      }
+
+      // Estratégia 2 (fallback): query direta — só funciona se rules permitirem list
+      console.warn('[getStudentWorkouts] assignedWorkouts vazio, tentando query fallback...');
       const snapshot = await db.collection('workouts')
-        .where('studentId', '==', user.uid)
+        .where('studentId', '==', targetId)
         .get();
 
-      // Ordenar manualmente
-      return snapshot.docs.map(doc => doc.data()).sort((a, b) => {
+      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).sort((a, b) => {
         if (!a.createdAt) return 1;
         if (!b.createdAt) return -1;
         return b.createdAt.seconds - a.createdAt.seconds;
       });
+
     } catch (error) {
-      console.error('Erro ao obter treinos:', error);
+      console.error('Erro ao obter treinos do aluno:', error);
       return [];
     }
   }
 
-  /**
-   * Obter treino específico
-   */
   async getWorkout(workoutId) {
     try {
       const doc = await db.collection('workouts').doc(workoutId).get();
-      return doc.exists ? doc.data() : null;
+      return doc.exists ? { id: doc.id, ...doc.data() } : null;
     } catch (error) {
       console.error('Erro ao obter treino:', error);
       return null;
     }
   }
 
-  /**
-   * Deletar treino
-   */
-  async deleteWorkout(workoutId) {
-    try {
-      const workout = await this.getWorkout(workoutId);
-      
-      if (workout && workout.studentId) {
-        await db.collection('users').doc(workout.studentId).update({
-          assignedWorkouts: firebase.firestore.FieldValue.arrayRemove(workoutId)
-        });
-      }
-
-      await db.collection('workouts').doc(workoutId).delete();
-      return { success: true };
-    } catch (error) {
-      console.error('Erro ao deletar treino:', error);
-      return {
-        success: false,
-        error: error.message
-      };
-    }
+  // Alias
+  async getWorkoutById(workoutId) {
+    return await this.getWorkout(workoutId);
   }
 
-  /**
-   * Obter todos os alunos vinculados
-   */
-  async getAllStudents() {
-    return await this.getMyStudents();
-  }
-
-  /**
-   * Atualizar treino
-   */
   async updateWorkout(workoutId, updates) {
     try {
       await db.collection('workouts').doc(workoutId).update(updates);
       return { success: true };
     } catch (error) {
       console.error('Erro ao atualizar treino:', error);
-      return {
-        success: false,
-        error: error.message
-      };
+      return { success: false, error: error.message };
     }
   }
 
-  /**
-   * Obter treino por ID do Firestore
-   */
-  async getWorkoutById(workoutId) {
+  async deleteWorkout(workoutId) {
     try {
-      const doc = await db.collection('workouts').doc(workoutId).get();
-      if (doc.exists) {
-        return doc.data();
+      const workout = await this.getWorkout(workoutId);
+      if (workout && workout.studentId) {
+        try {
+          await db.collection('users').doc(workout.studentId).update({
+            assignedWorkouts: firebase.firestore.FieldValue.arrayRemove(workoutId)
+          });
+        } catch (e) { /* não crítico */ }
       }
-      return null;
+      await db.collection('workouts').doc(workoutId).delete();
+      return { success: true };
     } catch (error) {
-      console.error('Erro ao obter treino:', error);
-      return null;
+      console.error('Erro ao deletar treino:', error);
+      return { success: false, error: error.message };
     }
   }
 
-  /**
-   * Criar feedback de treino
-   */
+  // ── Feedbacks ─────────────────────────────────────────────────────
+
   async createFeedback(feedbackData) {
     try {
       const user = authManager.getCurrentUser();
       if (!user) throw new Error('Usuário não autenticado');
 
-      // Adicionar studentId aos dados (não vem do formulário)
-      const feedbackDataWithStudent = {
-        ...feedbackData,
-        studentId: user.uid
-      };
+      const weekIdentifier = feedbackData.weekIdentifier ||
+        (window.feedbackModel?.getCurrentWeekIdentifier?.() || this._getWeekId());
 
-      // Validar dados (agora com studentId)
-      if (typeof window.feedbackModel !== 'undefined') {
-        const validation = window.feedbackModel.validateFeedbackData(feedbackDataWithStudent);
-        if (!validation.isValid) {
-          return {
-            success: false,
-            error: validation.errors.join(', ')
-          };
-        }
+      const feedbackKey = window.feedbackModel?.getFeedbackKey?.(
+        user.uid, feedbackData.workoutId, weekIdentifier, feedbackData.dayOfWeek
+      ) || `${user.uid}_${feedbackData.workoutId}_${weekIdentifier}_${feedbackData.dayOfWeek}`;
+
+      // Verificar duplicata
+      const existing = await db.collection('feedbacks').doc(feedbackKey).get();
+      if (existing.exists) {
+        return { success: false, error: 'Você já enviou feedback para este dia nesta semana' };
       }
 
-      // Verificar se já existe feedback para este dia/semana
-      const weekIdentifier = feedbackData.weekIdentifier || window.feedbackModel?.getCurrentWeekIdentifier();
-      const feedbackKey = window.feedbackModel?.getFeedbackKey(
-        user.uid,
-        feedbackData.workoutId,
-        weekIdentifier,
-        feedbackData.dayOfWeek
-      );
-
-      // Verificar se já existe
-      const existingDoc = await db.collection('feedbacks').doc(feedbackKey).get();
-      if (existingDoc.exists) {
-        return {
-          success: false,
-          error: 'Você já enviou feedback para este dia nesta semana'
-        };
-      }
-
-      // Criar feedback
       await db.collection('feedbacks').doc(feedbackKey).set({
         id: feedbackKey,
         studentId: user.uid,
         workoutId: feedbackData.workoutId,
-        weekIdentifier: weekIdentifier,
+        weekIdentifier,
         dayOfWeek: feedbackData.dayOfWeek,
         effortLevel: feedbackData.effortLevel,
         sensation: feedbackData.sensation,
@@ -467,36 +397,58 @@ class DatabaseManager {
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
       });
 
-      return {
-        success: true,
-        id: feedbackKey
-      };
+      return { success: true, id: feedbackKey };
     } catch (error) {
       console.error('Erro ao criar feedback:', error);
-      return {
-        success: false,
-        error: error.message
-      };
+      return { success: false, error: error.message };
     }
   }
 
-  /**
-   * Verificar se já existe feedback para um dia/semana específico
-   */
-  async hasFeedbackForDay(workoutId, dayOfWeek, weekIdentifier = null) {
+  // Alias usado em view-workout.html (dados diferentes, salva como antes)
+  async submitFeedback(data) {
+    try {
+      const user = authManager.getCurrentUser();
+      if (!user) throw new Error('Usuário não autenticado');
+
+      const weekId = this._getWeekId();
+      const dayOfWeek = new Date().toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
+      const key = `${user.uid}_${data.workoutId}_${weekId}_${dayOfWeek}`;
+
+      await db.collection('feedbacks').doc(key).set({
+        id: key,
+        studentId: user.uid,
+        workoutId: data.workoutId || '',
+        workoutName: data.workoutName || '',
+        weekIdentifier: weekId,
+        dayOfWeek,
+        effortLevel: data.effort || 5,
+        sensation: data.sensation || 'ideal',
+        hasPain: data.hasPain || false,
+        painLocation: data.painLocation || '',
+        comment: data.comment || '',
+        date: data.date || new Date().toISOString(),
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+
+      return { success: true };
+    } catch (error) {
+      console.error('Erro ao submeter feedback:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  async hasFeedbackForDay(workoutId, dayOfWeek, weekIdentifier) {
     try {
       const user = authManager.getCurrentUser();
       if (!user) return false;
 
-      const weekId = weekIdentifier || window.feedbackModel?.getCurrentWeekIdentifier();
-      const feedbackKey = window.feedbackModel?.getFeedbackKey(
-        user.uid,
-        workoutId,
-        weekId,
-        dayOfWeek
-      );
+      const weekId = weekIdentifier ||
+        (window.feedbackModel?.getCurrentWeekIdentifier?.() || this._getWeekId());
 
-      const doc = await db.collection('feedbacks').doc(feedbackKey).get();
+      const key = window.feedbackModel?.getFeedbackKey?.(user.uid, workoutId, weekId, dayOfWeek)
+        || `${user.uid}_${workoutId}_${weekId}_${dayOfWeek}`;
+
+      const doc = await db.collection('feedbacks').doc(key).get();
       return doc.exists;
     } catch (error) {
       console.error('Erro ao verificar feedback:', error);
@@ -504,106 +456,69 @@ class DatabaseManager {
     }
   }
 
-  /**
-   * Obter feedbacks de um aluno específico
-   */
-  async getStudentFeedbacks(studentId = null) {
-  try {
-    const user = authManager.getCurrentUser();
-    if (!user) throw new Error('Usuário não autenticado');
+  async getStudentFeedbacks(studentId) {
+    try {
+      const user = authManager.getCurrentUser();
+      if (!user) throw new Error('Usuário não autenticado');
 
-    const targetStudentId = studentId || user.uid;
+      const targetId = studentId || user.uid;
 
-    console.log('=== GET STUDENT FEEDBACKS ===');
-    console.log('Current user:', user.uid);
-    console.log('Target student:', targetStudentId);
-
-    // ✅ Se está buscando seus próprios feedbacks (aluno)
-    if (targetStudentId === user.uid) {
-      console.log('→ Buscando feedbacks próprios');
       const snapshot = await db.collection('feedbacks')
-        .where('studentId', '==', targetStudentId)
+        .where('studentId', '==', targetId)
         .get();
 
-      const feedbacks = snapshot.docs.map(doc => doc.data());
-      console.log('✓ Feedbacks encontrados:', feedbacks.length);
-      
-      return feedbacks.sort((a, b) => {
+      return snapshot.docs.map(doc => doc.data()).sort((a, b) => {
         if (!a.createdAt) return 1;
         if (!b.createdAt) return -1;
         return b.createdAt.seconds - a.createdAt.seconds;
       });
-    }
-
-    // Se é personal tentando buscar, não usar esta função
-    console.warn('⚠️ Personal deve usar getPersonalFeedbacks()');
-    return [];
-
-  } catch (error) {
-    console.error('Erro ao obter feedbacks:', error);
-    throw error;
-  }
-}
-
-  /**
-   * Obter feedbacks de todos os alunos do personal
-   */
-  async getPersonalFeedbacks() {
-  try {
-    const user = authManager.getCurrentUser();
-    if (!user) throw new Error('Usuário não autenticado');
-
-    console.log('=== GET PERSONAL FEEDBACKS ===');
-    console.log('Personal UID:', user.uid);
-
-    // 1️⃣ Buscar workouts do personal
-    const workoutsSnapshot = await db.collection('workouts')
-      .where('personalId', '==', user.uid)
-      .get();
-
-    const workoutIds = workoutsSnapshot.docs.map(doc => doc.id);
-    console.log('→ Workouts encontrados:', workoutIds.length);
-
-    if (workoutIds.length === 0) {
+    } catch (error) {
+      console.error('Erro ao obter feedbacks:', error);
       return [];
     }
-
-    // 2️⃣ Buscar feedbacks por workoutId
-    const allFeedbacks = [];
-    
-    for (const workoutId of workoutIds) {
-      try {
-        const feedbackSnapshot = await db.collection('feedbacks')
-          .where('workoutId', '==', workoutId)
-          .get();
-
-        const feedbacks = feedbackSnapshot.docs.map(doc => doc.data());
-        console.log(`  Workout ${workoutId}: ${feedbacks.length} feedbacks`);
-        
-        allFeedbacks.push(...feedbacks);
-      } catch (err) {
-        console.error(`Erro no workout ${workoutId}:`, err);
-      }
-    }
-
-    console.log('✓ Total de feedbacks:', allFeedbacks.length);
-
-    // 3️⃣ Ordenar
-    return allFeedbacks.sort((a, b) => {
-      if (!a.createdAt) return 1;
-      if (!b.createdAt) return -1;
-      return b.createdAt.seconds - a.createdAt.seconds;
-    });
-
-  } catch (error) {
-    console.error('Erro ao obter feedbacks do personal:', error);
-    throw error;
   }
-}
 
-  /**
-   * Obter feedback específico
-   */
+  async getPersonalFeedbacks() {
+    try {
+      const user = authManager.getCurrentUser();
+      if (!user) throw new Error('Usuário não autenticado');
+
+      console.log('=== GET PERSONAL FEEDBACKS ===', user.uid);
+
+      // Busca treinos do personal
+      const workoutsSnapshot = await db.collection('workouts')
+        .where('personalId', '==', user.uid)
+        .get();
+
+      const workoutIds = workoutsSnapshot.docs.map(doc => doc.id);
+      console.log('Workouts encontrados:', workoutIds.length);
+
+      if (workoutIds.length === 0) return [];
+
+      const allFeedbacks = [];
+      for (const workoutId of workoutIds) {
+        try {
+          const feedbackSnapshot = await db.collection('feedbacks')
+            .where('workoutId', '==', workoutId)
+            .get();
+          feedbackSnapshot.docs.forEach(doc => allFeedbacks.push(doc.data()));
+        } catch (e) {
+          console.warn('Erro no workout', workoutId, e);
+        }
+      }
+
+      console.log('Total feedbacks:', allFeedbacks.length);
+      return allFeedbacks.sort((a, b) => {
+        if (!a.createdAt) return 1;
+        if (!b.createdAt) return -1;
+        return b.createdAt.seconds - a.createdAt.seconds;
+      });
+    } catch (error) {
+      console.error('Erro ao obter feedbacks do personal:', error);
+      return [];
+    }
+  }
+
   async getFeedback(feedbackId) {
     try {
       const doc = await db.collection('feedbacks').doc(feedbackId).get();
@@ -613,10 +528,18 @@ class DatabaseManager {
       return null;
     }
   }
+
+  // ── Helpers internos ──────────────────────────────────────────────
+
+  _getWeekId() {
+    const now = new Date();
+    const startOfYear = new Date(now.getFullYear(), 0, 1);
+    const pastDaysOfYear = (now - startOfYear) / 86400000;
+    const weekNumber = Math.ceil((pastDaysOfYear + startOfYear.getDay() + 1) / 7);
+    return `${now.getFullYear()}-${weekNumber}`;
+  }
 }
 
-// Instância global do DatabaseManager
+// Instância global
 const dbManager = new DatabaseManager();
-
-// Exportar para uso global
 window.dbManager = dbManager;
