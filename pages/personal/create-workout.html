@@ -9,10 +9,14 @@
     .kanban-board { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 10px; padding: 16px 20px 40px; min-height: calc(100vh - 150px); align-items: start; }
     .day-column { background: #fff; border: 1.5px solid #E5E7EB; border-radius: 14px; display: flex; flex-direction: column; min-height: 380px; transition: border-color 0.2s; }
     .day-column.drag-over { border-color: #00E676; background: rgba(0,230,118,0.02); }
-    .day-header { padding: 11px 12px 9px; border-bottom: 1px solid #EBEBEB; }
+    .day-header { padding: 11px 10px 9px; border-bottom: 1px solid #EBEBEB; }
     .day-label-short { font-size: 0.6rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #9CA3AF; margin-bottom: 1px; }
     .day-label-full { font-size: 0.85rem; font-weight: 700; color: #111827; }
     .day-ex-count { font-size: 0.62rem; color: #9CA3AF; margin-top: 2px; }
+    /* Copy-day button in header */
+    .copy-day-btn { width: 100%; margin-top: 7px; padding: 5px 6px; border: 1.5px dashed #D1D5DB; border-radius: 7px; background: transparent; font-size: 0.65rem; font-weight: 700; color: #9CA3AF; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 4px; font-family: inherit; }
+    .copy-day-btn:hover { border-color: #6366F1; color: #6366F1; background: rgba(99,102,241,0.04); }
+    .copy-day-btn.has-clipboard { border-color: #00C853; color: #00C853; background: rgba(0,200,83,0.05); border-style: solid; }
     .drop-zone { flex: 1; padding: 8px; display: flex; flex-direction: column; gap: 6px; min-height: 60px; }
     .drop-placeholder { border: 2px dashed #E5E7EB; border-radius: 10px; min-height: 56px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; margin-bottom: 2px; }
     .drop-placeholder:hover { border-color: #00E676; background: rgba(0,230,118,0.04); }
@@ -21,14 +25,30 @@
     .ex-card { background: #F8F9FA; border: 1.5px solid #E5E7EB; border-radius: 10px; padding: 9px 10px; cursor: grab; user-select: none; transition: all 0.18s; position: relative; }
     .ex-card:hover { border-color: #A5B4FC; background: #fff; box-shadow: 0 2px 10px rgba(0,0,0,0.07); }
     .ex-card.dragging { opacity: 0.4; cursor: grabbing; }
-    .ex-card-name { font-size: 0.76rem; font-weight: 700; color: #111827; margin-bottom: 5px; line-height: 1.3; padding-right: 40px; }
+    .ex-card-name { font-size: 0.76rem; font-weight: 700; color: #111827; margin-bottom: 5px; line-height: 1.3; }
     .ex-card-meta { display: flex; gap: 3px; flex-wrap: wrap; }
     .ex-badge { font-size: 0.6rem; font-weight: 700; padding: 2px 6px; border-radius: 4px; }
-    .ex-card-actions { display: none; position: absolute; top: 6px; right: 6px; gap: 3px; }
-    .ex-card:hover .ex-card-actions { display: flex; }
-    .ex-action-btn { width: 20px; height: 20px; border: none; border-radius: 5px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
-    .ex-action-copy { background: #EFF6FF; color: #2563EB; }
-    .ex-action-del  { background: #FEF2F2; color: #DC2626; }
+    /* Delete button — always visible, below badges */
+    .ex-delete-btn {
+      width: 100%;
+      margin-top: 7px;
+      padding: 4px 8px;
+      border: 1px solid #FECACA;
+      border-radius: 6px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      background: #FEF2F2;
+      color: #DC2626;
+      font-size: 0.62rem;
+      font-weight: 700;
+      font-family: inherit;
+      transition: all 0.2s;
+      letter-spacing: 0.01em;
+    }
+    .ex-delete-btn:hover { background: #DC2626; color: #fff; border-color: #DC2626; }
     .add-ex-btn { width: 100%; padding: 7px; border: 1.5px dashed #D1D5DB; border-radius: 8px; background: transparent; font-size: 0.7rem; font-weight: 600; color: #9CA3AF; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 4px; font-family: inherit; }
     .add-ex-btn:hover { border-color: #00E676; color: #00C853; background: rgba(0,230,118,0.04); }
     .cw-toolbar { background: #fff; border-bottom: 1px solid #EBEBEB; padding: 10px 20px; display: flex; align-items: flex-end; gap: 10px; flex-wrap: wrap; position: sticky; top: 64px; z-index: 30; }
@@ -86,7 +106,7 @@
           <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
         </button>
         <div style="width:1px;height:22px;background:rgba(255,255,255,0.1);"></div>
-        <img src="../assets/branca_larga.png" alt="Featym" style="height:20px;object-fit:contain;" onerror="this.style.display='none'">
+        <img src="assets/branca_larga.png" alt="Featym" style="height:20px;object-fit:contain;" onerror="this.style.display='none'">
         <span style="color:rgba(255,255,255,0.45);font-size:0.72rem;font-weight:500;margin-left:4px;">/ Criar Rotina</span>
       </div>
       <div style="display:flex;gap:8px;align-items:center;">
@@ -214,15 +234,13 @@
     </div>
   </div>
 
-  <!-- Context Menu -->
+  <!-- Context Menu (right-click on exercise card) -->
   <div id="ctxMenu" class="ctx-menu">
     <div class="ctx-item" id="ctxEdit"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>Editar</div>
-    <div class="ctx-item" id="ctxCopySingle"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>Copiar exercício</div>
-    <div class="ctx-item" id="ctxCopyDay"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>Copiar dia inteiro</div>
     <div class="ctx-divider"></div>
     <div class="ctx-item" id="ctxPaste" style="opacity:0.4;pointer-events:none;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/></svg>Colar aqui</div>
     <div class="ctx-divider"></div>
-    <div class="ctx-item danger" id="ctxDelete"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>Remover</div>
+    <div class="ctx-item danger" id="ctxDelete"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>Remover exercício</div>
   </div>
 
   <div id="toast" class="toast"></div>
@@ -258,7 +276,7 @@
   let allExercises=[];
   let targetDay=null;
   let selectedEx=null;
-  let clipboard=null;
+  let clipboard=null; // { type: 'day', data: [...exercises] }
   let dragSrc=null;
   let ctxTarget=null;
   let currentTab='search';
@@ -271,29 +289,27 @@
 
   // Load students
   try {
-  const students = await dbManager.getMyStudents();
-  const sel = document.getElementById('studentSelect');
-  students.forEach(s => {
-    const o = document.createElement('option');
-    o.value = s.uid;
-    o.textContent = s.name;
-    sel.appendChild(o);
-  });
+    const students = await dbManager.getMyStudents();
+    const sel = document.getElementById('studentSelect');
+    students.forEach(s => {
+      const o = document.createElement('option');
+      o.value = s.uid;
+      o.textContent = s.name;
+      sel.appendChild(o);
+    });
 
-  // Pré-selecionar aluno se vier do perfil do aluno
-  const preSelected = sessionStorage.getItem('preSelectedStudent');
-  if (preSelected) {
-    sel.value = preSelected;
-    sessionStorage.removeItem('preSelectedStudent');
-  }
+    const preSelected = sessionStorage.getItem('preSelectedStudent');
+    if (preSelected) {
+      sel.value = preSelected;
+      sessionStorage.removeItem('preSelectedStudent');
+    }
 
-  // Carregar treino para edição
-  const editId = sessionStorage.getItem('editWorkoutId');
-  if (editId) {
-    sessionStorage.removeItem('editWorkoutId');
-    await loadWorkout(editId);
-  }
-} catch(e) { console.warn('Alunos:', e); }
+    const editId = sessionStorage.getItem('editWorkoutId');
+    if (editId) {
+      sessionStorage.removeItem('editWorkoutId');
+      await loadWorkout(editId);
+    }
+  } catch(e) { console.warn('Alunos:', e); }
 
   // Load exercises library
   try {
@@ -322,12 +338,25 @@
       const col=document.createElement('div');
       col.className='day-column';
       col.dataset.day=d.key;
+
+      const hasClip = clipboard && clipboard.data && clipboard.data.length > 0;
       const exHtml=board[d.key].map((e,i)=>cardHtml(e,d.key,i)).join('');
+
       col.innerHTML=`
         <div class="day-header">
           <div class="day-label-short">${d.short}</div>
           <div class="day-label-full">${d.full}</div>
           <div class="day-ex-count" id="cnt-${d.key}">${board[d.key].length} exerc.</div>
+          <button
+            class="copy-day-btn${hasClip ? ' has-clipboard' : ''}"
+            onclick="copyDayHandler(event, '${d.key}')"
+            title="Copiar ou colar dia"
+          >
+            ${hasClip
+              ? `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/></svg> Colar dia`
+              : `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copiar dia`
+            }
+          </button>
         </div>
         <div class="drop-zone" id="zone-${d.key}" data-day="${d.key}">
           ${board[d.key].length===0?`<div class="drop-placeholder" onclick="openModal('${d.key}')"><span>+ Adicionar</span></div>`:''}
@@ -343,6 +372,27 @@
     bindDrop();
   }
 
+  // Copy-day button handler: copies if no clipboard, pastes if clipboard exists
+  window.copyDayHandler = function(e, day) {
+    e.stopPropagation();
+    if (clipboard && clipboard.data && clipboard.data.length > 0) {
+      // Paste then immediately clear clipboard so user can copy again
+      const count = clipboard.data.length;
+      clipboard.data.forEach(ex => board[day].push({...ex, id:uid()}));
+      clipboard = null;
+      document.getElementById('pasteBadge').classList.remove('visible');
+      renderBoard();
+      toast(`✓ ${count} exerc. colados em ${DAYS.find(d=>d.key===day)?.full}`);
+    } else {
+      // Copy
+      if (board[day].length === 0) return toast('⚠ Dia vazio, nada para copiar');
+      clipboard = { type:'day', data: board[day].map(ex=>({...ex})) };
+      renderBoard(); // re-render so all buttons switch to "Colar"
+      showPaste(`${board[day].length} exerc. de ${DAYS.find(d=>d.key===day)?.full} copiados`);
+      toast(`✓ ${board[day].length} exerc. copiados — clique "Colar dia" em outro dia`);
+    }
+  };
+
   function cardHtml(e,day,idx){
     return `<div class="ex-card" draggable="true" data-day="${day}" data-idx="${idx}"
       oncontextmenu="ctxShow(event,'${day}',${idx})">
@@ -353,14 +403,18 @@
         ${e.rest?`<span class="ex-badge" style="background:#F3F4F6;color:#9CA3AF;">⏱${e.rest}</span>`:''}
       </div>
       ${e.obs?`<div style="font-size:0.62rem;color:#9CA3AF;margin-top:3px;font-style:italic;">${e.obs}</div>`:''}
-      <div class="ex-card-actions">
-        <button class="ex-action-btn ex-action-copy" onclick="event.stopPropagation();copyCard('${day}',${idx})">
-          <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-        </button>
-        <button class="ex-action-btn ex-action-del" onclick="event.stopPropagation();removeCard('${day}',${idx})">
-          <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-        </button>
-      </div>
+      <button
+        class="ex-delete-btn"
+        onclick="event.stopPropagation(); removeCard('${day}',${idx})"
+        title="Remover exercício"
+      >
+        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <polyline points="3 6 5 6 21 6"/>
+          <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+          <path d="M10 11v6M14 11v6"/>
+        </svg>
+        Remover
+      </button>
     </div>`;
   }
 
@@ -402,22 +456,11 @@
   }
 
   window.removeCard=function(day,idx){board[day].splice(idx,1);renderBoard();};
-  window.copyCard=function(day,idx){
-    clipboard={type:'single',data:{...board[day][idx],id:uid()}};
-    showPaste(`"${clipboard.data.name}" copiado`);
-    toast('✓ Copiado — clique direito para colar');
-  };
 
   function showPaste(msg){
     const b=document.getElementById('pasteBadge');
     document.getElementById('pasteBadgeText').textContent=msg;
     b.classList.add('visible');
-  }
-  function pasteToDay(day){
-    if(!clipboard)return toast('Nada copiado');
-    if(clipboard.type==='single') board[day].push({...clipboard.data,id:uid()});
-    else clipboard.data.forEach(e=>board[day].push({...e,id:uid()}));
-    renderBoard();toast(`✓ Colado em ${DAYS.find(d=>d.key===day)?.full}`);
   }
 
   // ── MODAL ───────────────────────────────────────────────
@@ -487,18 +530,18 @@
   // ── CLEAR ───────────────────────────────────────────────
   document.getElementById('clearBoardBtn').onclick=()=>document.getElementById('confirmClearModal').classList.add('open');
   document.getElementById('cancelClear').onclick=()=>document.getElementById('confirmClearModal').classList.remove('open');
-  document.getElementById('confirmClear').onclick=()=>{DAYS.forEach(d=>board[d.key]=[]);renderBoard();document.getElementById('confirmClearModal').classList.remove('open');toast('Quadro limpo');};
+  document.getElementById('confirmClear').onclick=()=>{DAYS.forEach(d=>board[d.key]=[]);clipboard=null;renderBoard();document.getElementById('confirmClearModal').classList.remove('open');toast('Quadro limpo');};
 
-  // ── CONTEXT MENU ────────────────────────────────────────
+  // ── CONTEXT MENU (right-click on card) ──────────────────
   window.ctxShow=function(e,day,idx){
     e.preventDefault();e.stopPropagation();
     ctxTarget={day,idx};
     const menu=document.getElementById('ctxMenu');
-    const hasCb=!!clipboard;
+    const hasCb=!!(clipboard && clipboard.data && clipboard.data.length > 0);
     document.getElementById('ctxPaste').style.opacity=hasCb?'1':'0.4';
     document.getElementById('ctxPaste').style.pointerEvents=hasCb?'auto':'none';
     menu.style.left=Math.min(e.clientX,window.innerWidth-180)+'px';
-    menu.style.top=Math.min(e.clientY,window.innerHeight-170)+'px';
+    menu.style.top=Math.min(e.clientY,window.innerHeight-140)+'px';
     menu.classList.add('open');
   };
   document.addEventListener('click',()=>document.getElementById('ctxMenu').classList.remove('open'));
@@ -513,15 +556,16 @@
     board[ctxTarget.day][ctxTarget.idx]={...e,sets:s,reps:r,rest:rs,obs:o||''};
     renderBoard();toast('✓ Atualizado');
   };
-  document.getElementById('ctxCopySingle').onclick=()=>{if(ctxTarget)copyCard(ctxTarget.day,ctxTarget.idx);};
-  document.getElementById('ctxCopyDay').onclick=()=>{
-    if(!ctxTarget)return;
-    clipboard={type:'day',data:board[ctxTarget.day].map(e=>({...e}))};
-    showPaste(`${board[ctxTarget.day].length} exerc. copiados`);
-    toast(`✓ Dia copiado (${board[ctxTarget.day].length} exerc.)`);
+  document.getElementById('ctxPaste').onclick=()=>{
+    if(!ctxTarget||!clipboard)return;
+    const count = clipboard.data.length;
+    const dayName = DAYS.find(d=>d.key===ctxTarget.day)?.full;
+    clipboard.data.forEach(ex=>board[ctxTarget.day].push({...ex,id:uid()}));
+    clipboard = null;
+    document.getElementById('pasteBadge').classList.remove('visible');
+    renderBoard();toast(`✓ ${count} exerc. colados em ${dayName}`);
   };
-  document.getElementById('ctxPaste').onclick=()=>{if(ctxTarget)pasteToDay(ctxTarget.day);};
-  document.getElementById('ctxDelete').onclick=()=>{if(ctxTarget){removeCard(ctxTarget.day,ctxTarget.idx);toast('Removido');}};
+  document.getElementById('ctxDelete').onclick=()=>{if(ctxTarget){removeCard(ctxTarget.day,ctxTarget.idx);toast('Exercício removido');}};
 
   // ── SAVE ────────────────────────────────────────────────
   document.getElementById('saveWorkoutBtn').onclick=async()=>{
