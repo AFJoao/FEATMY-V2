@@ -1,0 +1,303 @@
+<div class="view-workout-page" style="font-family: 'DM Sans', system-ui, sans-serif; background: #FFFFFF; min-height: 100vh;">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/mobile-responsive-fixes.css">
+
+  <style>
+    .logout-btn { color: rgba(255,255,255,0.75); font-weight: 500; font-size: 0.875rem; padding: 8px 16px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.14); transition: all 0.2s ease; display: flex; align-items: center; gap: 7px; cursor: pointer; background: transparent; }
+    .logout-btn:hover { color: #fff; background: rgba(255,255,255,0.09); border-color: rgba(255,255,255,0.25); }
+    .back-btn { color: rgba(255,255,255,0.75); font-weight: 500; font-size: 0.875rem; padding: 8px 10px; border-radius: 8px; border: 1px solid transparent; transition: all 0.2s ease; display: flex; align-items: center; cursor: pointer; background: transparent; }
+    .back-btn:hover { color: #fff; background: rgba(255,255,255,0.09); }
+    .exercise-item { background: #fff; border: 1px solid #EBEBEB; border-radius: 16px; overflow: hidden; transition: all 0.2s; }
+    .exercise-item:hover { border-color: #D1D5DB; box-shadow: 0 4px 16px rgba(0,0,0,0.05); }
+    .stat-chip { background: #F4F4F4; border-radius: 8px; padding: 10px 14px; text-align: center; }
+    .feedback-btn { background: #00E676; color: #0A0A0A; border: none; border-radius: 12px; padding: 14px 28px; font-size: 0.95rem; font-weight: 800; cursor: pointer; transition: all 0.25s cubic-bezier(0.4,0,0.2,1); font-family: inherit; display: flex; align-items: center; gap: 8px; }
+    .feedback-btn:hover { background: #00C853; box-shadow: 0 8px 24px rgba(0,230,118,0.35); transform: translateY(-1px); }
+    .spinner { width: 28px; height: 28px; border: 3px solid rgba(0,0,0,0.08); border-top-color: #00E676; border-radius: 50%; animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    /* Feedback Modal */
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); z-index: 100; display: flex; align-items: flex-end; justify-content: center; padding: 20px; }
+    @media (min-width: 640px) { .modal-overlay { align-items: center; } }
+    .modal-box { background: #fff; border-radius: 24px 24px 0 0; padding: 32px 28px 28px; width: 100%; max-width: 500px; max-height: 90vh; overflow-y: auto; }
+    @media (min-width: 640px) { .modal-box { border-radius: 20px; } }
+    .range-input { width: 100%; height: 6px; border-radius: 3px; outline: none; cursor: pointer; accent-color: #00E676; }
+    .sensation-opt { flex: 1; padding: 12px 8px; border: 2px solid #EBEBEB; border-radius: 12px; cursor: pointer; text-align: center; transition: all 0.2s; }
+    .sensation-opt:hover { border-color: #D1D5DB; }
+    .sensation-opt.selected { border-color: #00E676; background: rgba(0,230,118,0.04); }
+    .sensation-opt input { display: none; }
+    .toggle-btn { padding: 10px 20px; border-radius: 10px; border: 2px solid #EBEBEB; font-size: 0.85rem; font-weight: 700; cursor: pointer; transition: all 0.2s; background: #fff; font-family: inherit; }
+    .toggle-btn.active-yes { background: #FEE2E2; border-color: #FCA5A5; color: #991B1B; }
+    .toggle-btn.active-no { background: #D1FAE5; border-color: #6EE7B7; color: #065F46; }
+  </style>
+
+  <!-- HEADER -->
+  <header style="background: #0A0A0A; position: sticky; top: 0; z-index: 50; border-bottom: 1px solid rgba(255,255,255,0.06);">
+    <div style="max-width: 900px; margin: 0 auto; padding: 0 24px; height: 64px; display: flex; justify-content: space-between; align-items: center;">
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <button onclick="router.goToStudentDashboard()" class="back-btn">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        <div style="width: 1px; height: 24px; background: rgba(255,255,255,0.1);"></div>
+        <img src="assets/branca_larga.png" alt="Featym" style="height: 26px; object-fit: contain;" onerror="this.style.display='none'">
+      </div>
+      <button id="logoutBtn" class="logout-btn">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        Sair
+      </button>
+    </div>
+  </header>
+
+  <!-- MAIN -->
+  <main style="max-width: 900px; margin: 0 auto; padding: 40px 24px 80px;" id="mainContent">
+    <div style="text-align:center;padding:64px 20px;">
+      <div class="spinner" style="margin:0 auto 16px;"></div>
+      <p style="color:#9CA3AF;font-size:0.875rem;margin:0;">Carregando treino...</p>
+    </div>
+  </main>
+
+  <!-- FEEDBACK MODAL -->
+  <div id="feedbackModal" class="modal-overlay" style="display: none;">
+    <div class="modal-box">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+        <h2 style="font-size: 1.2rem; font-weight: 800; color: #0A0A0A; margin: 0; letter-spacing: -0.02em;">Como foi o treino?</h2>
+        <button id="closeFeedbackModal" style="background: #F4F4F4; border: none; width: 32px; height: 32px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #6B7280; transition: background 0.2s;" onmouseover="this.style.background='#EBEBEB'" onmouseout="this.style.background='#F4F4F4'">✕</button>
+      </div>
+
+      <!-- Esforço -->
+      <div style="margin-bottom: 22px;">
+        <label style="display:block;font-size:0.78rem;font-weight:700;color:#374151;margin-bottom:12px;">Nível de esforço: <span id="effortLabel" style="color:#00E676;font-weight:800;">5</span>/10</label>
+        <input type="range" id="effortRange" class="range-input" min="1" max="10" value="5">
+        <div style="display:flex;justify-content:space-between;margin-top:6px;">
+          <span style="font-size:0.72rem;color:#9CA3AF;">Leve</span>
+          <span style="font-size:0.72rem;color:#9CA3AF;">Exaustivo</span>
+        </div>
+      </div>
+
+      <!-- Sensação -->
+      <div style="margin-bottom: 22px;">
+        <label style="display:block;font-size:0.78rem;font-weight:700;color:#374151;margin-bottom:10px;">Sensação geral</label>
+        <div style="display:flex;gap:8px;">
+          <label class="sensation-opt" id="sOtimo" onclick="selectSensation('otimo')">
+            <input type="radio" name="sensation" value="otimo">
+            <div style="font-size:1.3rem;margin-bottom:4px;">🔥</div>
+            <div style="font-size:0.75rem;font-weight:700;color:#0A0A0A;">Ótimo</div>
+          </label>
+          <label class="sensation-opt" id="sBom" onclick="selectSensation('bom')">
+            <input type="radio" name="sensation" value="bom">
+            <div style="font-size:1.3rem;margin-bottom:4px;">💪</div>
+            <div style="font-size:0.75rem;font-weight:700;color:#0A0A0A;">Bom</div>
+          </label>
+          <label class="sensation-opt" id="sRegular" onclick="selectSensation('regular')">
+            <input type="radio" name="sensation" value="regular">
+            <div style="font-size:1.3rem;margin-bottom:4px;">😐</div>
+            <div style="font-size:0.75rem;font-weight:700;color:#0A0A0A;">Regular</div>
+          </label>
+          <label class="sensation-opt" id="sRuim" onclick="selectSensation('ruim')">
+            <input type="radio" name="sensation" value="ruim">
+            <div style="font-size:1.3rem;margin-bottom:4px;">😓</div>
+            <div style="font-size:0.75rem;font-weight:700;color:#0A0A0A;">Ruim</div>
+          </label>
+        </div>
+      </div>
+
+      <!-- Dor -->
+      <div style="margin-bottom: 22px;">
+        <label style="display:block;font-size:0.78rem;font-weight:700;color:#374151;margin-bottom:10px;">Sentiu alguma dor?</label>
+        <div style="display:flex;gap:10px;">
+          <button class="toggle-btn" id="painYes" onclick="setPain(true)">😣 Sim</button>
+          <button class="toggle-btn" id="painNo" onclick="setPain(false)">✓ Não</button>
+        </div>
+        <div id="painLocationGroup" style="margin-top:12px;display:none;">
+          <label style="display:block;font-size:0.78rem;font-weight:700;color:#374151;margin-bottom:7px;">Onde? <span style="color:#9CA3AF;font-weight:400;">(opcional)</span></label>
+          <input type="text" id="painLocation" style="width:100%;padding:11px 14px;border:2px solid #EBEBEB;border-radius:10px;font-size:0.875rem;outline:none;font-family:inherit;background:#FAFAFA;box-sizing:border-box;transition:border-color 0.2s;" placeholder="Ex: joelho esquerdo" onfocus="this.style.borderColor='#0A0A0A'" onblur="this.style.borderColor='#EBEBEB'">
+        </div>
+      </div>
+
+      <!-- Comentário -->
+      <div style="margin-bottom: 24px;">
+        <label style="display:block;font-size:0.78rem;font-weight:700;color:#374151;margin-bottom:7px;">Comentário <span style="color:#9CA3AF;font-weight:400;">opcional</span></label>
+        <textarea id="feedbackComment" rows="3" style="width:100%;padding:11px 14px;border:2px solid #EBEBEB;border-radius:10px;font-size:0.875rem;outline:none;font-family:inherit;background:#FAFAFA;box-sizing:border-box;resize:vertical;transition:border-color 0.2s;" placeholder="Conte como foi o treino, dificuldades, observações..." onfocus="this.style.borderColor='#0A0A0A'" onblur="this.style.borderColor='#EBEBEB'"></textarea>
+      </div>
+
+      <div id="feedbackError" style="display:none;background:#FFF1F2;border:1px solid #FECDD3;border-radius:8px;padding:10px 13px;margin-bottom:14px;font-size:0.82rem;color:#BE123C;font-weight:500;"></div>
+
+      <button id="submitFeedbackBtn" style="width:100%;padding:14px;background:#00E676;color:#0A0A0A;border:none;border-radius:12px;font-size:0.95rem;font-weight:800;cursor:pointer;transition:all 0.25s cubic-bezier(0.4,0,0.2,1);font-family:inherit;" onmouseover="this.style.background='#00C853'" onmouseout="this.style.background='#00E676'">
+        Enviar Feedback
+      </button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+(function() {
+  let currentWorkout = null;
+  let painValue = null;
+  let sensationValue = null;
+
+  document.getElementById('logoutBtn').onclick = async () => { await authManager.logout(); router.goToLogin(); };
+  document.getElementById('closeFeedbackModal').onclick = () => { document.getElementById('feedbackModal').style.display = 'none'; };
+  document.getElementById('feedbackModal').addEventListener('click', (e) => {
+    if (e.target === document.getElementById('feedbackModal')) document.getElementById('feedbackModal').style.display = 'none';
+  });
+
+  document.getElementById('effortRange').addEventListener('input', (e) => {
+    document.getElementById('effortLabel').textContent = e.target.value;
+  });
+
+  function selectSensation(val) {
+    sensationValue = val;
+    ['otimo','bom','regular','ruim'].forEach(s => {
+      document.getElementById('s' + s.charAt(0).toUpperCase() + s.slice(1)).classList.toggle('selected', s === val);
+    });
+  }
+  window.selectSensation = selectSensation;
+
+  function setPain(val) {
+    painValue = val;
+    document.getElementById('painYes').className = 'toggle-btn' + (val ? ' active-yes' : '');
+    document.getElementById('painNo').className = 'toggle-btn' + (!val ? ' active-no' : '');
+    document.getElementById('painLocationGroup').style.display = val ? 'block' : 'none';
+  }
+  window.setPain = setPain;
+
+  window.openFeedbackModal = function() {
+    document.getElementById('feedbackModal').style.display = 'flex';
+    document.getElementById('effortRange').value = 5;
+    document.getElementById('effortLabel').textContent = '5';
+    painValue = null; sensationValue = null;
+    ['sOtimo','sBom','sRegular','sRuim'].forEach(id => document.getElementById(id).classList.remove('selected'));
+    document.getElementById('painYes').className = 'toggle-btn';
+    document.getElementById('painNo').className = 'toggle-btn';
+    document.getElementById('painLocationGroup').style.display = 'none';
+    document.getElementById('painLocation').value = '';
+    document.getElementById('feedbackComment').value = '';
+    document.getElementById('feedbackError').style.display = 'none';
+  };
+
+  document.getElementById('submitFeedbackBtn').onclick = async () => {
+    const errDiv = document.getElementById('feedbackError');
+    errDiv.style.display = 'none';
+    if (!sensationValue) { errDiv.textContent = 'Selecione a sensação geral.'; return errDiv.style.display = 'block'; }
+    if (painValue === null) { errDiv.textContent = 'Informe se sentiu dor.'; return errDiv.style.display = 'block'; }
+
+    const btn = document.getElementById('submitFeedbackBtn');
+    btn.innerHTML = '<span style="display:inline-block;width:20px;height:20px;border:3px solid rgba(0,0,0,0.15);border-top-color:#0A0A0A;border-radius:50%;animation:spin 0.8s linear infinite;"></span>';
+    btn.disabled = true;
+
+    try {
+      const data = {
+        workoutId: currentWorkout?.id,
+        workoutName: currentWorkout?.name,
+        effort: +document.getElementById('effortRange').value,
+        sensation: sensationValue,
+        hasPain: painValue,
+        painLocation: painValue ? document.getElementById('painLocation').value.trim() : '',
+        comment: document.getElementById('feedbackComment').value.trim(),
+        date: new Date().toISOString()
+      };
+      const result = await dbManager.submitFeedback(data);
+      if (result.success !== false) {
+        document.getElementById('feedbackModal').style.display = 'none';
+        // Show success toast
+        const toast = document.createElement('div');
+        toast.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#0A0A0A;color:#fff;padding:13px 22px;border-radius:12px;font-size:0.875rem;font-weight:600;z-index:999;box-shadow:0 8px 32px rgba(0,0,0,0.2);display:flex;align-items:center;gap:8px;';
+        toast.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#00E676" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Feedback enviado com sucesso!';
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 3000);
+      } else {
+        errDiv.textContent = result.error || 'Erro ao enviar feedback.';
+        errDiv.style.display = 'block';
+      }
+    } catch(e) {
+      errDiv.textContent = 'Erro inesperado. Tente novamente.';
+      errDiv.style.display = 'block';
+    }
+    btn.textContent = 'Enviar Feedback';
+    btn.disabled = false;
+    btn.onmouseover = () => btn.style.background = '#00C853';
+    btn.onmouseout = () => btn.style.background = '#00E676';
+  };
+
+  async function loadWorkout() {
+    const workoutId = router.getCurrentWorkoutId ? router.getCurrentWorkoutId() : (window.location.hash.split('/').pop() || '');
+    const main = document.getElementById('mainContent');
+    try {
+      currentWorkout = await dbManager.getWorkoutById(workoutId);
+      if (!currentWorkout) {
+        main.innerHTML = '<p style="text-align:center;color:#BE123C;padding:64px;">Treino não encontrado.</p>';
+        return;
+      }
+
+      const exercises = currentWorkout.exercises || [];
+      main.innerHTML = `
+        <!-- Workout Header -->
+        <div style="margin-bottom:32px;">
+          <p style="color:#9CA3AF;font-size:0.75rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;margin:0 0 6px;">TREINO</p>
+          <h1 style="font-size:1.9rem;font-weight:800;color:#0A0A0A;margin:0 0 12px;letter-spacing:-0.03em;">${currentWorkout.name}</h1>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            ${(currentWorkout.days||[]).map(d => `<span style="padding:5px 12px;border-radius:8px;font-size:0.78rem;font-weight:700;background:#F4F4F4;color:#374151;">${d}</span>`).join('')}
+          </div>
+        </div>
+
+        <!-- Stats bar -->
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:32px;">
+          <div class="stat-chip">
+            <p style="color:#9CA3AF;font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;margin:0 0 4px;">Exercícios</p>
+            <p style="font-size:1.4rem;font-weight:800;color:#0A0A0A;margin:0;">${exercises.length}</p>
+          </div>
+          <div class="stat-chip">
+            <p style="color:#9CA3AF;font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;margin:0 0 4px;">Séries total</p>
+            <p style="font-size:1.4rem;font-weight:800;color:#0A0A0A;margin:0;">${exercises.reduce((s,e)=>s+(+e.sets||0),0)}</p>
+          </div>
+          <div class="stat-chip">
+            <p style="color:#9CA3AF;font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;margin:0 0 4px;">Grupos</p>
+            <p style="font-size:1.4rem;font-weight:800;color:#0A0A0A;margin:0;">${new Set(exercises.map(e=>e.muscleGroup)).size}</p>
+          </div>
+        </div>
+
+        <!-- Exercises list -->
+        <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:36px;">
+          ${exercises.map((ex, idx) => `
+            <div class="exercise-item">
+              <div style="padding:18px 20px;">
+                <div style="display:flex;align-items:flex-start;gap:14px;">
+                  <span style="background:#0A0A0A;color:#00E676;min-width:28px;height:28px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:800;flex-shrink:0;">${idx+1}</span>
+                  <div style="flex:1;min-width:0;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:6px;">
+                      <h3 style="font-size:0.95rem;font-weight:700;color:#0A0A0A;margin:0;">${ex.exerciseName||ex.name||'Exercício'}</h3>
+                      ${ex.muscleGroup ? `<span style="font-size:0.7rem;font-weight:700;padding:3px 8px;border-radius:6px;background:#F4F4F4;color:#374151;">${ex.muscleGroup}</span>` : ''}
+                    </div>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                      <span style="background:#F4F4F4;padding:6px 12px;border-radius:8px;font-size:0.78rem;font-weight:700;color:#374151;">${ex.sets||3} séries</span>
+                      <span style="background:#F4F4F4;padding:6px 12px;border-radius:8px;font-size:0.78rem;font-weight:700;color:#374151;">${ex.reps||12} reps</span>
+                      ${ex.rest ? `<span style="background:#F4F4F4;padding:6px 12px;border-radius:8px;font-size:0.78rem;font-weight:600;color:#6B7280;">⏱ ${ex.rest}</span>` : ''}
+                      ${ex.obs ? `<span style="background:rgba(0,230,118,0.08);border:1px solid rgba(0,230,118,0.2);padding:6px 12px;border-radius:8px;font-size:0.78rem;font-weight:600;color:#065F46;">${ex.obs}</span>` : ''}
+                    </div>
+                    ${ex.videoUrl ? `<a href="${ex.videoUrl}" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:5px;margin-top:10px;font-size:0.75rem;font-weight:600;color:#6B7280;text-decoration:none;background:#F4F4F4;padding:5px 10px;border-radius:7px;transition:background 0.2s;" onmouseover="this.style.background='#EBEBEB'" onmouseout="this.style.background='#F4F4F4'"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg> Ver vídeo</a>` : ''}
+                  </div>
+                </div>
+              </div>
+            </div>`).join('')}
+        </div>
+
+        <!-- Feedback CTA -->
+        <div style="background:#FAFAFA;border:1px solid #EBEBEB;border-radius:16px;padding:24px;display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;">
+          <div>
+            <p style="font-size:0.95rem;font-weight:700;color:#0A0A0A;margin:0 0 4px;">Treino concluído?</p>
+            <p style="font-size:0.85rem;color:#6B7280;margin:0;">Envie seu feedback para o personal trainer</p>
+          </div>
+          <button class="feedback-btn" onclick="openFeedbackModal()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            Enviar Feedback
+          </button>
+        </div>
+      `;
+    } catch(e) {
+      main.innerHTML = '<p style="text-align:center;color:#BE123C;padding:64px;">Erro ao carregar treino.</p>';
+    }
+  }
+
+  loadWorkout();
+})();
+</script>

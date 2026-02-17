@@ -1,0 +1,5 @@
+# Ignorar apenas arquivos desnecessários
+node_modules
+.git
+*.md
+TESTE_*.html

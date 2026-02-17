@@ -1,0 +1,258 @@
+<div class="personal-feedbacks" style="font-family: 'DM Sans', system-ui, sans-serif; background: #FFFFFF; min-height: 100vh;">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/mobile-responsive-fixes.css">
+
+  <style>
+    .nav-link-fb { color: rgba(255,255,255,0.75); font-weight: 500; font-size: 0.875rem; padding: 8px 14px; border-radius: 8px; border: 1px solid transparent; transition: all 0.2s; display: flex; align-items: center; gap: 7px; text-decoration: none; cursor: pointer; background: transparent; }
+    .nav-link-fb:hover { color: #fff; background: rgba(255,255,255,0.09); border-color: rgba(255,255,255,0.15); }
+    .filter-select { width: 100%; padding: 10px 14px; border: 2px solid #EBEBEB; border-radius: 10px; font-size: 0.85rem; outline: none; font-family: inherit; transition: border-color 0.2s; appearance: none; background: #FAFAFA url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239CA3AF' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") no-repeat right 12px center; padding-right: 36px; }
+    .filter-select:focus { border-color: #0A0A0A; background-color: #fff; }
+    .filter-input { width: 100%; padding: 10px 14px; border: 2px solid #EBEBEB; border-radius: 10px; font-size: 0.85rem; outline: none; font-family: inherit; transition: border-color 0.2s; background: #FAFAFA; box-sizing: border-box; }
+    .filter-input:focus { border-color: #0A0A0A; background: #fff; }
+    .feedback-card { background: #fff; border: 1px solid #EBEBEB; border-radius: 16px; padding: 24px; transition: all 0.2s ease; }
+    .feedback-card:hover { box-shadow: 0 4px 24px rgba(0,0,0,0.06); border-color: #D1D5DB; }
+    .stat-pill { padding: 14px 18px; background: #F8F9FA; border-radius: 12px; }
+    .spinner { width: 28px; height: 28px; border: 3px solid rgba(0,0,0,0.06); border-top-color: #00E676; border-radius: 50%; animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .badge-pill { display: inline-flex; align-items: center; padding: 4px 10px; border-radius: 20px; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.02em; }
+  </style>
+
+  <header style="background: #0A0A0A; position: sticky; top: 0; z-index: 50; border-bottom: 1px solid rgba(255,255,255,0.06);">
+    <div style="max-width: 1400px; margin: 0 auto; padding: 0 32px; height: 64px; display: flex; justify-content: space-between; align-items: center;">
+      <div style="display: flex; align-items: center; gap: 14px;">
+        <button onclick="router.goToPersonalDashboard()" class="nav-link-fb" style="padding: 8px 10px;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        <div style="width: 1px; height: 24px; background: rgba(255,255,255,0.1);"></div>
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <img src="assets/branca_larga.png" style="height: 28px; object-fit: contain;" onerror="this.style.display='none'">
+          <span style="color: rgba(255,255,255,0.35); font-size: 0.85rem;">·</span>
+          <span style="color: rgba(255,255,255,0.7); font-size: 0.9rem; font-weight: 600; letter-spacing: -0.01em;">Feedbacks dos Alunos</span>
+        </div>
+      </div>
+      <button id="logoutBtn" class="nav-link-fb" style="border: 1px solid rgba(255,255,255,0.14);">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        Sair
+      </button>
+    </div>
+  </header>
+
+  <main style="max-width: 1200px; margin: 0 auto; padding: 36px 32px 60px;">
+
+    <div style="margin-bottom: 32px;">
+      <p style="color: #9CA3AF; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; margin: 0 0 6px;">ANÁLISE E ACOMPANHAMENTO</p>
+      <h1 style="font-size: 1.9rem; font-weight: 800; color: #0A0A0A; margin: 0; letter-spacing: -0.03em;">Feedbacks</h1>
+    </div>
+
+    <!-- Filters -->
+    <div style="background: #FAFAFA; border: 1px solid #EBEBEB; border-radius: 16px; padding: 20px 24px; margin-bottom: 28px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <p style="font-size: 0.8rem; font-weight: 700; color: #374151; margin: 0; text-transform: uppercase; letter-spacing: 0.06em;">Filtros</p>
+        <button id="clearFilters" style="background: transparent; border: none; color: #6B7280; font-size: 0.78rem; font-weight: 600; cursor: pointer; padding: 4px 8px; border-radius: 6px; transition: all 0.2s; font-family: inherit;" onmouseover="this.style.background='#EBEBEB'" onmouseout="this.style.background='transparent'">Limpar</button>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px;">
+        <div>
+          <label style="display: block; font-size: 0.72rem; font-weight: 700; color: #9CA3AF; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.05em;">Aluno</label>
+          <select id="filterStudent" class="filter-select">
+            <option value="">Todos os alunos</option>
+          </select>
+        </div>
+        <div>
+          <label style="display: block; font-size: 0.72rem; font-weight: 700; color: #9CA3AF; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.05em;">Semana</label>
+          <input type="text" id="filterWeek" class="filter-input" placeholder="Ex: 2024-15">
+        </div>
+        <div>
+          <label style="display: block; font-size: 0.72rem; font-weight: 700; color: #9CA3AF; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.05em;">Dia</label>
+          <select id="filterDay" class="filter-select">
+            <option value="">Todos os dias</option>
+            <option value="monday">Segunda-feira</option>
+            <option value="tuesday">Terça-feira</option>
+            <option value="wednesday">Quarta-feira</option>
+            <option value="thursday">Quinta-feira</option>
+            <option value="friday">Sexta-feira</option>
+            <option value="saturday">Sábado</option>
+            <option value="sunday">Domingo</option>
+          </select>
+        </div>
+        <div>
+          <label style="display: block; font-size: 0.72rem; font-weight: 700; color: #9CA3AF; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.05em;">Sensação</label>
+          <select id="filterSensation" class="filter-select">
+            <option value="">Todas</option>
+            <option value="leve">Leve</option>
+            <option value="ideal">Ideal</option>
+            <option value="pesado">Pesado</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div id="feedbacksList" style="display: flex; flex-direction: column; gap: 14px;">
+      <div style="text-align: center; padding: 60px 20px;">
+        <div class="spinner" style="margin: 0 auto 16px;"></div>
+        <p style="color: #9CA3AF; font-size: 0.875rem; margin: 0;">Carregando feedbacks...</p>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+(async function() {
+  const daysMap = { monday:'Segunda-feira', tuesday:'Terça-feira', wednesday:'Quarta-feira', thursday:'Quinta-feira', friday:'Sexta-feira', saturday:'Sábado', sunday:'Domingo' };
+  const sensationMap = { leve:'Leve', ideal:'Ideal', pesado:'Pesado' };
+
+  await new Promise(resolve => document.readyState === 'loading' ? document.addEventListener('DOMContentLoaded', resolve) : resolve());
+  await new Promise(resolve => setTimeout(resolve, 100));
+
+  let allFeedbacks = [], allStudents = [], allWorkouts = {};
+
+  document.getElementById('logoutBtn')?.addEventListener('click', async () => {
+    await authManager.logout();
+    router.goToLogin();
+  });
+
+  async function loadInitialData() {
+    allStudents = await dbManager.getMyStudents();
+    allFeedbacks = await dbManager.getPersonalFeedbacks();
+
+    for (const feedback of allFeedbacks) {
+      if (!allWorkouts[feedback.workoutId]) {
+        const workout = await dbManager.getWorkout(feedback.workoutId);
+        if (workout) allWorkouts[feedback.workoutId] = workout;
+      }
+    }
+
+    const filterStudent = document.getElementById('filterStudent');
+    if (filterStudent) {
+      allStudents.forEach(student => {
+        const option = document.createElement('option');
+        option.value = student.uid;
+        option.textContent = student.name;
+        filterStudent.appendChild(option);
+      });
+    }
+
+    renderFeedbacks();
+  }
+
+  function renderFeedbacks() {
+    const container = document.getElementById('feedbacksList');
+    if (!container) return;
+
+    let filtered = [...allFeedbacks];
+    const fs = document.getElementById('filterStudent')?.value;
+    const fw = document.getElementById('filterWeek')?.value;
+    const fd = document.getElementById('filterDay')?.value;
+    const fse = document.getElementById('filterSensation')?.value;
+
+    if (fs) filtered = filtered.filter(f => f.studentId === fs);
+    if (fw) filtered = filtered.filter(f => f.weekIdentifier === fw);
+    if (fd) filtered = filtered.filter(f => f.dayOfWeek === fd);
+    if (fse) filtered = filtered.filter(f => f.sensation === fse);
+
+    if (filtered.length === 0) {
+      container.innerHTML = `
+        <div style="text-align:center;padding:60px 20px;background:#FAFAFA;border-radius:16px;border:2px dashed #E5E7EB;">
+          <div style="width:52px;height:52px;background:#F4F4F4;border-radius:14px;margin:0 auto 16px;display:flex;align-items:center;justify-content:center;">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          </div>
+          <p style="color:#374151;font-size:1rem;font-weight:700;margin:0 0 6px;">Nenhum feedback encontrado</p>
+          <p style="color:#9CA3AF;font-size:0.85rem;margin:0;">Os feedbacks dos alunos aparecerão aqui</p>
+        </div>
+      `;
+      return;
+    }
+
+    container.innerHTML = filtered.map(feedback => {
+      const student = allStudents.find(s => s.uid === feedback.studentId);
+      const workout = allWorkouts[feedback.workoutId];
+      const studentName = student?.name || 'Aluno';
+      const workoutName = workout?.name || 'Treino';
+      const initials = studentName.split(' ').map(n => n[0]).join('').slice(0,2).toUpperCase();
+
+      let dateStr = 'Data não disponível';
+      if (feedback.createdAt) {
+        const date = feedback.createdAt.toDate ? feedback.createdAt.toDate() : new Date(feedback.createdAt.seconds * 1000);
+        dateStr = date.toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
+      }
+
+      const sensationConfig = {
+        leve:   { color: '#059669', bg: '#ECFDF5', border: '#D1FAE5', label: '😌 Leve' },
+        ideal:  { color: '#2563EB', bg: '#EFF6FF', border: '#BFDBFE', label: '🎯 Ideal' },
+        pesado: { color: '#DC2626', bg: '#FEF2F2', border: '#FECACA', label: '🔥 Pesado' }
+      };
+      const sc = sensationConfig[feedback.sensation] || { color: '#6B7280', bg: '#F8F9FA', border: '#EBEBEB', label: feedback.sensation };
+
+      const effort = feedback.effortLevel || 0;
+      const effortColor = effort >= 8 ? '#DC2626' : effort >= 5 ? '#F59E0B' : '#059669';
+
+      return `
+        <div class="feedback-card">
+          <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:18px;gap:16px;flex-wrap:wrap;">
+            <div style="display:flex;align-items:center;gap:12px;flex:1;min-width:200px;">
+              <div style="width:42px;height:42px;background:#0A0A0A;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                <span style="color:#00E676;font-size:0.85rem;font-weight:800;">${initials}</span>
+              </div>
+              <div>
+                <p style="font-size:1rem;font-weight:700;color:#0A0A0A;margin:0 0 3px;">${studentName}</p>
+                <p style="font-size:0.78rem;color:#9CA3AF;margin:0;">${workoutName} · ${dateStr}</p>
+              </div>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+              <span class="badge-pill" style="background:#F4F4F4;color:#374151;">📅 ${feedback.weekIdentifier}</span>
+              <span class="badge-pill" style="background:#F4F4F4;color:#374151;">${daysMap[feedback.dayOfWeek] || feedback.dayOfWeek}</span>
+            </div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:${(feedback.hasPain && feedback.painLocation) || feedback.comment ? '16px' : '0'};">
+            <div class="stat-pill">
+              <p style="font-size:0.68rem;font-weight:700;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.06em;margin:0 0 5px;">Esforço</p>
+              <div style="display:flex;align-items:baseline;gap:4px;">
+                <span style="font-size:1.8rem;font-weight:800;color:${effortColor};line-height:1;">${effort}</span>
+                <span style="font-size:0.75rem;color:#9CA3AF;">/10</span>
+              </div>
+            </div>
+            <div class="stat-pill" style="background:${sc.bg};border:1px solid ${sc.border};">
+              <p style="font-size:0.68rem;font-weight:700;color:${sc.color};opacity:0.7;text-transform:uppercase;letter-spacing:0.06em;margin:0 0 5px;">Sensação</p>
+              <p style="font-size:1rem;font-weight:700;color:${sc.color};margin:0;">${sc.label}</p>
+            </div>
+            <div class="stat-pill" style="${feedback.hasPain ? 'background:#FEF2F2;border:1px solid #FECACA;' : 'background:#ECFDF5;border:1px solid #D1FAE5;'}">
+              <p style="font-size:0.68rem;font-weight:700;color:${feedback.hasPain ? '#DC2626' : '#059669'};opacity:0.7;text-transform:uppercase;letter-spacing:0.06em;margin:0 0 5px;">Dor</p>
+              <p style="font-size:1rem;font-weight:700;color:${feedback.hasPain ? '#DC2626' : '#059669'};margin:0;">${feedback.hasPain ? '⚠️ Sim' : '✓ Não'}</p>
+            </div>
+          </div>
+
+          ${feedback.hasPain && feedback.painLocation ? `
+            <div style="background:#FFF1F2;border:1px solid #FECDD3;border-radius:10px;padding:12px 14px;margin-bottom:10px;display:flex;align-items:start;gap:8px;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#BE123C" stroke-width="2" style="flex-shrink:0;margin-top:1px;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              <p style="font-size:0.82rem;color:#BE123C;margin:0;font-weight:500;"><strong>Local da dor:</strong> ${feedback.painLocation}</p>
+            </div>
+          ` : ''}
+
+          ${feedback.comment ? `
+            <div style="background:#F8F9FA;border-radius:10px;padding:12px 14px;display:flex;align-items:start;gap:8px;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="2" style="flex-shrink:0;margin-top:1px;"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+              <p style="font-size:0.85rem;color:#374151;margin:0;line-height:1.6;">${feedback.comment}</p>
+            </div>
+          ` : ''}
+        </div>
+      `;
+    }).join('');
+  }
+
+  ['filterStudent','filterWeek','filterDay','filterSensation'].forEach(id => {
+    document.getElementById(id)?.addEventListener('change', renderFeedbacks);
+    document.getElementById(id)?.addEventListener('input', renderFeedbacks);
+  });
+
+  document.getElementById('clearFilters')?.addEventListener('click', () => {
+    document.getElementById('filterStudent').value = '';
+    document.getElementById('filterWeek').value = '';
+    document.getElementById('filterDay').value = '';
+    document.getElementById('filterSensation').value = '';
+    renderFeedbacks();
+  });
+
+  await loadInitialData();
+})();
+</script>

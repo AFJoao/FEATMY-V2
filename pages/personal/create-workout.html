@@ -1,0 +1,545 @@
+<div class="create-workout-page" style="font-family: 'DM Sans', system-ui, sans-serif; background: #F8F9FA; min-height: 100vh;">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <style>
+    * { box-sizing: border-box; }
+    .cw-nav-btn { color: rgba(255,255,255,0.75); font-weight: 500; font-size: 0.85rem; padding: 7px 14px; border-radius: 8px; border: 1px solid transparent; cursor: pointer; background: transparent; display: flex; align-items: center; gap: 6px; transition: all 0.2s; text-decoration: none; white-space: nowrap; }
+    .cw-nav-btn:hover { color: #fff; background: rgba(255,255,255,0.09); border-color: rgba(255,255,255,0.15); }
+    .kanban-board { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 10px; padding: 16px 20px 40px; min-height: calc(100vh - 150px); align-items: start; }
+    .day-column { background: #fff; border: 1.5px solid #E5E7EB; border-radius: 14px; display: flex; flex-direction: column; min-height: 380px; transition: border-color 0.2s; }
+    .day-column.drag-over { border-color: #00E676; background: rgba(0,230,118,0.02); }
+    .day-header { padding: 11px 12px 9px; border-bottom: 1px solid #EBEBEB; }
+    .day-label-short { font-size: 0.6rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #9CA3AF; margin-bottom: 1px; }
+    .day-label-full { font-size: 0.85rem; font-weight: 700; color: #111827; }
+    .day-ex-count { font-size: 0.62rem; color: #9CA3AF; margin-top: 2px; }
+    .drop-zone { flex: 1; padding: 8px; display: flex; flex-direction: column; gap: 6px; min-height: 60px; }
+    .drop-placeholder { border: 2px dashed #E5E7EB; border-radius: 10px; min-height: 56px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; margin-bottom: 2px; }
+    .drop-placeholder:hover { border-color: #00E676; background: rgba(0,230,118,0.04); }
+    .drop-placeholder span { font-size: 0.7rem; color: #CBD5E1; font-weight: 500; }
+    .drop-placeholder:hover span { color: #00C853; }
+    .ex-card { background: #F8F9FA; border: 1.5px solid #E5E7EB; border-radius: 10px; padding: 9px 10px; cursor: grab; user-select: none; transition: all 0.18s; position: relative; }
+    .ex-card:hover { border-color: #A5B4FC; background: #fff; box-shadow: 0 2px 10px rgba(0,0,0,0.07); }
+    .ex-card.dragging { opacity: 0.4; cursor: grabbing; }
+    .ex-card-name { font-size: 0.76rem; font-weight: 700; color: #111827; margin-bottom: 5px; line-height: 1.3; padding-right: 40px; }
+    .ex-card-meta { display: flex; gap: 3px; flex-wrap: wrap; }
+    .ex-badge { font-size: 0.6rem; font-weight: 700; padding: 2px 6px; border-radius: 4px; }
+    .ex-card-actions { display: none; position: absolute; top: 6px; right: 6px; gap: 3px; }
+    .ex-card:hover .ex-card-actions { display: flex; }
+    .ex-action-btn { width: 20px; height: 20px; border: none; border-radius: 5px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+    .ex-action-copy { background: #EFF6FF; color: #2563EB; }
+    .ex-action-del  { background: #FEF2F2; color: #DC2626; }
+    .add-ex-btn { width: 100%; padding: 7px; border: 1.5px dashed #D1D5DB; border-radius: 8px; background: transparent; font-size: 0.7rem; font-weight: 600; color: #9CA3AF; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 4px; font-family: inherit; }
+    .add-ex-btn:hover { border-color: #00E676; color: #00C853; background: rgba(0,230,118,0.04); }
+    .cw-toolbar { background: #fff; border-bottom: 1px solid #EBEBEB; padding: 10px 20px; display: flex; align-items: flex-end; gap: 10px; flex-wrap: wrap; position: sticky; top: 64px; z-index: 30; }
+    .toolbar-select { padding: 8px 12px; border: 1.5px solid #E5E7EB; border-radius: 9px; font-size: 0.82rem; font-family: inherit; color: #374151; outline: none; background: #FAFAFA; cursor: pointer; }
+    .toolbar-select:focus { border-color: #0A0A0A; }
+    .toolbar-input { padding: 8px 12px; border: 1.5px solid #E5E7EB; border-radius: 9px; font-size: 0.82rem; font-family: inherit; color: #374151; outline: none; background: #FAFAFA; min-width: 200px; }
+    .toolbar-input:focus { border-color: #0A0A0A; }
+    .toolbar-btn { padding: 8px 14px; border-radius: 9px; font-size: 0.8rem; font-weight: 700; cursor: pointer; border: none; display: flex; align-items: center; gap: 5px; font-family: inherit; transition: all 0.2s; white-space: nowrap; }
+    .toolbar-btn-primary { background: #00E676; color: #0A0A0A; }
+    .toolbar-btn-primary:hover { background: #00C853; }
+    .toolbar-btn-secondary { background: #F4F4F4; color: #374151; }
+    .toolbar-btn-secondary:hover { background: #EBEBEB; }
+    .toolbar-btn-danger { background: #FEF2F2; color: #DC2626; }
+    .toolbar-btn-danger:hover { background: #FECACA; }
+    .toolbar-divider { width: 1px; height: 30px; background: #E5E7EB; }
+    .tl-field { display: flex; flex-direction: column; gap: 3px; }
+    .tl-label { font-size: 0.62rem; font-weight: 700; color: #9CA3AF; text-transform: uppercase; letter-spacing: 0.06em; }
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(10,10,10,0.6); backdrop-filter: blur(4px); z-index: 200; align-items: center; justify-content: center; }
+    .modal-overlay.open { display: flex; }
+    .modal-box { background: #fff; border-radius: 20px; padding: 26px; width: 92%; max-width: 500px; max-height: 88vh; overflow-y: auto; box-shadow: 0 24px 60px rgba(0,0,0,0.18); }
+    .modal-title { font-size: 1.05rem; font-weight: 800; color: #0A0A0A; margin: 0 0 4px; letter-spacing: -0.02em; }
+    .modal-sub { font-size: 0.78rem; color: #9CA3AF; margin: 0 0 18px; }
+    .modal-input { width: 100%; padding: 10px 12px; border: 2px solid #EBEBEB; border-radius: 10px; font-size: 0.875rem; font-family: inherit; outline: none; transition: border-color 0.2s; background: #FAFAFA; color: #111827; }
+    .modal-input:focus { border-color: #0A0A0A; background: #fff; }
+    .modal-label { display: block; font-size: 0.72rem; font-weight: 700; color: #374151; margin-bottom: 5px; }
+    .modal-field { margin-bottom: 12px; }
+    .ex-search-list { max-height: 240px; overflow-y: auto; border: 1px solid #EBEBEB; border-radius: 10px; margin-top: 6px; }
+    .ex-search-item { padding: 9px 13px; cursor: pointer; border-bottom: 1px solid #F4F4F4; transition: background 0.15s; }
+    .ex-search-item:last-child { border-bottom: none; }
+    .ex-search-item:hover, .ex-search-item.selected { background: rgba(0,230,118,0.06); }
+    .ex-search-name { font-size: 0.83rem; font-weight: 600; color: #111827; }
+    .ex-search-muscle { font-size: 0.7rem; color: #9CA3AF; }
+    .ctx-menu { display: none; position: fixed; background: #fff; border: 1px solid #E5E7EB; border-radius: 10px; padding: 4px; box-shadow: 0 8px 32px rgba(0,0,0,0.14); z-index: 300; min-width: 165px; }
+    .ctx-menu.open { display: block; }
+    .ctx-item { padding: 8px 11px; border-radius: 7px; cursor: pointer; font-size: 0.8rem; font-weight: 600; color: #374151; display: flex; align-items: center; gap: 8px; transition: background 0.15s; }
+    .ctx-item:hover { background: #F4F4F4; }
+    .ctx-item.danger { color: #DC2626; }
+    .ctx-item.danger:hover { background: #FEF2F2; }
+    .ctx-divider { height: 1px; background: #F4F4F4; margin: 3px 0; }
+    .paste-badge { background: rgba(0,230,118,0.12); border: 1px solid rgba(0,230,118,0.3); border-radius: 8px; padding: 5px 11px; font-size: 0.73rem; font-weight: 700; color: #00C853; display: none; align-items: center; gap: 5px; }
+    .paste-badge.visible { display: flex; }
+    .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px); background: #111827; color: #fff; padding: 10px 18px; border-radius: 10px; font-size: 0.8rem; font-weight: 600; z-index: 999; transition: transform 0.3s ease; white-space: nowrap; }
+    .toast.show { transform: translateX(-50%) translateY(0); }
+    .spinner { width: 18px; height: 18px; border: 2.5px solid rgba(0,0,0,0.12); border-top-color: #0A0A0A; border-radius: 50%; animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .tab-btn { flex: 1; padding: 8px; border: none; background: transparent; font-size: 0.8rem; font-weight: 600; color: #9CA3AF; cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.2s; font-family: inherit; }
+    .tab-btn.active { color: #00C853; border-bottom-color: #00E676; font-weight: 700; }
+  </style>
+
+  <!-- HEADER -->
+  <header style="background:#0A0A0A;position:sticky;top:0;z-index:50;border-bottom:1px solid rgba(255,255,255,0.06);">
+    <div style="padding:0 20px;height:64px;display:flex;justify-content:space-between;align-items:center;">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <button onclick="router.goToPersonalDashboard()" class="cw-nav-btn" style="padding:7px 10px;">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        <div style="width:1px;height:22px;background:rgba(255,255,255,0.1);"></div>
+        <img src="../assets/branca_larga.png" alt="Featym" style="height:20px;object-fit:contain;" onerror="this.style.display='none'">
+        <span style="color:rgba(255,255,255,0.45);font-size:0.72rem;font-weight:500;margin-left:4px;">/ Criar Rotina</span>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <button id="saveWorkoutBtn" class="toolbar-btn toolbar-btn-primary" style="font-size:0.82rem;">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+          Salvar Rotina
+        </button>
+        <button id="logoutBtn" class="cw-nav-btn" style="border-color:rgba(255,255,255,0.14);">Sair</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- TOOLBAR -->
+  <div class="cw-toolbar">
+    <div class="tl-field">
+      <span class="tl-label">Aluno</span>
+      <select id="studentSelect" class="toolbar-select"><option value="">Selecione o aluno...</option></select>
+    </div>
+    <div class="tl-field">
+      <span class="tl-label">Nome da Rotina</span>
+      <input type="text" id="workoutName" class="toolbar-input" placeholder="Ex: Treino A – Hipertrofia">
+    </div>
+    <div class="toolbar-divider"></div>
+    <div class="tl-field">
+      <span class="tl-label">Preset</span>
+      <div style="display:flex;gap:6px;">
+        <select id="presetSelect" class="toolbar-select">
+          <option value="">Carregar preset...</option>
+          <option value="abc">ABC – 3 dias</option>
+          <option value="abcd">ABCD – 4 dias</option>
+          <option value="upper_lower">Upper/Lower – 4 dias</option>
+          <option value="fullbody">Full Body – 3 dias</option>
+          <option value="ppl">Push/Pull/Legs – 6 dias</option>
+        </select>
+        <button id="loadPresetBtn" class="toolbar-btn toolbar-btn-secondary">Aplicar</button>
+      </div>
+    </div>
+    <div class="toolbar-divider"></div>
+    <div id="pasteBadge" class="paste-badge">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+      <span id="pasteBadgeText">Copiado</span>
+    </div>
+    <button id="clearBoardBtn" class="toolbar-btn toolbar-btn-danger" style="margin-left:auto;">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+      Limpar tudo
+    </button>
+  </div>
+
+  <!-- KANBAN -->
+  <div class="kanban-board" id="kanbanBoard"></div>
+
+  <!-- MODAL: Add Exercise -->
+  <div id="exModal" class="modal-overlay">
+    <div class="modal-box">
+      <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:16px;">
+        <div>
+          <h3 class="modal-title">Adicionar Exercício</h3>
+          <p class="modal-sub">Busque da biblioteca ou adicione manualmente</p>
+        </div>
+        <button id="closeExModal" style="background:#F4F4F4;border:none;width:30px;height:30px;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#374151" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div style="display:flex;gap:0;border-bottom:2px solid #EBEBEB;margin-bottom:16px;margin-bottom:-1px;">
+        <button class="tab-btn active" id="tabSearch" onclick="switchTab('search')">🔍 Biblioteca</button>
+        <button class="tab-btn" id="tabManual" onclick="switchTab('manual')">✏️ Manual</button>
+      </div>
+      <div style="height:1px;background:#EBEBEB;margin-bottom:16px;"></div>
+
+      <!-- Search tab -->
+      <div id="contentSearch">
+        <input type="text" id="exSearchInput" class="modal-input" placeholder="Buscar exercício..." style="margin-bottom:6px;">
+        <div id="exSearchList" class="ex-search-list"><div style="padding:16px;text-align:center;color:#9CA3AF;font-size:0.8rem;">Carregando...</div></div>
+        <div id="selectedExInfo" style="display:none;margin-top:10px;background:#F8F9FA;border-radius:10px;padding:11px;">
+          <p style="font-size:0.75rem;font-weight:700;color:#374151;margin:0 0 8px;">Séries / Reps / Descanso:</p>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
+            <div><label class="modal-label">Séries</label><input type="number" id="exSets" class="modal-input" value="3" min="1" style="text-align:center;"></div>
+            <div><label class="modal-label">Reps/Tempo</label><input type="text" id="exReps" class="modal-input" value="12" style="text-align:center;"></div>
+            <div><label class="modal-label">Descanso</label><input type="text" id="exRest" class="modal-input" value="60s" style="text-align:center;"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Manual tab -->
+      <div id="contentManual" style="display:none;">
+        <div class="modal-field"><label class="modal-label">Nome *</label><input type="text" id="manualName" class="modal-input" placeholder="Ex: Supino Reto com Halteres"></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+          <div class="modal-field">
+            <label class="modal-label">Grupo muscular</label>
+            <select id="manualMuscle" class="modal-input">
+              <option value="">Selecione...</option>
+              <option>Peito</option><option>Costas</option><option>Ombros</option>
+              <option>Bíceps</option><option>Tríceps</option><option>Pernas</option>
+              <option>Glúteos</option><option>Abdômen</option><option>Cardio</option><option>Full Body</option>
+            </select>
+          </div>
+          <div class="modal-field"><label class="modal-label">Séries</label><input type="number" id="manualSets" class="modal-input" value="3"></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+          <div class="modal-field"><label class="modal-label">Reps/Tempo</label><input type="text" id="manualReps" class="modal-input" value="12"></div>
+          <div class="modal-field"><label class="modal-label">Descanso</label><input type="text" id="manualRest" class="modal-input" value="60s"></div>
+        </div>
+        <div class="modal-field"><label class="modal-label">Obs (opcional)</label><input type="text" id="manualObs" class="modal-input" placeholder="Ex: Foco na excêntrica"></div>
+      </div>
+
+      <div style="display:flex;gap:8px;margin-top:18px;">
+        <button id="cancelExModal" class="toolbar-btn toolbar-btn-secondary" style="flex:1;">Cancelar</button>
+        <button id="confirmAddEx" class="toolbar-btn toolbar-btn-primary" style="flex:2;">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Adicionar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Confirm Clear -->
+  <div id="confirmClearModal" class="modal-overlay">
+    <div class="modal-box" style="max-width:360px;">
+      <h3 class="modal-title">Limpar tudo?</h3>
+      <p style="font-size:0.85rem;color:#6B7280;margin:8px 0 20px;">Todos os exercícios serão removidos.</p>
+      <div style="display:flex;gap:8px;">
+        <button id="cancelClear" class="toolbar-btn toolbar-btn-secondary" style="flex:1;">Cancelar</button>
+        <button id="confirmClear" class="toolbar-btn toolbar-btn-danger" style="flex:1;">Limpar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Context Menu -->
+  <div id="ctxMenu" class="ctx-menu">
+    <div class="ctx-item" id="ctxEdit"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>Editar</div>
+    <div class="ctx-item" id="ctxCopySingle"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>Copiar exercício</div>
+    <div class="ctx-item" id="ctxCopyDay"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>Copiar dia inteiro</div>
+    <div class="ctx-divider"></div>
+    <div class="ctx-item" id="ctxPaste" style="opacity:0.4;pointer-events:none;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/></svg>Colar aqui</div>
+    <div class="ctx-divider"></div>
+    <div class="ctx-item danger" id="ctxDelete"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>Remover</div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+<script>
+(async function() {
+  const DAYS = [
+    { key: 'monday',    short: 'SEG', full: 'Segunda' },
+    { key: 'tuesday',   short: 'TER', full: 'Terça'   },
+    { key: 'wednesday', short: 'QUA', full: 'Quarta'  },
+    { key: 'thursday',  short: 'QUI', full: 'Quinta'  },
+    { key: 'friday',    short: 'SEX', full: 'Sexta'   },
+    { key: 'saturday',  short: 'SÁB', full: 'Sábado'  },
+    { key: 'sunday',    short: 'DOM', full: 'Domingo' },
+  ];
+  const MC = { Peito:'#2563EB|#EFF6FF', Costas:'#059669|#ECFDF5', Pernas:'#D97706|#FEF3C7', Ombros:'#7C3AED|#F5F3FF', Bíceps:'#EA580C|#FFF7ED', Tríceps:'#BE185D|#FDF2F8', Abdômen:'#0891B2|#ECFEFF', Glúteos:'#16A34A|#F0FDF4', Cardio:'#DC2626|#FEF2F2', 'Full Body':'#6B7280|#F3F4F6' };
+  function mStyle(m) { const p = (MC[m]||'#6B7280|#F3F4F6').split('|'); return `color:${p[0]};background:${p[1]};`; }
+
+  const PRESETS = {
+    abc: { monday:[E('Supino Reto','Peito',4,'10','90s'),E('Crucifixo','Peito',3,'12','60s'),E('Tríceps Pulley','Tríceps',3,'15','60s')], wednesday:[E('Puxada Frontal','Costas',4,'10','90s'),E('Remada Curvada','Costas',3,'12','90s'),E('Rosca Direta','Bíceps',3,'12','60s')], friday:[E('Agachamento','Pernas',4,'10','120s'),E('Leg Press','Pernas',3,'12','90s'),E('Panturrilha','Pernas',4,'20','45s')] },
+    abcd: { monday:[E('Supino Reto','Peito',4,'10','90s'),E('Supino Inclinado','Peito',3,'12','90s'),E('Tríceps Pulley','Tríceps',3,'15','60s')], tuesday:[E('Puxada Frontal','Costas',4,'10','90s'),E('Remada Curvada','Costas',4,'10','90s'),E('Rosca Direta','Bíceps',3,'12','60s')], thursday:[E('Agachamento','Pernas',4,'10','120s'),E('Leg Press','Pernas',3,'12','90s'),E('Mesa Flexora','Pernas',3,'12','60s')], friday:[E('Desenvolvimento','Ombros',4,'10','90s'),E('Elevação Lateral','Ombros',3,'15','60s'),E('Panturrilha','Pernas',4,'20','45s')] },
+    upper_lower: { monday:[E('Supino Reto','Peito',4,'8','120s'),E('Remada Curvada','Costas',4,'8','120s'),E('Desenvolvimento','Ombros',3,'10','90s'),E('Rosca Direta','Bíceps',3,'12','60s'),E('Tríceps Pulley','Tríceps',3,'12','60s')], tuesday:[E('Agachamento','Pernas',4,'8','120s'),E('Leg Press','Pernas',3,'12','90s'),E('Mesa Flexora','Pernas',3,'12','60s'),E('Panturrilha','Pernas',4,'20','45s')], thursday:[E('Supino Inclinado','Peito',4,'10','90s'),E('Puxada Frontal','Costas',4,'10','90s'),E('Elevação Lateral','Ombros',3,'15','60s'),E('Rosca Martelo','Bíceps',3,'12','60s')], friday:[E('Levantamento Terra','Costas',4,'6','180s'),E('Cadeira Extensora','Pernas',3,'15','60s'),E('Afundo','Pernas',3,'12','60s')] },
+    fullbody: { monday:[E('Agachamento','Pernas',3,'10','120s'),E('Supino Reto','Peito',3,'10','90s'),E('Remada Curvada','Costas',3,'10','90s'),E('Desenvolvimento','Ombros',3,'10','90s')], wednesday:[E('Levantamento Terra','Costas',3,'8','180s'),E('Supino Inclinado','Peito',3,'10','90s'),E('Puxada Frontal','Costas',3,'10','90s'),E('Elevação Lateral','Ombros',3,'15','60s')], friday:[E('Afundo','Pernas',3,'10','90s'),E('Crucifixo','Peito',3,'12','60s'),E('Remada Unilateral','Costas',3,'10','90s'),E('Prancha','Abdômen',3,'45s','30s')] },
+    ppl: { monday:[E('Supino Reto','Peito',4,'8','120s'),E('Supino Inclinado','Peito',3,'10','90s'),E('Desenvolvimento','Ombros',3,'10','90s'),E('Elevação Lateral','Ombros',3,'15','60s'),E('Tríceps Pulley','Tríceps',3,'15','60s')], tuesday:[E('Puxada Frontal','Costas',4,'10','90s'),E('Remada Curvada','Costas',4,'10','90s'),E('Rosca Direta','Bíceps',3,'12','60s'),E('Rosca Martelo','Bíceps',3,'12','60s')], wednesday:[E('Agachamento','Pernas',4,'10','120s'),E('Leg Press','Pernas',3,'12','90s'),E('Cadeira Extensora','Pernas',3,'15','60s'),E('Panturrilha','Pernas',4,'20','45s')], thursday:[E('Supino Inclinado','Peito',4,'10','90s'),E('Crucifixo','Peito',3,'12','60s'),E('Elevação Frontal','Ombros',3,'15','60s'),E('Tríceps Testa','Tríceps',3,'12','60s')], friday:[E('Levantamento Terra','Costas',4,'6','180s'),E('Puxada Neutra','Costas',3,'12','90s'),E('Rosca Concentrada','Bíceps',3,'12','60s')], saturday:[E('Agachamento Búlgaro','Pernas',3,'10','90s'),E('Afundo','Pernas',3,'12','90s'),E('Prancha','Abdômen',3,'45s','30s')] },
+  };
+
+  function E(name,muscle,sets,reps,rest,obs=''){return{id:uid(),name,muscle,sets:String(sets),reps:String(reps),rest:String(rest),obs};}
+  function uid(){return Math.random().toString(36).slice(2,9);}
+  function toast(msg,ms=2200){const el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),ms);}
+
+  let board={};
+  DAYS.forEach(d=>board[d.key]=[]);
+  let allExercises=[];
+  let targetDay=null;
+  let selectedEx=null;
+  let clipboard=null;
+  let dragSrc=null;
+  let ctxTarget=null;
+  let currentTab='search';
+  let editingId=null;
+
+  await new Promise(r=>document.readyState==='loading'?document.addEventListener('DOMContentLoaded',r):r());
+  await new Promise(r=>setTimeout(r,120));
+
+  document.getElementById('logoutBtn').onclick=async()=>{await authManager.logout();router.goToLogin();};
+
+  // Load students
+  try {
+    const students=await dbManager.getMyStudents();
+    const sel=document.getElementById('studentSelect');
+    students.forEach(s=>{const o=document.createElement('option');o.value=s.uid;o.textContent=s.name;sel.appendChild(o);});
+    const editId=sessionStorage.getItem('editWorkoutId');
+    if(editId){sessionStorage.removeItem('editWorkoutId');await loadWorkout(editId);}
+  } catch(e){console.warn('Alunos:',e);}
+
+  // Load exercises library
+  try {
+    allExercises=await dbManager.getPersonalExercises()||[];
+  } catch(e){allExercises=[];console.warn('Exercícios:',e);}
+
+  async function loadWorkout(id) {
+    try {
+      const w=await dbManager.getWorkout(id);
+      if(!w)return;
+      editingId=id;
+      document.getElementById('workoutName').value=w.name||'';
+      document.getElementById('studentSelect').value=w.studentId||'';
+      DAYS.forEach(d=>{
+        board[d.key]=(w.days&&w.days[d.key])?w.days[d.key].map(e=>({id:uid(),name:e.exerciseName||e.name,muscle:e.muscleGroup||e.muscle||'',sets:String(e.sets||3),reps:String(e.reps||12),rest:String(e.rest||'60s'),obs:e.obs||''})):[];
+      });
+      renderBoard();toast('Rotina carregada ✓');
+    } catch(e){console.warn(e);}
+  }
+
+  // ── RENDER ──────────────────────────────────────────────
+  function renderBoard() {
+    const b=document.getElementById('kanbanBoard');
+    b.innerHTML='';
+    DAYS.forEach(d=>{
+      const col=document.createElement('div');
+      col.className='day-column';
+      col.dataset.day=d.key;
+      const exHtml=board[d.key].map((e,i)=>cardHtml(e,d.key,i)).join('');
+      col.innerHTML=`
+        <div class="day-header">
+          <div class="day-label-short">${d.short}</div>
+          <div class="day-label-full">${d.full}</div>
+          <div class="day-ex-count" id="cnt-${d.key}">${board[d.key].length} exerc.</div>
+        </div>
+        <div class="drop-zone" id="zone-${d.key}" data-day="${d.key}">
+          ${board[d.key].length===0?`<div class="drop-placeholder" onclick="openModal('${d.key}')"><span>+ Adicionar</span></div>`:''}
+          ${exHtml}
+          <button class="add-ex-btn" onclick="openModal('${d.key}')">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Adicionar
+          </button>
+        </div>`;
+      b.appendChild(col);
+    });
+    bindDrag();
+    bindDrop();
+  }
+
+  function cardHtml(e,day,idx){
+    return `<div class="ex-card" draggable="true" data-day="${day}" data-idx="${idx}"
+      oncontextmenu="ctxShow(event,'${day}',${idx})">
+      <div class="ex-card-name">${e.name}</div>
+      <div class="ex-card-meta">
+        <span class="ex-badge" style="background:#111827;color:#fff;">${e.sets}×${e.reps}</span>
+        ${e.muscle?`<span class="ex-badge" style="${mStyle(e.muscle)}">${e.muscle}</span>`:''}
+        ${e.rest?`<span class="ex-badge" style="background:#F3F4F6;color:#9CA3AF;">⏱${e.rest}</span>`:''}
+      </div>
+      ${e.obs?`<div style="font-size:0.62rem;color:#9CA3AF;margin-top:3px;font-style:italic;">${e.obs}</div>`:''}
+      <div class="ex-card-actions">
+        <button class="ex-action-btn ex-action-copy" onclick="event.stopPropagation();copyCard('${day}',${idx})">
+          <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+        </button>
+        <button class="ex-action-btn ex-action-del" onclick="event.stopPropagation();removeCard('${day}',${idx})">
+          <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+    </div>`;
+  }
+
+  // ── DRAG & DROP ─────────────────────────────────────────
+  function bindDrag() {
+    document.querySelectorAll('.ex-card').forEach(c=>{
+      c.addEventListener('dragstart',e=>{
+        dragSrc={day:c.dataset.day,idx:parseInt(c.dataset.idx)};
+        e.dataTransfer.effectAllowed='move';
+        setTimeout(()=>c.classList.add('dragging'),0);
+      });
+      c.addEventListener('dragend',()=>{
+        c.classList.remove('dragging');
+        document.querySelectorAll('.day-column').forEach(col=>col.classList.remove('drag-over'));
+        dragSrc=null;
+      });
+    });
+  }
+
+  function bindDrop() {
+    document.querySelectorAll('.drop-zone').forEach(zone=>{
+      const day=zone.dataset.day;
+      zone.addEventListener('dragover',e=>{e.preventDefault();zone.closest('.day-column').classList.add('drag-over');});
+      zone.addEventListener('dragleave',e=>{if(!zone.contains(e.relatedTarget))zone.closest('.day-column').classList.remove('drag-over');});
+      zone.addEventListener('drop',e=>{
+        e.preventDefault();
+        zone.closest('.day-column').classList.remove('drag-over');
+        if(!dragSrc)return;
+        const {day:srcDay,idx:srcIdx}=dragSrc;
+        const cards=[...zone.querySelectorAll('.ex-card')];
+        let dropIdx=board[day].length;
+        for(let i=0;i<cards.length;i++){const r=cards[i].getBoundingClientRect();if(e.clientY<r.top+r.height/2){dropIdx=i;break;}}
+        const moved=board[srcDay].splice(srcIdx,1)[0];
+        if(srcDay===day){board[day].splice(dropIdx>srcIdx?dropIdx-1:dropIdx,0,moved);}
+        else{board[day].splice(dropIdx,0,moved);}
+        renderBoard();toast('✓ Exercício movido');
+      });
+    });
+  }
+
+  window.removeCard=function(day,idx){board[day].splice(idx,1);renderBoard();};
+  window.copyCard=function(day,idx){
+    clipboard={type:'single',data:{...board[day][idx],id:uid()}};
+    showPaste(`"${clipboard.data.name}" copiado`);
+    toast('✓ Copiado — clique direito para colar');
+  };
+
+  function showPaste(msg){
+    const b=document.getElementById('pasteBadge');
+    document.getElementById('pasteBadgeText').textContent=msg;
+    b.classList.add('visible');
+  }
+  function pasteToDay(day){
+    if(!clipboard)return toast('Nada copiado');
+    if(clipboard.type==='single') board[day].push({...clipboard.data,id:uid()});
+    else clipboard.data.forEach(e=>board[day].push({...e,id:uid()}));
+    renderBoard();toast(`✓ Colado em ${DAYS.find(d=>d.key===day)?.full}`);
+  }
+
+  // ── MODAL ───────────────────────────────────────────────
+  window.openModal=function(day){
+    targetDay=day;selectedEx=null;
+    document.getElementById('exSearchInput').value='';
+    document.getElementById('exSets').value='3';
+    document.getElementById('exReps').value='12';
+    document.getElementById('exRest').value='60s';
+    document.getElementById('selectedExInfo').style.display='none';
+    renderExList('');switchTab('search');
+    document.getElementById('exModal').classList.add('open');
+    setTimeout(()=>document.getElementById('exSearchInput').focus(),80);
+  };
+
+  window.switchTab=function(tab){
+    currentTab=tab;
+    document.getElementById('contentSearch').style.display=tab==='search'?'block':'none';
+    document.getElementById('contentManual').style.display=tab==='manual'?'block':'none';
+    document.getElementById('tabSearch').className='tab-btn'+(tab==='search'?' active':'');
+    document.getElementById('tabManual').className='tab-btn'+(tab==='manual'?' active':'');
+  };
+
+  function renderExList(q){
+    const list=document.getElementById('exSearchList');
+    let items=allExercises;
+    if(q) items=items.filter(e=>(e.name||'').toLowerCase().includes(q.toLowerCase())||(e.muscleGroup||e.muscle||'').toLowerCase().includes(q.toLowerCase()));
+    if(items.length===0){list.innerHTML=`<div style="padding:14px;text-align:center;color:#9CA3AF;font-size:0.8rem;">Nenhum resultado. Use a aba Manual.</div>`;return;}
+    list.innerHTML=items.slice(0,60).map((e,i)=>`
+      <div class="ex-search-item${selectedEx&&selectedEx.name===e.name?' selected':''}" onclick="selEx(${i},'${(e.name||'').replace(/'/g,"\\'")}','${((e.muscleGroup||e.muscle)||'').replace(/'/g,"\\'")}')">
+        <div class="ex-search-name">${e.name||'?'}</div>
+        <div class="ex-search-muscle">${e.muscleGroup||e.muscle||'—'}</div>
+      </div>`).join('');
+  }
+  window.selEx=function(i,name,muscle){selectedEx={name,muscle};document.getElementById('selectedExInfo').style.display='block';renderExList(document.getElementById('exSearchInput').value);};
+
+  document.getElementById('exSearchInput').addEventListener('input',e=>renderExList(e.target.value));
+  document.getElementById('closeExModal').onclick=()=>document.getElementById('exModal').classList.remove('open');
+  document.getElementById('cancelExModal').onclick=()=>document.getElementById('exModal').classList.remove('open');
+  document.getElementById('exModal').addEventListener('click',e=>{if(e.target===e.currentTarget)document.getElementById('exModal').classList.remove('open');});
+
+  document.getElementById('confirmAddEx').onclick=()=>{
+    if(currentTab==='search'){
+      if(!selectedEx)return toast('⚠ Selecione um exercício');
+      board[targetDay].push({id:uid(),name:selectedEx.name,muscle:selectedEx.muscle,sets:document.getElementById('exSets').value||'3',reps:document.getElementById('exReps').value||'12',rest:document.getElementById('exRest').value||'60s',obs:''});
+    } else {
+      const name=document.getElementById('manualName').value.trim();
+      if(!name)return toast('⚠ Insira o nome');
+      board[targetDay].push({id:uid(),name,muscle:document.getElementById('manualMuscle').value,sets:document.getElementById('manualSets').value||'3',reps:document.getElementById('manualReps').value||'12',rest:document.getElementById('manualRest').value||'60s',obs:document.getElementById('manualObs').value});
+      document.getElementById('manualName').value='';document.getElementById('manualObs').value='';
+    }
+    document.getElementById('exModal').classList.remove('open');
+    renderBoard();
+    toast(`✓ Adicionado em ${DAYS.find(d=>d.key===targetDay)?.full}`);
+  };
+
+  // ── PRESET ──────────────────────────────────────────────
+  document.getElementById('loadPresetBtn').onclick=()=>{
+    const v=document.getElementById('presetSelect').value;
+    if(!v)return toast('Selecione um preset');
+    DAYS.forEach(d=>board[d.key]=[]);
+    Object.entries(PRESETS[v]).forEach(([day,list])=>{board[day]=list.map(e=>({...e,id:uid()}));});
+    renderBoard();toast('✓ Preset carregado!');
+    document.getElementById('presetSelect').value='';
+  };
+
+  // ── CLEAR ───────────────────────────────────────────────
+  document.getElementById('clearBoardBtn').onclick=()=>document.getElementById('confirmClearModal').classList.add('open');
+  document.getElementById('cancelClear').onclick=()=>document.getElementById('confirmClearModal').classList.remove('open');
+  document.getElementById('confirmClear').onclick=()=>{DAYS.forEach(d=>board[d.key]=[]);renderBoard();document.getElementById('confirmClearModal').classList.remove('open');toast('Quadro limpo');};
+
+  // ── CONTEXT MENU ────────────────────────────────────────
+  window.ctxShow=function(e,day,idx){
+    e.preventDefault();e.stopPropagation();
+    ctxTarget={day,idx};
+    const menu=document.getElementById('ctxMenu');
+    const hasCb=!!clipboard;
+    document.getElementById('ctxPaste').style.opacity=hasCb?'1':'0.4';
+    document.getElementById('ctxPaste').style.pointerEvents=hasCb?'auto':'none';
+    menu.style.left=Math.min(e.clientX,window.innerWidth-180)+'px';
+    menu.style.top=Math.min(e.clientY,window.innerHeight-170)+'px';
+    menu.classList.add('open');
+  };
+  document.addEventListener('click',()=>document.getElementById('ctxMenu').classList.remove('open'));
+
+  document.getElementById('ctxEdit').onclick=()=>{
+    if(!ctxTarget)return;
+    const e=board[ctxTarget.day][ctxTarget.idx];
+    const s=prompt('Séries:',e.sets);if(s===null)return;
+    const r=prompt('Reps/Tempo:',e.reps);if(r===null)return;
+    const rs=prompt('Descanso:',e.rest);if(rs===null)return;
+    const o=prompt('Observações:',e.obs);
+    board[ctxTarget.day][ctxTarget.idx]={...e,sets:s,reps:r,rest:rs,obs:o||''};
+    renderBoard();toast('✓ Atualizado');
+  };
+  document.getElementById('ctxCopySingle').onclick=()=>{if(ctxTarget)copyCard(ctxTarget.day,ctxTarget.idx);};
+  document.getElementById('ctxCopyDay').onclick=()=>{
+    if(!ctxTarget)return;
+    clipboard={type:'day',data:board[ctxTarget.day].map(e=>({...e}))};
+    showPaste(`${board[ctxTarget.day].length} exerc. copiados`);
+    toast(`✓ Dia copiado (${board[ctxTarget.day].length} exerc.)`);
+  };
+  document.getElementById('ctxPaste').onclick=()=>{if(ctxTarget)pasteToDay(ctxTarget.day);};
+  document.getElementById('ctxDelete').onclick=()=>{if(ctxTarget){removeCard(ctxTarget.day,ctxTarget.idx);toast('Removido');}};
+
+  // ── SAVE ────────────────────────────────────────────────
+  document.getElementById('saveWorkoutBtn').onclick=async()=>{
+    const studentId=document.getElementById('studentSelect').value;
+    const name=document.getElementById('workoutName').value.trim();
+    if(!studentId)return toast('⚠ Selecione um aluno');
+    if(!name)return toast('⚠ Insira o nome da rotina');
+    const total=DAYS.reduce((a,d)=>a+board[d.key].length,0);
+    if(total===0)return toast('⚠ Adicione pelo menos um exercício');
+
+    const btn=document.getElementById('saveWorkoutBtn');
+    const orig=btn.innerHTML;
+    btn.innerHTML='<div class="spinner" style="border-top-color:#0A0A0A;"></div> Salvando...';
+    btn.disabled=true;
+
+    const daysData={};
+    DAYS.forEach(d=>{
+      if(board[d.key].length>0){
+        daysData[d.key]=board[d.key].map(e=>({exerciseName:e.name,muscleGroup:e.muscle,sets:parseInt(e.sets)||3,reps:e.reps,rest:e.rest,obs:e.obs||''}));
+      }
+    });
+
+    try {
+      let result;
+      if(editingId){result=await dbManager.updateWorkout(editingId,{name,studentId,days:daysData});}
+      else{result=await dbManager.createWorkout({name,studentId,days:daysData});}
+      if(result&&result.success!==false){toast(`✓ Rotina "${name}" salva!`,3000);setTimeout(()=>router.goToPersonalDashboard(),1800);}
+      else{toast('Erro: '+(result?.error||'Tente novamente'));}
+    } catch(err){console.error(err);toast('Erro ao salvar. Veja o console.');}
+    finally{btn.innerHTML=orig;btn.disabled=false;}
+  };
+
+  document.addEventListener('keydown',e=>{if(e.key==='Escape'){document.getElementById('exModal').classList.remove('open');document.getElementById('confirmClearModal').classList.remove('open');document.getElementById('ctxMenu').classList.remove('open');}});
+
+  renderBoard();renderExList('');
+})();
+</script>
+</div>

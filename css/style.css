@@ -1,0 +1,589 @@
+/**
+ * Estilos Otimizados - Personal Trainer App
+ */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  background-color: #f5f5f5;
+  color: #000000;
+  line-height: 1.6;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+}
+
+#app {
+  flex: 1;
+  width: 100%;
+}
+
+/* Header Styles */
+header {
+  background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+  color: #ffffff;
+  padding: 20px 40px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+header h1 {
+  font-size: 24px;
+  font-weight: 600;
+  margin: 0;
+}
+
+header nav {
+  display: flex;
+  gap: 15px;
+  align-items: center;
+}
+
+header a,
+header button {
+  color: #ffffff;
+  background: transparent;
+  text-decoration: none;
+  padding: 10px 20px;
+  border: 1px solid rgba(255,255,255,0.3);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.3s;
+  font-size: 14px;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+header a:hover,
+header button:hover {
+  background: rgba(255,255,255,0.1);
+  border-color: #ffffff;
+}
+
+/* Forms */
+form {
+  max-width: 500px;
+  margin: 30px auto;
+  padding: 30px;
+  background: #ffffff;
+  border: 1px solid #e0e0e0;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+
+form h2 {
+  margin-bottom: 25px;
+  font-size: 28px;
+  font-weight: 600;
+  color: #000000;
+}
+
+.form-group {
+  margin-bottom: 20px;
+}
+
+label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 600;
+  font-size: 14px;
+  color: #000000;
+}
+
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="number"],
+textarea,
+select {
+  width: 100%;
+  padding: 12px 16px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 15px;
+  transition: all 0.3s;
+  background: #ffffff;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  outline: none;
+  border-color: #000000;
+  box-shadow: 0 0 0 3px rgba(0,0,0,0.05);
+}
+
+textarea {
+  resize: vertical;
+  min-height: 100px;
+}
+
+/* Buttons */
+button,
+.btn {
+  padding: 12px 24px;
+  background: #000000;
+  color: #ffffff;
+  border: 2px solid #000000;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 15px;
+  font-weight: 600;
+  transition: all 0.3s;
+  text-decoration: none;
+  display: inline-block;
+  text-align: center;
+}
+
+button:hover,
+.btn:hover {
+  background: #2d2d2d;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+button:active,
+.btn:active {
+  transform: translateY(0);
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+button.secondary {
+  background: #ffffff;
+  color: #000000;
+  border: 2px solid #000000;
+}
+
+button.secondary:hover {
+  background: #f5f5f5;
+}
+
+button.danger {
+  background: #cc0000;
+  border-color: #cc0000;
+}
+
+button.danger:hover {
+  background: #ff0000;
+}
+
+/* Links */
+a {
+  color: #000000;
+  text-decoration: underline;
+  cursor: pointer;
+  transition: opacity 0.3s;
+}
+
+a:hover {
+  opacity: 0.7;
+}
+
+/* Tables */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 20px 0;
+  background: #ffffff;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+
+th {
+  background: #000000;
+  color: #ffffff;
+  padding: 16px;
+  text-align: left;
+  font-weight: 600;
+}
+
+td {
+  padding: 16px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+tr:last-child td {
+  border-bottom: none;
+}
+
+tr:hover {
+  background: #f8f8f8;
+}
+
+/* Cards */
+.card {
+  background: #ffffff;
+  border: 1px solid #e0e0e0;
+  border-radius: 12px;
+  padding: 25px;
+  margin: 15px 0;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  transition: all 0.3s;
+}
+
+.card:hover {
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.card h3 {
+  margin-bottom: 12px;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.card p {
+  margin-bottom: 10px;
+  color: #666;
+  line-height: 1.6;
+}
+
+/* Alerts */
+.alert {
+  padding: 16px 20px;
+  margin: 15px 0;
+  border-radius: 8px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.alert.error {
+  background: #fff3f3;
+  border: 1px solid #ffdddd;
+  color: #cc0000;
+}
+
+.alert.success {
+  background: #f0fff4;
+  border: 1px solid #c6f6d5;
+  color: #22543d;
+}
+
+.alert.warning {
+  background: #fffff0;
+  border: 1px solid #ffeaa7;
+  color: #744210;
+}
+
+.alert.info {
+  background: #f0f9ff;
+  border: 1px solid #bae6fd;
+  color: #0c4a6e;
+}
+
+/* Checkboxes and Radio */
+input[type="checkbox"],
+input[type="radio"] {
+  margin-right: 8px;
+  cursor: pointer;
+  width: 18px;
+  height: 18px;
+}
+
+.checkbox-group,
+.radio-group {
+  margin: 15px 0;
+}
+
+.checkbox-item,
+.radio-item {
+  margin: 10px 0;
+  display: flex;
+  align-items: center;
+}
+
+.checkbox-item label,
+.radio-item label {
+  margin: 0;
+  margin-left: 8px;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+/* Days Grid */
+.days-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+  margin: 20px 0;
+}
+
+.day-box {
+  background: #ffffff;
+  border: 2px solid #e0e0e0;
+  padding: 18px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s;
+  border-radius: 8px;
+  font-weight: 600;
+}
+
+.day-box:hover {
+  border-color: #000000;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.day-box.selected {
+  background: #000000;
+  color: #ffffff;
+  border-color: #000000;
+}
+
+/* Exercise List */
+.exercises-list {
+  margin: 20px 0;
+}
+
+.exercise-item {
+  background: #ffffff;
+  border: 1px solid #e0e0e0;
+  border-radius: 12px;
+  padding: 20px;
+  margin: 12px 0;
+  transition: all 0.3s;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.03);
+}
+
+.exercise-item:hover {
+  border-color: #000000;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+
+.exercise-info h4 {
+  margin-bottom: 8px;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.exercise-info p {
+  font-size: 14px;
+  color: #666;
+  margin: 4px 0;
+}
+
+/* Video Container */
+.video-container {
+  position: relative;
+  width: 100%;
+  padding-bottom: 56.25%;
+  height: 0;
+  overflow: hidden;
+  margin: 20px 0;
+  border-radius: 10px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.video-container iframe {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+
+/* Loading Spinner */
+.loading {
+  text-align: center;
+  padding: 40px 20px;
+}
+
+.spinner {
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid #000000;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 15px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Day Navigation */
+.days-navigation {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 25px 0;
+}
+
+.day-btn {
+  flex: 1;
+  min-width: 120px;
+  padding: 14px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s;
+  font-size: 15px;
+  font-weight: 600;
+  border: 2px solid #e0e0e0;
+  background: #ffffff;
+  color: #000000;
+}
+
+.day-btn:hover {
+  border-color: #000000;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.day-btn.active {
+  background: #000000;
+  color: #ffffff;
+  border-color: #000000;
+}
+
+.day-content {
+  display: none;
+}
+
+.day-content.active {
+  display: block;
+}
+
+/* Exercise Card */
+.exercise-card {
+  background: #ffffff;
+  border: 1px solid #e0e0e0;
+  border-radius: 12px;
+  padding: 25px;
+  margin: 15px 0;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  transition: all 0.3s;
+}
+
+.exercise-card:hover {
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.exercise-card h4 {
+  font-size: 20px;
+  font-weight: 600;
+  margin-bottom: 15px;
+}
+
+.exercise-card p {
+  margin: 8px 0;
+  font-size: 15px;
+  color: #666;
+}
+
+.sets-reps {
+  font-weight: 600;
+  margin: 15px 0;
+  color: #000000;
+}
+
+.notes {
+  background: linear-gradient(135deg, #f8f8f8 0%, #f0f0f0 100%);
+  border-left: 4px solid #000000;
+  padding: 15px 18px;
+  border-radius: 8px;
+  margin-top: 15px;
+  font-style: italic;
+  color: #333;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  header {
+    padding: 15px 20px;
+  }
+
+  header h1 {
+    font-size: 20px;
+  }
+
+  form {
+    margin: 20px;
+    padding: 20px;
+  }
+
+  .days-grid {
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 8px;
+  }
+
+  .day-box {
+    padding: 14px;
+    font-size: 14px;
+  }
+
+  .days-navigation {
+    flex-direction: column;
+  }
+
+  .day-btn {
+    width: 100%;
+    min-width: 0;
+  }
+
+  table {
+    font-size: 13px;
+  }
+
+  th, td {
+    padding: 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  header {
+    padding: 12px 15px;
+  }
+
+  header h1 {
+    font-size: 18px;
+  }
+
+  header nav {
+    gap: 8px;
+  }
+
+  header a,
+  header button {
+    padding: 8px 12px;
+    font-size: 13px;
+  }
+
+  form {
+    margin: 15px;
+    padding: 20px;
+  }
+
+  button,
+  .btn {
+    width: 100%;
+    margin-bottom: 10px;
+  }
+
+  .days-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .card {
+    padding: 18px;
+  }
+}

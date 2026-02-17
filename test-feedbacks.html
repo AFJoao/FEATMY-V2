@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Teste - Botões de Feedback</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      max-width: 800px;
+      margin: 0 auto;
+      background: #f5f5f5;
+    }
+    .test-section {
+      background: white;
+      padding: 20px;
+      margin-bottom: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .test-section h2 {
+      margin-top: 0;
+      color: #333;
+    }
+    .result {
+      padding: 10px;
+      margin: 10px 0;
+      border-radius: 4px;
+    }
+    .success {
+      background: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+    }
+    .error {
+      background: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+    }
+    .info {
+      background: #d1ecf1;
+      color: #0c5460;
+      border: 1px solid #bee5eb;
+    }
+    button {
+      background: #007bff;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 16px;
+    }
+    button:hover {
+      background: #0056b3;
+    }
+    code {
+      background: #f4f4f4;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-family: 'Courier New', monospace;
+    }
+  </style>
+</head>
+<body>
+  <h1>🔍 Teste de Botões de Feedback</h1>
+  
+  <div class="test-section">
+    <h2>1. Teste do Botão "Feedbacks" no Dashboard do Personal</h2>
+    <p>Este botão deve aparecer no header do dashboard do personal, entre "Criar Treino" e "Sair".</p>
+    <button onclick="testPersonalButton()">Testar Botão Feedbacks</button>
+    <div id="personalResult"></div>
+  </div>
+
+  <div class="test-section">
+    <h2>2. Teste do Modal de Feedback no Dashboard do Aluno</h2>
+    <p>O modal deve estar presente no HTML, mesmo que oculto.</p>
+    <button onclick="testStudentModal()">Testar Modal</button>
+    <div id="studentResult"></div>
+  </div>
+
+  <div class="test-section">
+    <h2>3. Instruções para Testar no Site</h2>
+    <div class="info">
+      <h3>Para testar o botão "Feedbacks" (Personal):</h3>
+      <ol>
+        <li>Faça login como <strong>PERSONAL</strong></li>
+        <li>Vá para: <code>http://localhost:8000/#/personal/dashboard</code></li>
+        <li>Olhe no <strong>header</strong> (topo da página)</li>
+        <li>Procure por: <code>[Exercícios] [Criar Treino] [💬 Feedbacks] [Sair]</code></li>
+        <li>O botão "Feedbacks" deve estar entre "Criar Treino" e "Sair"</li>
+      </ol>
+
+      <h3>Para testar o botão "Enviar feedback" (Aluno):</h3>
+      <ol>
+        <li>Faça login como <strong>ALUNO</strong></li>
+        <li>Vá para: <code>http://localhost:8000/#/student/dashboard</code></li>
+        <li>Veja os <strong>cards de treino</strong> por dia da semana</li>
+        <li>Em cada card, role para baixo</li>
+        <li>Deve aparecer um botão <strong>"Enviar feedback"</strong> na parte inferior</li>
+        <li><strong>IMPORTANTE:</strong> O botão só aparece se o treino tiver exercícios naquele dia!</li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="test-section">
+    <h2>4. Comandos para Testar no Console do Navegador</h2>
+    <p>Abra o DevTools (F12) e cole estes comandos:</p>
+    <div class="info">
+      <h3>No Dashboard do Personal:</h3>
+      <code>
+        document.querySelector('a[href="#/personal/feedbacks"]')
+      </code>
+      <p>Se retornar um elemento, o botão existe. Se retornar <code>null</code>, o botão não está sendo renderizado.</p>
+
+      <h3>No Dashboard do Aluno:</h3>
+      <code>
+        document.getElementById('feedbackModal')
+      </code>
+      <p>Se retornar um elemento, o modal existe. Se retornar <code>null</code>, o modal não está presente.</p>
+    </div>
+  </div>
+
+  <script>
+    function testPersonalButton() {
+      const resultDiv = document.getElementById('personalResult');
+      resultDiv.innerHTML = '<div class="info">Abrindo dashboard do personal em nova aba...</div>';
+      
+      // Abrir em nova aba
+      window.open('http://localhost:8000/#/personal/dashboard', '_blank');
+      
+      setTimeout(() => {
+        resultDiv.innerHTML = `
+          <div class="info">
+            <p><strong>Instruções:</strong></p>
+            <ol>
+              <li>Na nova aba que abriu, faça login como PERSONAL</li>
+              <li>Olhe no header (topo da página)</li>
+              <li>Procure por: <code>[Exercícios] [Criar Treino] [💬 Feedbacks] [Sair]</code></li>
+              <li>O botão "Feedbacks" deve estar visível</li>
+            </ol>
+            <p><strong>Se não aparecer:</strong></p>
+            <ul>
+              <li>Limpe o cache (Ctrl + Shift + R)</li>
+              <li>Verifique o console (F12) para erros</li>
+              <li>Verifique se está logado como PERSONAL</li>
+            </ul>
+          </div>
+        `;
+      }, 1000);
+    }
+
+    function testStudentModal() {
+      const resultDiv = document.getElementById('studentResult');
+      resultDiv.innerHTML = '<div class="info">Abrindo dashboard do aluno em nova aba...</div>';
+      
+      // Abrir em nova aba
+      window.open('http://localhost:8000/#/student/dashboard', '_blank');
+      
+      setTimeout(() => {
+        resultDiv.innerHTML = `
+          <div class="info">
+            <p><strong>Instruções:</strong></p>
+            <ol>
+              <li>Na nova aba que abriu, faça login como ALUNO</li>
+              <li>Veja os cards de treino por dia da semana</li>
+              <li>Em cada card, role para baixo</li>
+              <li>Deve aparecer um botão "Enviar feedback" na parte inferior</li>
+            </ol>
+            <p><strong>IMPORTANTE:</strong> O botão só aparece se:</p>
+            <ul>
+              <li>O aluno tiver treinos atribuídos</li>
+              <li>O treino tiver exercícios naquele dia específico</li>
+            </ul>
+            <p><strong>Se não aparecer:</strong></p>
+            <ul>
+              <li>Verifique se há treinos atribuídos ao aluno</li>
+              <li>Verifique se o treino tem exercícios no dia</li>
+              <li>Abra o console (F12) e procure por: <code>Renderizando X treino(s)</code></li>
+            </ul>
+          </div>
+        `;
+      }, 1000);
+    }
+  </script>
+</body>
+</html>
+

@@ -1,0 +1,550 @@
+/**
+ * CORREÇÕES DE RESPONSIVIDADE MOBILE
+ * Personal Trainer App
+ */
+
+/* ========================================
+   HEADER MOBILE OPTIMIZATION
+   ======================================== */
+
+@media (max-width: 768px) {
+  /* Header principal */
+  header {
+    padding: 12px 15px !important;
+  }
+
+  header > div {
+    gap: 10px;
+  }
+
+  /* Logo e título do header */
+  header h1 {
+    font-size: 18px !important;
+    white-space: nowrap;
+  }
+
+  header svg {
+    width: 24px !important;
+    height: 24px !important;
+  }
+
+  /* Navegação - esconder texto, mostrar apenas ícones */
+  header nav,
+  header .header-nav,
+  .header-content nav {
+    gap: 8px !important;
+  }
+
+  header nav a,
+  header nav button,
+  header .header-nav a,
+  header .header-nav button,
+  .header-content nav a,
+  .header-content nav button {
+    padding: 10px !important;
+    min-width: 40px;
+    font-size: 0 !important; /* Esconder texto */
+    gap: 0 !important;
+  }
+
+  /* Garantir que os ícones apareçam */
+  header nav a svg,
+  header nav button svg,
+  header .header-nav a svg,
+  header .header-nav button svg,
+  .header-content nav a svg,
+  .header-content nav button svg {
+    width: 20px !important;
+    height: 20px !important;
+    margin: 0 !important;
+  }
+
+  /* Ajustar botão de voltar */
+  .back-btn,
+  #backBtn {
+    padding: 10px !important;
+    min-width: 40px !important;
+  }
+
+  /* Informações do aluno no header */
+  .student-info h1 {
+    font-size: 16px !important;
+  }
+
+  .student-info p {
+    font-size: 12px !important;
+  }
+}
+
+/* ========================================
+   DASHBOARD PERSONAL - MOBILE
+   ======================================== */
+
+@media (max-width: 768px) {
+  /* Código de referência */
+  .personal-dashboard header + div > div:first-child {
+    padding: 20px 15px !important;
+  }
+
+  /* Card do código */
+  .personal-dashboard #referralCode {
+    font-size: 28px !important;
+    letter-spacing: 4px !important;
+  }
+
+  /* Grid de alunos */
+  #studentsList {
+    grid-template-columns: 1fr !important;
+    gap: 15px !important;
+  }
+
+  /* Contador de alunos */
+  #studentsCount {
+    font-size: 12px !important;
+    padding: 3px 10px !important;
+  }
+}
+
+/* ========================================
+   CRIAR TREINO - MOBILE
+   ======================================== */
+
+@media (max-width: 1024px) {
+  /* Grid de 2 colunas vira 1 coluna */
+  .grid-2,
+  .create-workout-page .grid-2 {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Preview fixo vira normal */
+  .create-workout-page .section:last-child {
+    position: static !important;
+  }
+}
+
+@media (max-width: 768px) {
+  /* Container principal */
+  .create-workout-page .container,
+  .container {
+    padding: 20px 15px !important;
+  }
+
+  /* Seções */
+  .section {
+    padding: 20px 15px !important;
+  }
+
+  /* Título das seções */
+  .section h2 {
+    font-size: 18px !important;
+  }
+
+  /* Grid de dias - 2 colunas em mobile */
+  .days-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 8px !important;
+  }
+
+  .day-box {
+    padding: 12px !important;
+    font-size: 13px !important;
+  }
+
+  /* Lista de exercícios */
+  .exercise-item {
+    flex-direction: column;
+    align-items: stretch !important;
+    gap: 10px;
+  }
+
+  .exercise-item button {
+    width: 100%;
+  }
+
+  /* Inputs e textareas */
+  .form-group input,
+  .form-group textarea,
+  .form-group select {
+    font-size: 16px !important; /* Evita zoom no iOS */
+  }
+}
+
+/* ========================================
+   EXERCÍCIOS - MOBILE
+   ======================================== */
+
+@media (max-width: 768px) {
+  /* Grid de 2 colunas vira empilhado */
+  .exercises-page > div > div {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Form fica em cima */
+  .exercises-page .form-group {
+    margin-bottom: 15px !important;
+  }
+
+  /* Lista de exercícios */
+  .exercise-card,
+  .exercise-item {
+    padding: 15px !important;
+  }
+
+  .exercise-card h4,
+  .exercise-item h4 {
+    font-size: 16px !important;
+  }
+
+  /* Contador de exercícios */
+  #exercisesCount {
+    font-size: 12px !important;
+    padding: 3px 10px !important;
+  }
+}
+
+/* ========================================
+   DASHBOARD ALUNO - MOBILE
+   ======================================== */
+
+@media (max-width: 768px) {
+  /* Grid semanal - 2 colunas */
+  #weeklyWorkouts {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 12px !important;
+  }
+
+  /* Cards dos dias */
+  .day-column {
+    min-height: 300px !important;
+  }
+
+  /* Nome do aluno */
+  #studentName {
+    font-size: 24px !important;
+  }
+}
+
+/* ========================================
+   VISUALIZAR TREINO - MOBILE
+   ======================================== */
+
+@media (max-width: 768px) {
+  .student-view-workout #mainContent {
+    padding: 20px 15px !important;
+  }
+
+  /* Título do treino */
+  .student-view-workout h2 {
+    font-size: 24px !important;
+  }
+
+  /* Botões de dias */
+  .days-navigation,
+  .day-btn {
+    width: 100%;
+    margin-bottom: 8px;
+  }
+
+  /* Cards de exercícios */
+  .exercise-card {
+    padding: 20px 15px !important;
+  }
+
+  .exercise-card h4 {
+    font-size: 18px !important;
+  }
+
+  /* Badges de séries/reps */
+  .exercise-meta {
+    flex-wrap: wrap;
+  }
+
+  .meta-badge {
+    font-size: 12px !important;
+    padding: 6px 12px !important;
+  }
+
+  /* Vídeos */
+  .video-container {
+    margin: 15px 0 !important;
+  }
+}
+
+/* ========================================
+   DETALHES DO ALUNO (KANBAN) - MOBILE
+   ======================================== */
+
+@media (max-width: 1200px) {
+  .kanban-grid {
+    grid-template-columns: repeat(3, 1fr) !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .kanban-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 12px !important;
+  }
+
+  .day-column {
+    min-height: 320px !important;
+  }
+
+  .day-header {
+    padding: 12px !important;
+  }
+
+  .day-name {
+    font-size: 14px !important;
+  }
+
+  .day-short {
+    font-size: 10px !important;
+  }
+
+  .exercise-card {
+    padding: 10px !important;
+  }
+
+  .exercise-name {
+    font-size: 12px !important;
+  }
+
+  .meta-badge {
+    font-size: 10px !important;
+    padding: 2px 6px !important;
+  }
+
+  .add-btn {
+    padding: 8px !important;
+    font-size: 11px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .kanban-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .day-column {
+    min-height: 250px !important;
+  }
+}
+
+/* ========================================
+   MODAL - MOBILE
+   ======================================== */
+
+@media (max-width: 768px) {
+  .modal-content {
+    width: 95% !important;
+    max-height: 90vh !important;
+    margin: 0 !important;
+  }
+
+  .modal-header {
+    padding: 15px !important;
+  }
+
+  .modal-header h3 {
+    font-size: 16px !important;
+  }
+
+  .modal-body {
+    padding: 15px !important;
+  }
+
+  .exercise-option {
+    padding: 10px !important;
+  }
+
+  .exercise-option h4 {
+    font-size: 13px !important;
+  }
+
+  .exercise-option p {
+    font-size: 11px !important;
+  }
+}
+
+/* ========================================
+   FORMS E INPUTS - MOBILE
+   ======================================== */
+
+@media (max-width: 768px) {
+  /* Evitar zoom no iOS ao focar inputs */
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="number"],
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+
+  /* Botões ocupam largura total */
+  button:not(.day-box):not(.exercise-option):not(.remove-btn):not(.close-modal),
+  .btn {
+    width: 100%;
+    margin-bottom: 10px;
+  }
+
+  /* Forms */
+  form {
+    margin: 15px !important;
+    padding: 20px 15px !important;
+  }
+
+  form h2 {
+    font-size: 24px !important;
+  }
+}
+
+/* ========================================
+   TOOLTIPS E HELPERS - MOBILE
+   ======================================== */
+
+@media (max-width: 768px) {
+  /* Textos de ajuda menores */
+  small {
+    font-size: 12px !important;
+  }
+
+  /* Alertas */
+  .alert {
+    padding: 12px 15px !important;
+    font-size: 13px !important;
+  }
+}
+
+/* ========================================
+   TABELAS - MOBILE
+   ======================================== */
+
+@media (max-width: 768px) {
+  table {
+    font-size: 13px !important;
+  }
+
+  th, td {
+    padding: 10px 8px !important;
+  }
+}
+
+/* ========================================
+   CARDS - MOBILE
+   ======================================== */
+
+@media (max-width: 768px) {
+  .card {
+    padding: 18px 15px !important;
+    margin: 12px 0 !important;
+  }
+
+  .card h3 {
+    font-size: 18px !important;
+  }
+
+  .card p {
+    font-size: 14px !important;
+  }
+}
+
+/* ========================================
+   UTILIDADES - MOBILE
+   ======================================== */
+
+@media (max-width: 768px) {
+  /* Scroll suave em containers */
+  .exercises-list,
+  .day-body {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Melhorar área de toque */
+  button,
+  a,
+  .clickable {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* Espaçamento entre elementos */
+  * + * {
+    margin-top: 0;
+  }
+}
+
+/* ========================================
+   SPINNER - MOBILE
+   ======================================== */
+
+@media (max-width: 768px) {
+  .spinner {
+    width: 28px !important;
+    height: 28px !important;
+    border-width: 3px !important;
+  }
+}
+
+/* ========================================
+   CORREÇÕES ESPECÍFICAS DE LAYOUT
+   ======================================== */
+
+@media (max-width: 768px) {
+  /* Prevenir overflow horizontal */
+  body {
+    overflow-x: hidden;
+  }
+
+  /* Containers responsivos */
+  .container,
+  .main-content {
+    width: 100%;
+    max-width: 100%;
+    padding-left: 15px !important;
+    padding-right: 15px !important;
+  }
+
+  /* Títulos grandes */
+  h1 {
+    font-size: 24px !important;
+  }
+
+  h2 {
+    font-size: 20px !important;
+  }
+
+  h3 {
+    font-size: 18px !important;
+  }
+
+  /* Parágrafos */
+  p {
+    font-size: 14px !important;
+  }
+}
+
+/* ========================================
+   CORREÇÕES DE ACESSIBILIDADE
+   ======================================== */
+
+/* Aumentar área de toque em todos os dispositivos */
+@media (pointer: coarse) {
+  button,
+  a,
+  input[type="checkbox"],
+  input[type="radio"],
+  .clickable {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+
+/* ========================================
+   DARK MODE SUPPORT (OPCIONAL)
+   ======================================== */
+
+@media (prefers-color-scheme: dark) {
+  /* Adicionar suporte a dark mode no futuro */
+}

@@ -1,0 +1,158 @@
+<div class="login-container" style="font-family: 'DM Sans', system-ui, sans-serif; background: #FFFFFF; min-height: 100vh; display: flex;">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <style>
+    .login-input {
+      width: 100%;
+      padding: 13px 16px;
+      border: 2px solid #EBEBEB;
+      border-radius: 12px;
+      font-size: 0.95rem;
+      outline: none;
+      transition: all 0.2s ease;
+      box-sizing: border-box;
+      font-family: inherit;
+      background: #FAFAFA;
+      color: #0A0A0A;
+    }
+    .login-input:focus {
+      border-color: #0A0A0A;
+      background: #fff;
+      box-shadow: 0 0 0 4px rgba(0,0,0,0.04);
+    }
+    .login-input::placeholder { color: #9CA3AF; }
+    .login-btn {
+      width: 100%;
+      padding: 14px;
+      background: #00E676;
+      color: #0A0A0A;
+      border: none;
+      border-radius: 12px;
+      font-size: 0.95rem;
+      font-weight: 800;
+      cursor: pointer;
+      transition: all 0.25s cubic-bezier(0.4,0,0.2,1);
+      font-family: inherit;
+      letter-spacing: 0.01em;
+    }
+    .login-btn:hover {
+      background: #00C853;
+      transform: translateY(-1px);
+      box-shadow: 0 8px 24px rgba(0,230,118,0.35);
+    }
+    .login-btn:active { transform: translateY(0); }
+    .login-link { color: #0A0A0A; font-weight: 700; text-decoration: none; }
+    .login-link:hover { text-decoration: underline; }
+  </style>
+
+  <!-- Left Panel - Branding -->
+  <div style="width: 45%; background: #0A0A0A; display: flex; flex-direction: column; justify-content: space-between; padding: 48px; position: relative; overflow: hidden;">
+    <div style="position: absolute; inset: 0; background: radial-gradient(ellipse at 20% 80%, rgba(0,230,118,0.08) 0%, transparent 60%), radial-gradient(ellipse at 80% 20%, rgba(255,255,255,0.03) 0%, transparent 60%); pointer-events: none;"></div>
+
+    <!-- LOGO grande e centralizada -->
+    <div style="position: relative; flex: 1; display: flex; align-items: center; justify-content: center;">
+      <img src="assets/branca_larga.png" alt="Featym" style="width: 72%; max-width: 320px; object-fit: contain; filter: drop-shadow(0 0 40px rgba(0,230,118,0.12));" onerror="this.style.display='none'">
+    </div>
+
+    <div style="position: relative;">
+      <p style="color: rgba(0,230,118,0.7); font-size: 0.75rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; margin: 0 0 16px;">Personal Training Platform</p>
+      <h2 style="color: #fff; font-size: 2.2rem; font-weight: 800; margin: 0 0 16px; line-height: 1.2; letter-spacing: -0.03em;">Transforme resultados em experiência.</h2>
+      <p style="color: rgba(255,255,255,0.45); font-size: 0.9rem; line-height: 1.7; margin: 0 0 32px; max-width: 340px;">Conecte personal trainers e alunos com uma plataforma inteligente de gerenciamento de treinos.</p>
+      <div style="display: flex; gap: 24px;">
+        <div>
+          <p style="color: #00E676; font-size: 1.5rem; font-weight: 800; margin: 0; letter-spacing: -0.03em;">100%</p>
+          <p style="color: rgba(255,255,255,0.4); font-size: 0.72rem; margin: 3px 0 0; font-weight: 500;">Digital</p>
+        </div>
+        <div style="width: 1px; background: rgba(255,255,255,0.08);"></div>
+        <div>
+          <p style="color: #00E676; font-size: 1.5rem; font-weight: 800; margin: 0; letter-spacing: -0.03em;">Real-time</p>
+          <p style="color: rgba(255,255,255,0.4); font-size: 0.72rem; margin: 3px 0 0; font-weight: 500;">Feedback</p>
+        </div>
+        <div style="width: 1px; background: rgba(255,255,255,0.08);"></div>
+        <div>
+          <p style="color: #00E676; font-size: 1.5rem; font-weight: 800; margin: 0; letter-spacing: -0.03em;">Kanban</p>
+          <p style="color: rgba(255,255,255,0.4); font-size: 0.72rem; margin: 3px 0 0; font-weight: 500;">Treinos</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right Panel - Form -->
+  <div style="flex: 1; display: flex; align-items: center; justify-content: center; padding: 48px;">
+    <div style="width: 100%; max-width: 400px;">
+      
+      <div style="margin-bottom: 36px;">
+        <h1 style="font-size: 1.8rem; font-weight: 800; color: #0A0A0A; margin: 0 0 8px; letter-spacing: -0.03em;">Bem-vindo de volta</h1>
+        <p style="color: #6B7280; font-size: 0.9rem; margin: 0;">Entre na sua conta para continuar</p>
+      </div>
+
+      <div id="loginError" style="display: none; background: #FFF1F2; border: 1px solid #FECDD3; border-radius: 10px; padding: 12px 16px; margin-bottom: 20px; font-size: 0.85rem; color: #BE123C; font-weight: 500;"></div>
+
+      <form id="loginForm">
+        <div style="margin-bottom: 18px;">
+          <label style="display: block; font-size: 0.8rem; font-weight: 700; color: #374151; margin-bottom: 8px; letter-spacing: 0.01em;">Email</label>
+          <input type="email" id="loginEmail" class="login-input" placeholder="seu@email.com" required>
+        </div>
+
+        <div style="margin-bottom: 28px;">
+          <label style="display: block; font-size: 0.8rem; font-weight: 700; color: #374151; margin-bottom: 8px; letter-spacing: 0.01em;">Senha</label>
+          <input type="password" id="loginPassword" class="login-input" placeholder="••••••••" required>
+        </div>
+
+        <button type="submit" class="login-btn">Entrar</button>
+      </form>
+
+      <p style="text-align: center; margin-top: 24px; font-size: 0.875rem; color: #6B7280;">
+        Não tem conta? <a href="#/signup" class="login-link">Cadastre-se aqui</a>
+      </p>
+    </div>
+  </div>
+</div>
+
+<style>
+@media (max-width: 768px) {
+  .login-container > div:first-child { display: none !important; }
+  .login-container > div:last-child { width: 100% !important; padding: 32px 24px !important; }
+}
+</style>
+
+<script>
+  const loginForm = document.getElementById('loginForm');
+  
+  if (loginForm) {
+    loginForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const email = document.getElementById('loginEmail').value;
+      const password = document.getElementById('loginPassword').value;
+      const errorDiv = document.getElementById('loginError');
+      const submitBtn = loginForm.querySelector('button[type="submit"]');
+      const originalText = submitBtn.textContent;
+      
+      submitBtn.textContent = 'Entrando...';
+      submitBtn.disabled = true;
+      submitBtn.style.opacity = '0.75';
+      
+      try {
+        const result = await authManager.login(email, password);
+        if (result.success) {
+          if (result.userType === 'personal') router.goToPersonalDashboard();
+          else router.goToStudentDashboard();
+        } else {
+          errorDiv.textContent = result.error;
+          errorDiv.style.display = 'block';
+          submitBtn.textContent = originalText;
+          submitBtn.disabled = false;
+          submitBtn.style.opacity = '1';
+        }
+      } catch (error) {
+        errorDiv.textContent = 'Erro ao fazer login. Tente novamente.';
+        errorDiv.style.display = 'block';
+        submitBtn.textContent = originalText;
+        submitBtn.disabled = false;
+        submitBtn.style.opacity = '1';
+      }
+    });
+  }
+</script>

@@ -1,0 +1,133 @@
+ESTRUTURA DO PROJETO - PERSONAL TRAINER APP
+============================================
+
+personal-trainer-app/
+│
+├── index.html                          # Página principal (SPA - Single Page Application)
+│                                       # Carrega dinamicamente todas as outras páginas
+│
+├── css/
+│   └── style.css                       # Estilos CSS minimalistas em preto e branco
+│                                       # Responsivo para desktop e mobile
+│
+├── js/
+│   ├── config.js                       # Configuração do Firebase
+│   │                                   # ⚠️ EDITE ESTE ARQUIVO com suas credenciais
+│   │
+│   ├── auth.js                         # Gerenciamento de autenticação
+│   │                                   # - Cadastro (signup)
+│   │                                   # - Login
+│   │                                   # - Logout
+│   │                                   # - Verificação de estado
+│   │
+│   ├── router.js                       # Sistema de roteamento
+│   │                                   # - Navegação entre páginas
+│   │                                   # - Proteção de rotas
+│   │                                   # - Redirecionamento baseado em tipo de usuário
+│   │
+│   └── db.js                           # Operações do Firestore
+│                                       # - Criar/ler/atualizar/deletar usuários
+│                                       # - Criar/ler/atualizar/deletar exercícios
+│                                       # - Criar/ler/atualizar/deletar treinos
+│
+├── pages/
+│   ├── login.html                      # Página de login
+│   │                                   # - Email/Senha
+│   │                                   # - Link para cadastro
+│   │
+│   ├── signup.html                     # Página de cadastro
+│   │                                   # - Nome, Email, Senha
+│   │                                   # - Seleção de tipo de usuário
+│   │                                   # - Link para login
+│   │
+│   ├── personal/                       # Páginas do Personal Trainer
+│   │   ├── dashboard.html              # Dashboard principal
+│   │   │                               # - Bem-vindo
+│   │   │                               # - Lista de treinos criados
+│   │   │                               # - Opções de editar/deletar
+│   │   │
+│   │   ├── exercises.html              # Gerenciar exercícios
+│   │   │                               # - Criar novo exercício
+│   │   │                               # - Lista de exercícios
+│   │   │                               # - Deletar exercício
+│   │   │
+│   │   └── create-workout.html         # Criar treino
+│   │                                   # - Nome e descrição
+│   │                                   # - Seleção de dias
+│   │                                   # - Adicionar exercícios
+│   │                                   # - Associar a aluno
+│   │                                   # - Visualização em tempo real
+│   │
+│   └── student/                        # Páginas do Aluno
+│       ├── dashboard.html              # Dashboard principal
+│       │                               # - Bem-vindo
+│       │                               # - Lista de treinos atribuídos
+│       │
+│       └── view-workout.html           # Visualizar treino
+│                                       # - Nome e descrição
+│                                       # - Navegação entre dias
+│                                       # - Exercícios com vídeos
+│                                       # - Séries, repetições e observações
+│
+├── assets/                             # Pasta para imagens/ícones (vazia por padrão)
+│
+├── README.md                           # Documentação rápida
+├── GUIA_INICIO_RAPIDO.md              # Guia de início rápido (5 passos)
+├── MANUAL_COMPLETO.md                  # Manual detalhado (configuração, deploy, testes)
+├── ESTRUTURA.txt                       # Este arquivo
+├── firestore.rules                     # Regras de segurança do Firestore
+└── .gitignore                          # Arquivo para ignorar no Git
+
+
+FLUXO DE DADOS
+==============
+
+1. AUTENTICAÇÃO
+   Usuário → Login/Signup → Firebase Auth → Firestore (dados do usuário)
+   
+2. PERSONAL TRAINER
+   Personal → Criar Exercício → Firestore (collection: exercises)
+   Personal → Criar Treino → Firestore (collection: workouts)
+   Personal → Associar Aluno → Firestore (atualiza documento do aluno)
+
+3. ALUNO
+   Aluno → Login → Carrega treinos atribuídos → Firestore (collection: workouts)
+   Aluno → Visualizar Treino → Exibe exercícios com vídeos
+
+
+TECNOLOGIAS
+===========
+
+Frontend:
+- HTML5 (estrutura)
+- CSS3 (estilos)
+- JavaScript ES6+ (lógica)
+
+Backend:
+- Firebase Authentication (autenticação)
+- Firestore Database (armazenamento)
+
+Deployment:
+- Vercel (recomendado)
+- Firebase Hosting (alternativa)
+
+
+ARQUIVOS IMPORTANTES
+====================
+
+⚠️  js/config.js          → EDITE COM SUAS CREDENCIAIS DO FIREBASE
+📋 MANUAL_COMPLETO.md    → Leia para configuração detalhada
+🚀 GUIA_INICIO_RAPIDO.md → Leia para começar em 5 passos
+🔐 firestore.rules       → Copie para Firebase Console
+
+
+PRÓXIMAS ETAPAS
+===============
+
+1. Editar js/config.js com credenciais do Firebase
+2. Habilitar Firebase Authentication
+3. Criar Firestore Database
+4. Configurar regras de segurança (firestore.rules)
+5. Testar localmente
+6. Deploy (Vercel ou Firebase Hosting)
+
