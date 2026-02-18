@@ -53,7 +53,6 @@ class DatabaseManager {
     }
   }
 
-  // Alias para getUserData (usado em student-details.html)
   async getStudentById(studentId) {
     return await this.getUserData(studentId);
   }
@@ -88,16 +87,12 @@ class DatabaseManager {
     }
   }
 
-  // Alias
   async getAllStudents() {
     return await this.getMyStudents();
   }
 
   // ── Exercises ─────────────────────────────────────────────────────
 
-  /**
-   * Criar exercício (aceita objeto ou parâmetros individuais)
-   */
   async createExercise(nameOrObj, description, videoUrl) {
     try {
       const user = authManager.getCurrentUser();
@@ -122,10 +117,10 @@ class DatabaseManager {
 
       const exerciseData = {
         id: exerciseRef.id,
-        name,
-        description: desc,
-        muscleGroup,
-        videoUrl: embedUrl,
+        name: name || '',
+        description: desc || '',
+        muscleGroup: muscleGroup || '',
+        videoUrl: embedUrl || '',
         personalId: user.uid,
         createdBy: user.uid,
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -140,7 +135,6 @@ class DatabaseManager {
     }
   }
 
-  // Alias usado em exercises.html
   async addExercise(data) {
     return await this.createExercise(data);
   }
@@ -150,12 +144,10 @@ class DatabaseManager {
       const user = authManager.getCurrentUser();
       if (!user) throw new Error('Usuário não autenticado');
 
-      // Tenta por createdBy primeiro, fallback para personalId
       let snapshot = await db.collection('exercises')
         .where('createdBy', '==', user.uid)
         .get();
 
-      // Se não encontrou, tenta personalId (compatibilidade)
       if (snapshot.empty) {
         snapshot = await db.collection('exercises')
           .where('personalId', '==', user.uid)
@@ -176,7 +168,6 @@ class DatabaseManager {
     }
   }
 
-  // Alias usado em exercises.html
   async getExercises() {
     return await this.getPersonalExercises();
   }
@@ -204,7 +195,7 @@ class DatabaseManager {
   // ── Workouts ──────────────────────────────────────────────────────
 
   /**
-   * Criar treino (aceita objeto ou parâmetros individuais)
+   * Criar treino — NUNCA salva campos undefined no Firestore
    */
   async createWorkout(nameOrObj, description, days, studentId) {
     try {
@@ -214,27 +205,38 @@ class DatabaseManager {
       let name, desc, daysData, stdId;
 
       if (typeof nameOrObj === 'object') {
-        name = nameOrObj.name;
+        name = nameOrObj.name || '';
         desc = nameOrObj.description || '';
         daysData = nameOrObj.days || {};
         stdId = nameOrObj.studentId || null;
       } else {
-        name = nameOrObj;
+        name = nameOrObj || '';
         desc = description || '';
         daysData = days || {};
         stdId = studentId || null;
       }
 
       const workoutRef = db.collection('workouts').doc();
-      await workoutRef.set({
+
+      // Objeto sem campos undefined
+      const workoutData = {
         id: workoutRef.id,
-        name,
-        description: desc,
+        name: name,
+        description: desc,          // sempre string
         personalId: user.uid,
-        studentId: stdId,
         days: daysData,
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
-      });
+      };
+
+      // Só adiciona studentId se não for null/undefined
+      if (stdId) {
+        workoutData.studentId = stdId;
+      } else {
+        workoutData.studentId = '';  // evita undefined
+      }
+
+      await workoutRef.set(workoutData);
+      console.log('✓ Treino criado:', name);
 
       if (stdId) {
         try {
@@ -271,12 +273,6 @@ class DatabaseManager {
     }
   }
 
-  /**
-   * Busca treinos do aluno.
-   * Estratégia: lê assignedWorkouts do doc do aluno -> busca cada workout por ID (get direto).
-   * Isso evita query em coleção que falha nas regras do Firestore.
-   * Fallback: tenta query .where('studentId') caso assignedWorkouts esteja vazio.
-   */
   async getStudentWorkouts(studentIdParam) {
     try {
       const user = authManager.getCurrentUser();
@@ -284,7 +280,6 @@ class DatabaseManager {
 
       const targetId = studentIdParam || user.uid;
 
-      // Estratégia 1: usar assignedWorkouts do perfil do aluno (get direto, sem query)
       const userDoc = await db.collection('users').doc(targetId).get();
       const assignedWorkouts = userDoc.exists ? (userDoc.data().assignedWorkouts || []) : [];
 
@@ -302,7 +297,6 @@ class DatabaseManager {
         });
       }
 
-      // Estratégia 2 (fallback): query direta — só funciona se rules permitirem list
       console.warn('[getStudentWorkouts] assignedWorkouts vazio, tentando query fallback...');
       const snapshot = await db.collection('workouts')
         .where('studentId', '==', targetId)
@@ -330,14 +324,23 @@ class DatabaseManager {
     }
   }
 
-  // Alias
   async getWorkoutById(workoutId) {
     return await this.getWorkout(workoutId);
   }
 
+  /**
+   * Atualizar treino — remove campos undefined antes de salvar
+   */
   async updateWorkout(workoutId, updates) {
     try {
-      await db.collection('workouts').doc(workoutId).update(updates);
+      // Limpar undefined do objeto de updates
+      const cleanUpdates = {};
+      for (const [key, value] of Object.entries(updates)) {
+        cleanUpdates[key] = value === undefined ? '' : value;
+      }
+
+      await db.collection('workouts').doc(workoutId).update(cleanUpdates);
+      console.log('✓ Treino atualizado:', workoutId);
       return { success: true };
     } catch (error) {
       console.error('Erro ao atualizar treino:', error);
@@ -377,7 +380,6 @@ class DatabaseManager {
         user.uid, feedbackData.workoutId, weekIdentifier, feedbackData.dayOfWeek
       ) || `${user.uid}_${feedbackData.workoutId}_${weekIdentifier}_${feedbackData.dayOfWeek}`;
 
-      // Verificar duplicata
       const existing = await db.collection('feedbacks').doc(feedbackKey).get();
       if (existing.exists) {
         return { success: false, error: 'Você já enviou feedback para este dia nesta semana' };
@@ -386,12 +388,12 @@ class DatabaseManager {
       await db.collection('feedbacks').doc(feedbackKey).set({
         id: feedbackKey,
         studentId: user.uid,
-        workoutId: feedbackData.workoutId,
-        weekIdentifier,
-        dayOfWeek: feedbackData.dayOfWeek,
-        effortLevel: feedbackData.effortLevel,
-        sensation: feedbackData.sensation,
-        hasPain: feedbackData.hasPain,
+        workoutId: feedbackData.workoutId || '',
+        weekIdentifier: weekIdentifier || '',
+        dayOfWeek: feedbackData.dayOfWeek || '',
+        effortLevel: feedbackData.effortLevel || 5,
+        sensation: feedbackData.sensation || 'ideal',
+        hasPain: feedbackData.hasPain || false,
         painLocation: feedbackData.hasPain ? (feedbackData.painLocation || '') : '',
         comment: feedbackData.comment || '',
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -404,7 +406,6 @@ class DatabaseManager {
     }
   }
 
-  // Alias usado em view-workout.html (dados diferentes, salva como antes)
   async submitFeedback(data) {
     try {
       const user = authManager.getCurrentUser();
@@ -420,7 +421,7 @@ class DatabaseManager {
         workoutId: data.workoutId || '',
         workoutName: data.workoutName || '',
         weekIdentifier: weekId,
-        dayOfWeek,
+        dayOfWeek: dayOfWeek,
         effortLevel: data.effort || 5,
         sensation: data.sensation || 'ideal',
         hasPain: data.hasPain || false,
@@ -485,7 +486,6 @@ class DatabaseManager {
 
       console.log('=== GET PERSONAL FEEDBACKS ===', user.uid);
 
-      // Busca treinos do personal
       const workoutsSnapshot = await db.collection('workouts')
         .where('personalId', '==', user.uid)
         .get();

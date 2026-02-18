@@ -13,16 +13,14 @@
     .search-input { width: 100%; padding: 12px 16px 12px 44px; border: 2px solid #EBEBEB; border-radius: 12px; font-size: 0.9rem; outline: none; transition: all 0.2s; font-family: inherit; background: #FAFAFA; box-sizing: border-box; }
     .search-input:focus { border-color: #0A0A0A; background: #fff; }
     .search-input::placeholder { color: #9CA3AF; }
-    .filter-chip { padding: 7px 16px; border-radius: 20px; border: 1.5px solid #EBEBEB; font-size: 0.8rem; font-weight: 600; cursor: pointer; transition: all 0.2s; background: #fff; color: #6B7280; white-space: nowrap; }
+    .filter-chip { padding: 7px 16px; border-radius: 20px; border: 1.5px solid #EBEBEB; font-size: 0.8rem; font-weight: 600; cursor: pointer; transition: all 0.2s; background: #fff; color: #6B7280; white-space: nowrap; font-family: inherit; }
     .filter-chip:hover { border-color: #D1D5DB; color: #374151; }
     .filter-chip.active { background: #0A0A0A; border-color: #0A0A0A; color: #fff; }
-    .filter-chip.active-green { background: #00E676; border-color: #00E676; color: #0A0A0A; }
     .muscle-badge { padding: 3px 8px; border-radius: 6px; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.03em; }
     .add-btn { background: #00E676; color: #0A0A0A; border: none; border-radius: 8px; padding: 7px 14px; font-size: 0.78rem; font-weight: 700; cursor: pointer; transition: all 0.2s; font-family: inherit; }
     .add-btn:hover { background: #00C853; box-shadow: 0 4px 12px rgba(0,230,118,0.3); }
     .spinner { width: 28px; height: 28px; border: 3px solid rgba(0,0,0,0.08); border-top-color: #00E676; border-radius: 50%; animation: spin 0.8s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
-    /* Modal */
     .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); z-index: 100; display: flex; align-items: center; justify-content: center; padding: 20px; }
     .modal-box { background: #fff; border-radius: 20px; padding: 32px; width: 100%; max-width: 500px; max-height: 90vh; overflow-y: auto; }
     .modal-input { width: 100%; padding: 12px 14px; border: 2px solid #EBEBEB; border-radius: 10px; font-size: 0.88rem; outline: none; transition: border-color 0.2s; font-family: inherit; background: #FAFAFA; box-sizing: border-box; }
@@ -108,7 +106,7 @@
     <div class="modal-box">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
         <h2 style="font-size: 1.2rem; font-weight: 800; color: #0A0A0A; margin: 0; letter-spacing: -0.02em;">Novo Exercício</h2>
-        <button id="closeAddModal" style="background: #F4F4F4; border: none; width: 32px; height: 32px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #6B7280; font-size: 1.1rem; transition: all 0.2s;" onmouseover="this.style.background='#EBEBEB'" onmouseout="this.style.background='#F4F4F4'">✕</button>
+        <button id="closeAddModal" style="background: #F4F4F4; border: none; width: 32px; height: 32px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #6B7280; font-size: 1.1rem; transition: all 0.2s;">✕</button>
       </div>
 
       <div id="addExerciseError" style="display: none; background: #FFF1F2; border: 1px solid #FECDD3; border-radius: 8px; padding: 10px 13px; margin-bottom: 16px; font-size: 0.82rem; color: #BE123C; font-weight: 500;"></div>
@@ -120,7 +118,7 @@
         </div>
         <div>
           <label style="display: block; font-size: 0.78rem; font-weight: 700; color: #374151; margin-bottom: 7px;">Grupo muscular *</label>
-          <select id="exGroup" class="modal-input" style="appearance: none; cursor: pointer; background: #FAFAFA url('data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2212%22 height=%2212%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%239CA3AF%22 stroke-width=%222%22%3E%3Cpolyline points=%226 9 12 15 18 9%22/%3E%3C/svg%3E') no-repeat right 14px center; padding-right: 36px;">
+          <select id="exGroup" class="modal-input" style="appearance: none; cursor: pointer; background: #FAFAFA; padding-right: 36px;">
             <option value="">Selecione o grupo</option>
             <option>Peito</option><option>Costas</option><option>Pernas</option>
             <option>Ombros</option><option>Bíceps</option><option>Tríceps</option>
@@ -138,8 +136,8 @@
         </div>
 
         <div style="display: flex; gap: 10px; margin-top: 6px;">
-          <button id="cancelAddExercise" style="flex: 1; padding: 12px; background: #F4F4F4; color: #374151; border: none; border-radius: 10px; font-size: 0.875rem; font-weight: 600; cursor: pointer; transition: all 0.2s; font-family: inherit;" onmouseover="this.style.background='#EBEBEB'" onmouseout="this.style.background='#F4F4F4'">Cancelar</button>
-          <button id="saveExerciseBtn" style="flex: 2; padding: 12px; background: #00E676; color: #0A0A0A; border: none; border-radius: 10px; font-size: 0.875rem; font-weight: 800; cursor: pointer; transition: all 0.25s cubic-bezier(0.4,0,0.2,1); font-family: inherit;" onmouseover="this.style.background='#00C853'" onmouseout="this.style.background='#00E676'">Salvar Exercício</button>
+          <button id="cancelAddExercise" style="flex: 1; padding: 12px; background: #F4F4F4; color: #374151; border: none; border-radius: 10px; font-size: 0.875rem; font-weight: 600; cursor: pointer; font-family: inherit;">Cancelar</button>
+          <button id="saveExerciseBtn" style="flex: 2; padding: 12px; background: #00E676; color: #0A0A0A; border: none; border-radius: 10px; font-size: 0.875rem; font-weight: 800; cursor: pointer; font-family: inherit;">Salvar Exercício</button>
         </div>
       </div>
     </div>
@@ -148,7 +146,14 @@
 </div>
 
 <script>
-(function() {
+(async function() {
+  // ── Aguardar DOM estar pronto ─────────────────────────────────
+  await new Promise(r => document.readyState === 'loading'
+    ? document.addEventListener('DOMContentLoaded', r)
+    : r()
+  );
+  await new Promise(r => setTimeout(r, 80));
+
   const groupColors = {
     'Peito': '#FEF3C7', 'Costas': '#DBEAFE', 'Pernas': '#D1FAE5',
     'Ombros': '#EDE9FE', 'Bíceps': '#FCE7F3', 'Tríceps': '#FEE2E2',
@@ -165,63 +170,72 @@
   let allExercises = [];
   let currentFilter = 'all';
 
-  document.getElementById('logoutBtn').onclick = async () => {
-    await authManager.logout();
-    router.goToLogin();
-  };
+  // ── Logout ────────────────────────────────────────────────────
+  const logoutBtn = document.getElementById('logoutBtn');
+  if (logoutBtn) {
+    logoutBtn.onclick = async () => {
+      await authManager.logout();
+      router.goToLogin();
+    };
+  }
 
-  // Modal
-  document.getElementById('openAddExerciseModal').onclick = () => {
-    document.getElementById('addExerciseModal').style.display = 'flex';
-    document.getElementById('exName').focus();
-  };
-  document.getElementById('closeAddModal').onclick = closeModal;
-  document.getElementById('cancelAddExercise').onclick = closeModal;
-  document.getElementById('addExerciseModal').addEventListener('click', (e) => {
-    if (e.target === document.getElementById('addExerciseModal')) closeModal();
-  });
+  // ── Modal ─────────────────────────────────────────────────────
+  const openBtn = document.getElementById('openAddExerciseModal');
+  const closeBtn = document.getElementById('closeAddModal');
+  const cancelBtn = document.getElementById('cancelAddExercise');
+  const modal = document.getElementById('addExerciseModal');
+
+  if (openBtn) openBtn.onclick = () => { modal.style.display = 'flex'; document.getElementById('exName').focus(); };
+  if (closeBtn) closeBtn.onclick = closeModal;
+  if (cancelBtn) cancelBtn.onclick = closeModal;
+  if (modal) modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
 
   function closeModal() {
-    document.getElementById('addExerciseModal').style.display = 'none';
+    if (!modal) return;
+    modal.style.display = 'none';
     document.getElementById('exName').value = '';
     document.getElementById('exGroup').value = '';
     document.getElementById('exVideo').value = '';
     document.getElementById('exDesc').value = '';
-    document.getElementById('addExerciseError').style.display = 'none';
+    const errDiv = document.getElementById('addExerciseError');
+    if (errDiv) errDiv.style.display = 'none';
   }
 
-  document.getElementById('saveExerciseBtn').onclick = async () => {
-    const name = document.getElementById('exName').value.trim();
-    const group = document.getElementById('exGroup').value;
-    const video = document.getElementById('exVideo').value.trim();
-    const desc = document.getElementById('exDesc').value.trim();
-    const errDiv = document.getElementById('addExerciseError');
-    const btn = document.getElementById('saveExerciseBtn');
+  // ── Salvar exercício ──────────────────────────────────────────
+  const saveBtn = document.getElementById('saveExerciseBtn');
+  if (saveBtn) {
+    saveBtn.onclick = async () => {
+      const name = document.getElementById('exName').value.trim();
+      const group = document.getElementById('exGroup').value;
+      const video = document.getElementById('exVideo').value.trim();
+      const desc = document.getElementById('exDesc').value.trim();
+      const errDiv = document.getElementById('addExerciseError');
 
-    errDiv.style.display = 'none';
-    if (!name) { errDiv.textContent = 'Nome do exercício é obrigatório.'; return errDiv.style.display = 'block'; }
-    if (!group) { errDiv.textContent = 'Selecione o grupo muscular.'; return errDiv.style.display = 'block'; }
+      errDiv.style.display = 'none';
+      if (!name) { errDiv.textContent = 'Nome do exercício é obrigatório.'; errDiv.style.display = 'block'; return; }
+      if (!group) { errDiv.textContent = 'Selecione o grupo muscular.'; errDiv.style.display = 'block'; return; }
 
-    btn.textContent = 'Salvando...';
-    btn.disabled = true;
-    try {
-      const result = await dbManager.addExercise({ name, muscleGroup: group, videoUrl: video, description: desc });
-      if (result.success !== false) {
-        closeModal();
-        await loadExercises();
-      } else {
-        errDiv.textContent = result.error || 'Erro ao salvar.';
+      saveBtn.textContent = 'Salvando...';
+      saveBtn.disabled = true;
+      try {
+        const result = await dbManager.addExercise({ name, muscleGroup: group, videoUrl: video, description: desc });
+        if (result && result.success !== false) {
+          closeModal();
+          await loadExercises();
+        } else {
+          errDiv.textContent = (result && result.error) || 'Erro ao salvar.';
+          errDiv.style.display = 'block';
+        }
+      } catch(e) {
+        errDiv.textContent = 'Erro inesperado ao salvar.';
         errDiv.style.display = 'block';
       }
-    } catch(e) {
-      errDiv.textContent = 'Erro inesperado ao salvar.';
-      errDiv.style.display = 'block';
-    }
-    btn.textContent = 'Salvar Exercício';
-    btn.disabled = false;
-  };
+      saveBtn.textContent = 'Salvar Exercício';
+      saveBtn.disabled = false;
+    };
+  }
 
-  // Filters
+  // ── Filtros ───────────────────────────────────────────────────
   document.querySelectorAll('.filter-chip').forEach(chip => {
     chip.addEventListener('click', () => {
       document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
@@ -231,17 +245,21 @@
     });
   });
 
-  document.getElementById('searchInput').addEventListener('input', renderExercises);
+  const searchInput = document.getElementById('searchInput');
+  if (searchInput) searchInput.addEventListener('input', renderExercises);
 
+  // ── Render exercícios ─────────────────────────────────────────
   function renderExercises() {
-    const search = document.getElementById('searchInput').value.toLowerCase();
+    const search = (document.getElementById('searchInput')?.value || '').toLowerCase();
     const filtered = allExercises.filter(ex => {
       const matchGroup = currentFilter === 'all' || ex.muscleGroup === currentFilter;
-      const matchSearch = !search || ex.name?.toLowerCase().includes(search) || ex.muscleGroup?.toLowerCase().includes(search);
+      const matchSearch = !search || (ex.name || '').toLowerCase().includes(search) || (ex.muscleGroup || '').toLowerCase().includes(search);
       return matchGroup && matchSearch;
     });
 
     const grid = document.getElementById('exercisesGrid');
+    if (!grid) return;
+
     if (filtered.length === 0) {
       grid.innerHTML = `
         <div style="grid-column:1/-1; padding:48px 32px; background:#FAFAFA; border-radius:16px; border:2px dashed #E5E7EB; text-align:center;">
@@ -265,25 +283,27 @@
           </div>
           ${ex.description ? `<p style="font-size:0.8rem;color:#6B7280;margin:0 0 12px;line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">${ex.description}</p>` : ''}
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-            ${ex.videoUrl ? `<a href="${ex.videoUrl}" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:5px;font-size:0.75rem;font-weight:600;color:#6B7280;text-decoration:none;background:#F4F4F4;padding:5px 10px;border-radius:7px;transition:all 0.2s;" onmouseover="this.style.background='#EBEBEB'" onmouseout="this.style.background='#F4F4F4'"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg> Ver vídeo</a>` : ''}
-            <button class="add-btn" onclick="window._addExToWorkout && window._addExToWorkout('${ex.id}', '${(ex.name||'').replace(/'/g,"\\'")}')">+ Adicionar</button>
+            ${ex.videoUrl ? `<a href="${ex.videoUrl}" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:5px;font-size:0.75rem;font-weight:600;color:#6B7280;text-decoration:none;background:#F4F4F4;padding:5px 10px;border-radius:7px;"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg> Ver vídeo</a>` : ''}
           </div>
         </div>`;
       grid.appendChild(card);
     });
   }
 
+  // ── Carregar exercícios ───────────────────────────────────────
   async function loadExercises() {
     const grid = document.getElementById('exercisesGrid');
+    if (!grid) return;
     grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:64px 20px;"><div class="spinner" style="margin:0 auto 16px;"></div><p style="color:#9CA3AF;font-size:0.875rem;margin:0;">Carregando...</p></div>`;
     try {
       allExercises = await dbManager.getExercises() || [];
       renderExercises();
     } catch(e) {
-      grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:48px;"><p style="color:#BE123C;">Erro ao carregar exercícios.</p></div>`;
+      console.error('Erro ao carregar exercícios:', e);
+      if (grid) grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:48px;"><p style="color:#BE123C;">Erro ao carregar exercícios.</p></div>`;
     }
   }
 
-  loadExercises();
+  await loadExercises();
 })();
 </script>

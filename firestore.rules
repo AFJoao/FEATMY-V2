@@ -81,22 +81,30 @@ service cloud.firestore {
     }
 
 
-    // ── FEEDBACKS ────────────────────────────────────────────────────────
-    match /feedbacks/{feedbackId} {
-      allow create: if isAuth() &&
-        request.resource.data.studentId == request.auth.uid;
+// ── FEEDBACKS ────────────────────────────────────────────────────────
+match /feedbacks/{feedbackId} {
+  // Aluno cria seu próprio feedback
+  allow create: if isAuth() &&
+    request.resource.data.studentId == request.auth.uid;
 
-      allow read, update: if isAuth() && resource != null &&
-        resource.data.studentId == request.auth.uid;
+  // Aluno lê/atualiza — permite mesmo se doc não existe (resource == null)
+  allow get, update: if isAuth() && (
+    resource == null ||
+    resource.data.studentId == request.auth.uid
+  );
 
-      allow read: if isAuth() && isPersonal() && resource != null &&
-        exists(/databases/$(database)/documents/workouts/$(resource.data.workoutId)) &&
-        get(/databases/$(database)/documents/workouts/$(resource.data.workoutId)).data.personalId == request.auth.uid;
+  // Personal lê e deleta feedbacks dos treinos que criou
+  allow get, delete: if isAuth() && isPersonal() && (
+    resource == null ||
+    (
+      exists(/databases/$(database)/documents/workouts/$(resource.data.workoutId)) &&
+      get(/databases/$(database)/documents/workouts/$(resource.data.workoutId)).data.personalId == request.auth.uid
+    )
+  );
 
-      allow delete: if isAuth() && isPersonal() && resource != null &&
-        exists(/databases/$(database)/documents/workouts/$(resource.data.workoutId)) &&
-        get(/databases/$(database)/documents/workouts/$(resource.data.workoutId)).data.personalId == request.auth.uid;
-    }
+  // LIST para queries
+  allow list: if isAuth();
+}
 
 
     // ── REFERRAL CODES ─────────────────────────────────────────────────
