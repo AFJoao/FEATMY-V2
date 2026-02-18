@@ -8,8 +8,26 @@
     /* Header */
     .vw-header { background: #0A0A0A; position: sticky; top: 0; z-index: 50; border-bottom: 1px solid rgba(255,255,255,0.06); }
     .vw-header-inner { max-width: 860px; margin: 0 auto; padding: 0 24px; height: 64px; display: flex; justify-content: space-between; align-items: center; }
-    .vw-back-btn { color: rgba(255,255,255,0.7); background: transparent; border: 1px solid transparent; padding: 8px 10px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; transition: all 0.2s; }
-    .vw-back-btn:hover { color: #fff; background: rgba(255,255,255,0.09); }
+
+    /* FIX: botão voltar — cor explícita para garantir visibilidade do ícone */
+    .vw-back-btn {
+      color: #fff;
+      background: transparent;
+      border: 1px solid rgba(255,255,255,0.18);
+      padding: 8px 10px;
+      border-radius: 8px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s;
+      font-size: 0.82rem;
+      font-weight: 600;
+      font-family: inherit;
+    }
+    .vw-back-btn svg { stroke: #fff; }
+    .vw-back-btn:hover { background: rgba(255,255,255,0.12); border-color: rgba(255,255,255,0.35); }
+
     .vw-logout-btn { color: rgba(255,255,255,0.7); background: transparent; border: 1px solid rgba(255,255,255,0.14); padding: 8px 16px; border-radius: 8px; font-size: 0.875rem; font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 7px; transition: all 0.2s; font-family: inherit; }
     .vw-logout-btn:hover { color: #fff; background: rgba(255,255,255,0.09); border-color: rgba(255,255,255,0.3); }
 
@@ -46,29 +64,107 @@
     .spinner { width: 28px; height: 28px; border: 3px solid rgba(0,0,0,0.08); border-top-color: #00E676; border-radius: 50%; animation: spin 0.8s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* Feedback modal */
-    .fb-overlay { display: none; position: fixed; inset: 0; background: rgba(10,10,10,0.6); backdrop-filter: blur(4px); z-index: 200; align-items: flex-end; justify-content: center; padding: 0; }
+    /* ── FEEDBACK MODAL — igual ao dashboard ── */
+    .fb-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(10,10,10,0.65);
+      backdrop-filter: blur(4px);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
     .fb-overlay.open { display: flex; }
-    @media (min-width: 600px) { .fb-overlay { align-items: center; padding: 20px; } }
-    .fb-box { background: #fff; border-radius: 24px 24px 0 0; padding: 28px 24px 32px; width: 100%; max-width: 500px; max-height: 90vh; overflow-y: auto; }
-    @media (min-width: 600px) { .fb-box { border-radius: 20px; } }
-    .fb-range { width: 100%; height: 6px; border-radius: 3px; outline: none; cursor: pointer; accent-color: #00E676; }
-    .fb-option { flex: 1; padding: 11px 8px; border: 2px solid #EBEBEB; border-radius: 10px; cursor: pointer; text-align: center; transition: all 0.2s; }
-    .fb-option:hover { border-color: #D1D5DB; }
-    .fb-option.sel { border-color: #00E676; background: rgba(0,230,118,0.05); }
-    .fb-toggle { flex: 1; padding: 10px; border: 2px solid #EBEBEB; border-radius: 10px; cursor: pointer; text-align: center; font-size: 0.85rem; font-weight: 700; transition: all 0.2s; background: #fff; font-family: inherit; }
-    .fb-toggle.sel-yes { border-color: #FCA5A5; background: #FEE2E2; color: #991B1B; }
-    .fb-toggle.sel-no { border-color: #6EE7B7; background: #D1FAE5; color: #065F46; }
-    .fb-input { width: 100%; padding: 11px 14px; border: 2px solid #EBEBEB; border-radius: 10px; font-size: 0.875rem; outline: none; font-family: inherit; background: #FAFAFA; transition: border-color 0.2s; }
-    .fb-input:focus { border-color: #0A0A0A; background: #fff; }
+    .fb-card {
+      background: #fff;
+      border-radius: 20px;
+      padding: 32px;
+      max-width: 480px;
+      width: 92%;
+      max-height: 88vh;
+      overflow-y: auto;
+      box-shadow: 0 24px 64px rgba(0,0,0,0.2);
+    }
+    .fb-sensation-label {
+      flex: 1;
+      min-width: 100px;
+      padding: 12px;
+      border: 2px solid #EBEBEB;
+      border-radius: 10px;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.2s ease;
+    }
+    .fb-sensation-label:hover { border-color: #0A0A0A; }
+    .fb-sensation-label.selected { border-color: #00E676; background: rgba(0,230,118,0.06); }
+    .fb-pain-label {
+      flex: 1;
+      padding: 12px;
+      border: 2px solid #EBEBEB;
+      border-radius: 10px;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.2s ease;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #374151;
+    }
+    .fb-pain-label:hover { border-color: #0A0A0A; }
+    .fb-pain-label.selected { border-color: #0A0A0A; background: #F4F4F4; }
+
+    /* FIX: slider verde progressivo */
+    .fb-range {
+      -webkit-appearance: none;
+      height: 6px;
+      border-radius: 3px;
+      background: linear-gradient(to right, #00E676 44.4%, #EBEBEB 44.4%);
+      outline: none;
+      width: 100%;
+      transition: background 0.1s;
+      cursor: pointer;
+    }
+    .fb-range::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #00E676;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(0,230,118,0.4);
+    }
+    .fb-range::-moz-range-thumb {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #00E676;
+      cursor: pointer;
+      border: none;
+      box-shadow: 0 2px 8px rgba(0,230,118,0.4);
+    }
+    .fb-input {
+      width: 100%;
+      padding: 12px 14px;
+      border: 2px solid #EBEBEB;
+      border-radius: 10px;
+      font-size: 0.9rem;
+      outline: none;
+      transition: border-color 0.2s;
+      box-sizing: border-box;
+      font-family: inherit;
+      background: #fff;
+    }
+    .fb-input:focus { border-color: #0A0A0A; }
   </style>
 
   <!-- HEADER -->
   <header class="vw-header">
     <div class="vw-header-inner">
       <div style="display:flex;align-items:center;gap:12px;">
+        <!-- FIX: botão voltar com ícone visível + label -->
         <button onclick="router.goToStudentDashboard()" class="vw-back-btn">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+          Voltar
         </button>
         <div style="width:1px;height:24px;background:rgba(255,255,255,0.1);"></div>
         <img src="assets/branca_larga.png" alt="Featym" style="height:26px;object-fit:contain;" onerror="this.style.display='none'">
@@ -88,76 +184,110 @@
     </div>
   </main>
 
-  <!-- FEEDBACK MODAL -->
+  <!-- FEEDBACK MODAL — mesmo visual do dashboard -->
   <div id="fbOverlay" class="fb-overlay">
-    <div class="fb-box">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:22px;">
+    <div class="fb-card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;">
         <div>
-          <p style="color:#9CA3AF;font-size:0.68rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;margin:0 0 3px;">AVALIAÇÃO</p>
-          <h3 style="font-size:1.2rem;font-weight:800;color:#0A0A0A;margin:0;letter-spacing:-0.02em;">Como foi o treino?</h3>
+          <p style="color:#9CA3AF;font-size:0.7rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;margin:0 0 4px;">AVALIAÇÃO DO TREINO</p>
+          <h3 style="font-size:1.3rem;font-weight:800;color:#0A0A0A;margin:0;letter-spacing:-0.02em;">Enviar Feedback</h3>
         </div>
-        <button id="fbClose" style="background:#F4F4F4;border:none;width:32px;height:32px;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1.1rem;color:#6B7280;transition:background 0.2s;" onmouseover="this.style.background='#EBEBEB'" onmouseout="this.style.background='#F4F4F4'">✕</button>
+        <button 
+  id="fbClose" 
+  type="button"
+  style="
+    background:#F4F4F4;
+    border:none;
+    width:36px;
+    height:36px;
+    border-radius:10px;
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:1.2rem;
+    font-weight:600;
+    color:#374151;
+    transition:background 0.2s;
+  "
+  onmouseover="this.style.background='#EBEBEB'"
+  onmouseout="this.style.background='#F4F4F4'"
+>
+  ✕
+</button>
       </div>
 
       <!-- Esforço -->
-      <div style="margin-bottom:20px;">
+      <div style="margin-bottom:22px;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-          <label style="font-size:0.82rem;font-weight:700;color:#0A0A0A;">Nível de esforço</label>
-          <span style="background:#0A0A0A;color:#00E676;border-radius:8px;padding:3px 11px;font-size:1rem;font-weight:800;" id="effortVal">5</span>
+          <label style="font-size:0.85rem;font-weight:700;color:#0A0A0A;">Nível de Esforço</label>
+          <div style="background:#0A0A0A;color:#00E676;border-radius:8px;padding:4px 12px;display:flex;align-items:center;gap:4px;">
+            <span id="effortVal" style="font-size:1.1rem;font-weight:800;">5</span>
+            <span style="font-size:0.75rem;color:rgba(0,230,118,0.6);">/10</span>
+          </div>
         </div>
         <input type="range" id="effortRange" class="fb-range" min="1" max="10" value="5">
-        <div style="display:flex;justify-content:space-between;margin-top:5px;">
-          <span style="font-size:0.7rem;color:#9CA3AF;">Leve</span>
-          <span style="font-size:0.7rem;color:#9CA3AF;">Máximo</span>
+        <div style="display:flex;justify-content:space-between;margin-top:6px;">
+          <span style="font-size:0.72rem;color:#9CA3AF;">Muito leve</span>
+          <span style="font-size:0.72rem;color:#9CA3AF;">Máximo</span>
         </div>
       </div>
 
       <!-- Sensação -->
-      <div style="margin-bottom:20px;">
-        <label style="display:block;font-size:0.82rem;font-weight:700;color:#0A0A0A;margin-bottom:10px;">Sensação geral</label>
+      <div style="margin-bottom:22px;">
+        <label style="display:block;font-size:0.85rem;font-weight:700;color:#0A0A0A;margin-bottom:10px;">Sensação Geral</label>
         <div style="display:flex;gap:8px;">
-          <label class="fb-option" id="sLeve" onclick="selSensation('leve')">
+          <label class="fb-sensation-label" id="sLeve">
             <input type="radio" name="fbSensation" value="leve" style="display:none;">
-            <div style="font-size:1.2rem;margin-bottom:3px;">😌</div>
-            <div style="font-size:0.75rem;font-weight:700;color:#374151;">Leve</div>
+            <div style="font-size:1.2rem;margin-bottom:4px;">😌</div>
+            <span style="font-size:0.8rem;font-weight:600;color:#374151;">Leve</span>
           </label>
-          <label class="fb-option sel" id="sIdeal" onclick="selSensation('ideal')">
+          <label class="fb-sensation-label selected" id="sIdeal">
             <input type="radio" name="fbSensation" value="ideal" checked style="display:none;">
-            <div style="font-size:1.2rem;margin-bottom:3px;">🎯</div>
-            <div style="font-size:0.75rem;font-weight:700;color:#374151;">Ideal</div>
+            <div style="font-size:1.2rem;margin-bottom:4px;">🎯</div>
+            <span style="font-size:0.8rem;font-weight:600;color:#374151;">Ideal</span>
           </label>
-          <label class="fb-option" id="sPesado" onclick="selSensation('pesado')">
+          <label class="fb-sensation-label" id="sPesado">
             <input type="radio" name="fbSensation" value="pesado" style="display:none;">
-            <div style="font-size:1.2rem;margin-bottom:3px;">🔥</div>
-            <div style="font-size:0.75rem;font-weight:700;color:#374151;">Pesado</div>
+            <div style="font-size:1.2rem;margin-bottom:4px;">🔥</div>
+            <span style="font-size:0.8rem;font-weight:600;color:#374151;">Pesado</span>
           </label>
         </div>
       </div>
 
       <!-- Dor -->
-      <div style="margin-bottom:20px;">
-        <label style="display:block;font-size:0.82rem;font-weight:700;color:#0A0A0A;margin-bottom:10px;">Sentiu dor ou desconforto?</label>
-        <div style="display:flex;gap:10px;">
-          <button class="fb-toggle" id="painYes" onclick="setPain(true)">😣 Sim</button>
-          <button class="fb-toggle" id="painNo" onclick="setPain(false)">✓ Não</button>
-        </div>
-        <div id="painLocGroup" style="display:none;margin-top:12px;">
-          <label style="display:block;font-size:0.78rem;font-weight:700;color:#374151;margin-bottom:6px;">Local da dor</label>
-          <input type="text" id="painLoc" class="fb-input" placeholder="Ex: joelho esquerdo, ombro direito...">
+      <div style="margin-bottom:22px;">
+        <label style="display:block;font-size:0.85rem;font-weight:700;color:#0A0A0A;margin-bottom:10px;">Sentiu Dor ou Desconforto?</label>
+        <div style="display:flex;gap:8px;">
+          <label class="fb-pain-label" id="hasPainSim">
+            <input type="radio" name="fbHasPain" value="true" style="display:none;">
+            Sim
+          </label>
+          <label class="fb-pain-label selected" id="hasPainNao">
+            <input type="radio" name="fbHasPain" value="false" checked style="display:none;">
+            Não
+          </label>
         </div>
       </div>
 
-      <!-- Comentário -->
-      <div style="margin-bottom:22px;">
-        <label style="display:block;font-size:0.82rem;font-weight:700;color:#0A0A0A;margin-bottom:6px;">Comentário <span style="font-weight:400;color:#9CA3AF;">opcional</span></label>
-        <textarea id="fbComment" class="fb-input" rows="3" placeholder="Como foi o treino hoje? Dificuldades, observações..." style="resize:vertical;"></textarea>
+      <div id="painLocGroup" style="margin-bottom:22px;display:none;">
+        <label style="display:block;font-size:0.85rem;font-weight:700;color:#0A0A0A;margin-bottom:8px;">Local da Dor</label>
+        <input type="text" id="painLoc" class="fb-input" placeholder="Ex: Ombro direito, joelho esquerdo...">
+      </div>
+
+      <div style="margin-bottom:24px;">
+        <label style="display:block;font-size:0.85rem;font-weight:700;color:#0A0A0A;margin-bottom:8px;">Comentário <span style="font-weight:400;color:#9CA3AF;">(opcional)</span></label>
+        <textarea id="fbComment" class="fb-input" rows="3" placeholder="Como foi o treino hoje?" style="resize:vertical;"></textarea>
       </div>
 
       <div id="fbError" style="display:none;background:#FFF1F2;border:1px solid #FECDD3;border-radius:8px;padding:10px 13px;margin-bottom:14px;font-size:0.82rem;color:#BE123C;font-weight:500;"></div>
 
-      <button id="fbSubmit" style="width:100%;padding:14px;background:#00E676;color:#0A0A0A;border:none;border-radius:12px;font-size:0.95rem;font-weight:800;cursor:pointer;transition:all 0.25s;font-family:inherit;" onmouseover="this.style.background='#00C853'" onmouseout="this.style.background='#00E676'">
-        Enviar Feedback
-      </button>
+      <div style="display:flex;gap:10px;">
+        <button id="fbCancel" style="flex:1;padding:13px;border:2px solid #EBEBEB;border-radius:10px;background:#fff;color:#6B7280;font-size:0.875rem;font-weight:600;cursor:pointer;transition:all 0.2s;font-family:inherit;" onmouseover="this.style.borderColor='#0A0A0A';this.style.color='#0A0A0A'" onmouseout="this.style.borderColor='#EBEBEB';this.style.color='#6B7280'">Cancelar</button>
+        <button id="fbSubmit" style="flex:2;padding:13px;border:none;border-radius:10px;background:#00E676;color:#0A0A0A;font-size:0.875rem;font-weight:800;cursor:pointer;transition:all 0.25s;font-family:inherit;" onmouseover="this.style.background='#00C853';this.style.boxShadow='0 6px 20px rgba(0,230,118,0.35)'" onmouseout="this.style.background='#00E676';this.style.boxShadow='none'">
+          Enviar Feedback
+        </button>
+      </div>
     </div>
   </div>
 
@@ -170,75 +300,57 @@
   const DAYS_PT = { monday:'Segunda', tuesday:'Terça', wednesday:'Quarta', thursday:'Quinta', friday:'Sexta', saturday:'Sábado', sunday:'Domingo' };
   const DAYS_SHORT = { monday:'SEG', tuesday:'TER', wednesday:'QUA', thursday:'QUI', friday:'SEX', saturday:'SÁB', sunday:'DOM' };
 
-  // Dia atual (0=Dom, 1=Seg, ...)
   const todayJS = new Date().getDay();
   const jsToKey = { 0:'sunday', 1:'monday', 2:'tuesday', 3:'wednesday', 4:'thursday', 5:'friday', 6:'saturday' };
   const todayKey = jsToKey[todayJS];
 
-  // Estado
   let workout = null;
   let currentDay = null;
-  let checkedExercises = {}; // { dayKey: Set(indices) }
-  let fbPain = null;
-  let fbSensation = 'ideal';
+  let checkedExercises = {};
   let currentFbDay = null;
 
-  // ── Logout ─────────────────────────────────────────────────────
   document.getElementById('logoutBtn').onclick = async () => {
     await authManager.logout();
     router.goToLogin();
   };
 
-  // ── Obter workoutId ────────────────────────────────────────────
   function getWorkoutId() {
-    // 1. sessionStorage (setado pelo dashboard)
     const id = sessionStorage.getItem('viewWorkoutId');
     if (id) return id;
-    // 2. Hash: #/student/view-workout/ID
     const parts = (window.location.hash || '').replace('#','').split('/').filter(Boolean);
     return parts[parts.length - 1] || '';
   }
 
-  // ── Obter dia inicial ──────────────────────────────────────────
   function getInitialDay(days) {
-    // Prefere o dia que foi clicado no dashboard
     const fromDash = sessionStorage.getItem('viewWorkoutDay');
     if (fromDash && days[fromDash] && days[fromDash].length > 0) return fromDash;
-    // Senão, hoje se tiver treino
     if (days[todayKey] && days[todayKey].length > 0) return todayKey;
-    // Senão, primeiro dia com treino
     return DAYS_ORDER.find(d => days[d] && days[d].length > 0) || DAYS_ORDER[0];
   }
 
-  // ── Render completo ────────────────────────────────────────────
+  function updateSliderGradient(input) {
+    const pct = (input.value - input.min) / (input.max - input.min) * 100;
+    input.style.background = `linear-gradient(to right, #00E676 ${pct}%, #EBEBEB ${pct}%)`;
+  }
+
   function renderPage() {
     const main = document.getElementById('mainContent');
     const days = workout.days || {};
     const activeDays = DAYS_ORDER.filter(d => days[d] && days[d].length > 0);
 
-    // Inicializar checkedExercises
     DAYS_ORDER.forEach(d => {
       if (!checkedExercises[d]) checkedExercises[d] = new Set();
     });
 
     main.innerHTML = `
-      <!-- Título -->
       <div style="margin-bottom:28px;">
         <p style="color:#9CA3AF;font-size:0.72rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;margin:0 0 5px;">SEU TREINO</p>
         <h1 style="font-size:1.7rem;font-weight:800;color:#0A0A0A;margin:0 0 6px;letter-spacing:-0.03em;">${workout.name}</h1>
         <p style="font-size:0.85rem;color:#6B7280;margin:0;">${activeDays.length} dias ativos na semana</p>
       </div>
-
-      <!-- Abas de dias -->
       <div class="day-tabs" style="margin-bottom:24px;" id="dayTabs"></div>
-
-      <!-- Progresso do dia -->
       <div id="dayProgress" style="margin-bottom:20px;"></div>
-
-      <!-- Exercícios do dia -->
       <div id="dayExercises"></div>
-
-      <!-- Botão de Feedback -->
       <div id="fbCta" style="margin-top:28px;"></div>
     `;
 
@@ -256,7 +368,6 @@
       if (!hasWorkout) cls += ' rest';
       if (isToday) cls += ' today';
       if (isActive) cls += ' active';
-
       return `<button class="${cls}" ${hasWorkout ? `onclick="switchDay('${d}')"` : 'disabled'}>
         ${DAYS_SHORT[d]}
         ${isToday ? '<span style="font-size:0.6rem;display:block;margin-top:1px;">hoje</span>' : ''}
@@ -271,7 +382,6 @@
     const done = checked.size;
     const pct = total > 0 ? Math.round((done / total) * 100) : 0;
 
-    // Progresso
     document.getElementById('dayProgress').innerHTML = total > 0 ? `
       <div style="background:#fff;border:1px solid #EBEBEB;border-radius:12px;padding:14px 18px;display:flex;align-items:center;gap:14px;">
         <div style="flex:1;">
@@ -279,15 +389,12 @@
             <span style="font-size:0.78rem;font-weight:700;color:#374151;">${DAYS_PT[dayKey]}</span>
             <span style="font-size:0.78rem;font-weight:700;color:${pct===100?'#059669':'#6B7280'};">${done}/${total} exercícios</span>
           </div>
-          <div class="progress-bar-bg">
-            <div class="progress-bar-fill" style="width:${pct}%;"></div>
-          </div>
+          <div class="progress-bar-bg"><div class="progress-bar-fill" style="width:${pct}%;"></div></div>
         </div>
-        ${pct === 100 ? `<span style="font-size:1.4rem;">🎉</span>` : ''}
+        ${pct === 100 ? '<span style="font-size:1.4rem;">🎉</span>' : ''}
       </div>
     ` : '';
 
-    // Exercícios
     if (exercises.length === 0) {
       document.getElementById('dayExercises').innerHTML = `
         <div style="text-align:center;padding:40px 20px;background:#fff;border-radius:16px;border:2px dashed #E5E7EB;">
@@ -311,7 +418,6 @@
       return `
         <div class="ex-card ${isDone ? 'done' : ''}" id="ex-card-${idx}" style="margin-bottom:12px;">
           <div class="ex-card-body">
-            <!-- Nome + grupo -->
             <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:12px;">
               <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;">
                 <span style="width:30px;height:30px;border-radius:8px;background:${isDone?'#00E676':'#0A0A0A'};color:${isDone?'#0A0A0A':'#fff'};display:flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:800;flex-shrink:0;">${isDone?'✓':idx+1}</span>
@@ -319,32 +425,23 @@
               </div>
               ${muscle ? `<span class="ex-chip" style="background:#F4F4F4;color:#374151;flex-shrink:0;">${muscle}</span>` : ''}
             </div>
-
-            <!-- Chips de séries/reps/descanso -->
             <div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:${video||obs?'14px':'12px'};">
               <span class="ex-chip" style="background:#0A0A0A;color:#fff;">${sets} séries × ${reps}</span>
               ${rest ? `<span class="ex-chip" style="background:#F4F4F4;color:#6B7280;">⏱ ${rest}</span>` : ''}
             </div>
-
-            <!-- Observação -->
             ${obs ? `
               <div style="background:#FFFBEB;border:1px solid #FDE68A;border-radius:8px;padding:9px 12px;margin-bottom:12px;display:flex;gap:7px;align-items:flex-start;">
                 <span style="font-size:0.85rem;flex-shrink:0;">💡</span>
                 <p style="font-size:0.8rem;color:#92400E;margin:0;line-height:1.5;">${obs}</p>
               </div>
             ` : ''}
-
-            <!-- Vídeo embed -->
             ${video ? `
               <div class="video-wrap">
                 <iframe src="${video}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen loading="lazy"></iframe>
               </div>
             ` : ''}
-
-            <!-- Botão marcar -->
             <div style="margin-top:14px;">
-              <button class="check-btn ${isDone ? 'check-btn-done' : 'check-btn-todo'}"
-                onclick="toggleCheck('${dayKey}', ${idx})">
+              <button class="check-btn ${isDone ? 'check-btn-done' : 'check-btn-todo'}" onclick="toggleCheck('${dayKey}', ${idx})">
                 ${isDone
                   ? `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Concluído`
                   : `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 8 12 12 14 14"/></svg> Marcar como feito`
@@ -356,14 +453,12 @@
       `;
     }).join('');
 
-    // CTA Feedback
     renderFbCta(dayKey, done, total);
   }
 
   function renderFbCta(dayKey, done, total) {
     const ctaEl = document.getElementById('fbCta');
     if (total === 0) { ctaEl.innerHTML = ''; return; }
-
     ctaEl.innerHTML = `
       <div style="background:#fff;border:1px solid #EBEBEB;border-radius:16px;padding:20px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;">
         <div>
@@ -383,35 +478,32 @@
     `;
   }
 
-  // ── Trocar dia ─────────────────────────────────────────────────
   window.switchDay = function(dayKey) {
     currentDay = dayKey;
     renderTabs(DAYS_ORDER.filter(d => workout.days[d]?.length > 0), workout.days);
     renderDay(dayKey, workout.days);
   };
 
-  // ── Marcar/desmarcar exercício ─────────────────────────────────
   window.toggleCheck = function(dayKey, idx) {
     if (!checkedExercises[dayKey]) checkedExercises[dayKey] = new Set();
     const set = checkedExercises[dayKey];
-    if (set.has(idx)) set.delete(idx);
-    else set.add(idx);
+    if (set.has(idx)) set.delete(idx); else set.add(idx);
     renderDay(dayKey, workout.days);
-    // Manter scroll position
   };
 
   // ── Feedback modal ─────────────────────────────────────────────
   window.openFeedback = function(dayKey) {
     currentFbDay = dayKey;
-    fbPain = null;
-    fbSensation = 'ideal';
-    // Reset UI
-    document.getElementById('effortRange').value = 5;
+    const slider = document.getElementById('effortRange');
+    slider.value = 5;
     document.getElementById('effortVal').textContent = '5';
-    ['sLeve','sIdeal','sPesado'].forEach(id => document.getElementById(id).classList.remove('sel'));
-    document.getElementById('sIdeal').classList.add('sel');
-    document.getElementById('painYes').className = 'fb-toggle';
-    document.getElementById('painNo').className = 'fb-toggle';
+    updateSliderGradient(slider);
+    ['sLeve','sIdeal','sPesado'].forEach(id => document.getElementById(id).classList.remove('selected'));
+    document.getElementById('sIdeal').classList.add('selected');
+    document.getElementById('sIdeal').querySelector('input').checked = true;
+    ['hasPainSim','hasPainNao'].forEach(id => document.getElementById(id).classList.remove('selected'));
+    document.getElementById('hasPainNao').classList.add('selected');
+    document.getElementById('hasPainNao').querySelector('input').checked = true;
     document.getElementById('painLocGroup').style.display = 'none';
     document.getElementById('painLoc').value = '';
     document.getElementById('fbComment').value = '';
@@ -424,56 +516,69 @@
   }
 
   document.getElementById('fbClose').onclick = closeFeedback;
+  document.getElementById('fbCancel').onclick = closeFeedback;
   document.getElementById('fbOverlay').addEventListener('click', e => {
     if (e.target === document.getElementById('fbOverlay')) closeFeedback();
   });
 
   document.getElementById('effortRange').addEventListener('input', e => {
     document.getElementById('effortVal').textContent = e.target.value;
+    updateSliderGradient(e.target);
   });
 
-  window.selSensation = function(val) {
-    fbSensation = val;
-    ['sLeve','sIdeal','sPesado'].forEach(id => document.getElementById(id).classList.remove('sel'));
-    document.getElementById({ leve:'sLeve', ideal:'sIdeal', pesado:'sPesado' }[val]).classList.add('sel');
-  };
+  // Sensação — usar labels clicáveis
+  document.querySelectorAll('.fb-sensation-label').forEach(label => {
+    label.addEventListener('click', () => {
+      document.querySelectorAll('.fb-sensation-label').forEach(l => l.classList.remove('selected'));
+      label.classList.add('selected');
+    });
+  });
 
-  window.setPain = function(val) {
-    fbPain = val;
-    document.getElementById('painYes').className = 'fb-toggle' + (val ? ' sel-yes' : '');
-    document.getElementById('painNo').className = 'fb-toggle' + (!val ? ' sel-no' : '');
-    document.getElementById('painLocGroup').style.display = val ? 'block' : 'none';
-  };
+  // Dor — labels clicáveis
+  document.querySelectorAll('.fb-pain-label').forEach(label => {
+    label.addEventListener('click', () => {
+      document.querySelectorAll('.fb-pain-label').forEach(l => l.classList.remove('selected'));
+      label.classList.add('selected');
+      const val = label.querySelector('input').value;
+      document.getElementById('painLocGroup').style.display = val === 'true' ? 'block' : 'none';
+    });
+  });
 
   document.getElementById('fbSubmit').onclick = async () => {
     const errDiv = document.getElementById('fbError');
     errDiv.style.display = 'none';
 
-    if (fbPain === null) {
+    const hasPainInput = document.querySelector('input[name="fbHasPain"]:checked');
+    if (!hasPainInput) {
       errDiv.textContent = 'Informe se sentiu dor.';
-      return errDiv.style.display = 'block';
+      errDiv.style.display = 'block';
+      return;
     }
 
     const btn = document.getElementById('fbSubmit');
-    btn.innerHTML = '<span style="display:inline-block;width:18px;height:18px;border:3px solid rgba(0,0,0,0.15);border-top-color:#0A0A0A;border-radius:50%;animation:spin 0.8s linear infinite;"></span>';
+    btn.innerHTML = '<span style="display:inline-block;width:18px;height:18px;border:3px solid rgba(0,0,0,0.15);border-top-color:#0A0A0A;border-radius:50%;animation:spin 0.8s linear infinite;vertical-align:middle;"></span>';
     btn.disabled = true;
 
     try {
+      const hasPain = hasPainInput.value === 'true';
+      const sensation = document.querySelector('input[name="fbSensation"]:checked')?.value || 'ideal';
+
       const result = await dbManager.createFeedback({
         workoutId: workout.id,
         dayOfWeek: currentFbDay,
         effortLevel: parseInt(document.getElementById('effortRange').value),
-        sensation: fbSensation,
-        hasPain: fbPain,
-        painLocation: fbPain ? document.getElementById('painLoc').value.trim() : '',
+        sensation,
+        hasPain,
+        painLocation: hasPain ? document.getElementById('painLoc').value.trim() : '',
         comment: document.getElementById('fbComment').value.trim(),
+        weekIdentifier: window.feedbackModel?.getCurrentWeekIdentifier?.() || null,
       });
 
       if (result.success !== false) {
         closeFeedback();
         // Toast
         const t = document.createElement('div');
-        t.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#0A0A0A;color:#fff;padding:12px 22px;border-radius:12px;font-size:0.875rem;font-weight:600;z-index:999;box-shadow:0 8px 32px rgba(0,0,0,0.2);display:flex;align-items:center;gap:8px;white-space:nowrap;';
+        t.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#0A0A0A;color:#fff;padding:12px 22px;border-radius:12px;font-size:0.875rem;font-weight:600;z-index:9999;box-shadow:0 8px 32px rgba(0,0,0,0.2);display:flex;align-items:center;gap:8px;white-space:nowrap;';
         t.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#00E676" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Feedback enviado!';
         document.body.appendChild(t);
         setTimeout(() => t.remove(), 3000);
@@ -488,8 +593,6 @@
 
     btn.innerHTML = 'Enviar Feedback';
     btn.disabled = false;
-    btn.onmouseover = () => btn.style.background = '#00C853';
-    btn.onmouseout = () => btn.style.background = '#00E676';
   };
 
   // ── Init ───────────────────────────────────────────────────────
@@ -511,12 +614,15 @@
         return;
       }
 
-      // Limpar sessionStorage
       sessionStorage.removeItem('viewWorkoutId');
       sessionStorage.removeItem('viewWorkoutDay');
 
       currentDay = getInitialDay(workout.days || {});
       renderPage();
+
+      // Inicializar gradiente do slider após render
+      const slider = document.getElementById('effortRange');
+      if (slider) updateSliderGradient(slider);
 
     } catch(e) {
       console.error('Erro ao carregar treino:', e);
