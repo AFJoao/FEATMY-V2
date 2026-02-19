@@ -1,0 +1,977 @@
+<div class="volume-page" style="font-family: 'DM Sans', system-ui, sans-serif; background: #F8F9FA; min-height: 100vh; color: #0A0A0A;">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700;800&family=DM+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --green: #00C853;
+      --green-dim: rgba(0,200,83,0.1);
+      --green-border: rgba(0,200,83,0.25);
+      --surface: #FFFFFF;
+      --surface2: #F4F4F4;
+      --border: #EBEBEB;
+      --text-muted: #9CA3AF;
+    }
+
+    /* ── NAV ── */
+    .vp-nav {
+      background: #0A0A0A;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      position: sticky; top: 0; z-index: 50;
+    }
+    .vp-nav-inner {
+      max-width: 1400px; margin: 0 auto;
+      padding: 0 32px; height: 64px;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .vp-back {
+      background: transparent; border: none;
+      color: rgba(255,255,255,0.65); padding: 8px 10px; border-radius: 8px;
+      cursor: pointer; font-family: inherit;
+      display: flex; align-items: center; transition: all 0.18s;
+    }
+    .vp-back:hover { background: rgba(255,255,255,0.07); color: #fff; }
+    .vp-logout {
+      background: transparent; border: 1px solid rgba(255,255,255,0.14);
+      color: rgba(255,255,255,0.65); padding: 8px 12px; border-radius: 8px;
+      cursor: pointer; font-size: 0.82rem; font-weight: 500; font-family: inherit;
+      display: flex; align-items: center; gap: 6px; transition: all 0.18s;
+    }
+    .vp-logout:hover { color: #fff; background: rgba(255,255,255,0.07); }
+
+    /* ── LOADING ── */
+    .vp-loading {
+      min-height: calc(100vh - 64px);
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 16px;
+    }
+    .vp-spinner {
+      width: 36px; height: 36px;
+      border: 3px solid rgba(0,230,118,0.15);
+      border-top-color: var(--green);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── HERO ── */
+    .vp-hero {
+      padding: 36px 28px 20px;
+      max-width: 1100px; margin: 0 auto;
+    }
+    .vp-hero-label {
+      font-size: 0.68rem; font-weight: 700; letter-spacing: 0.12em;
+      text-transform: uppercase; color: rgba(0,230,118,0.7);
+      margin-bottom: 8px;
+    }
+    .vp-hero-title {
+      font-size: 1.7rem; font-weight: 800; letter-spacing: -0.03em;
+      line-height: 1.2;
+    }
+    .vp-hero-sub {
+      font-size: 0.875rem; color: var(--text-muted); margin-top: 6px;
+    }
+
+    /* ── CARDS TOPO ── */
+    .vp-stats-row {
+      max-width: 1100px; margin: 24px auto 0;
+      padding: 0 28px;
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;
+    }
+    .vp-stat {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px; padding: 16px 18px;
+    }
+    .vp-stat-label {
+      font-size: 0.65rem; font-weight: 700; letter-spacing: 0.08em;
+      text-transform: uppercase; color: var(--text-muted); margin-bottom: 6px;
+    }
+    .vp-stat-value {
+      font-size: 1.8rem; font-weight: 800; letter-spacing: -0.04em; line-height: 1;
+      font-family: 'DM Mono', monospace;
+    }
+    .vp-stat-sub { font-size: 0.72rem; color: var(--text-muted); margin-top: 4px; }
+
+    /* ── TOGGLE MODE ── */
+    .vp-mode-row {
+      max-width: 1100px; margin: 28px auto 0; padding: 0 28px;
+      display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;
+    }
+    .vp-mode-label { font-size: 0.85rem; font-weight: 600; color: rgba(0,0,0,0.6); }
+    .vp-toggle {
+      display: flex; background: var(--surface); border: 1px solid var(--border);
+      border-radius: 10px; padding: 3px; gap: 3px;
+    }
+    .vp-toggle-btn {
+      padding: 7px 18px; border-radius: 8px; border: none; cursor: pointer;
+      font-size: 0.78rem; font-weight: 700; font-family: inherit;
+      transition: all 0.2s; background: transparent; color: var(--text-muted);
+    }
+    .vp-toggle-btn.active { background: var(--green); color: #0A0A0A; }
+
+    /* ── GRID PRINCIPAL ── */
+    .vp-main {
+      max-width: 1100px; margin: 28px auto 0; padding: 0 28px 60px;
+      display: grid; grid-template-columns: 1fr 360px; gap: 20px; align-items: start;
+    }
+
+    /* ── BARRAS ── */
+    .vp-bars-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 18px; padding: 24px; overflow: hidden;
+    }
+    .vp-bars-title {
+      font-size: 0.78rem; font-weight: 700; letter-spacing: 0.06em;
+      text-transform: uppercase; color: var(--text-muted); margin-bottom: 22px;
+    }
+    .vp-bar-row {
+      display: flex; align-items: center; gap: 12px;
+      margin-bottom: 16px; cursor: default;
+    }
+    .vp-bar-row:last-child { margin-bottom: 0; }
+    .vp-bar-muscle {
+      width: 110px; flex-shrink: 0;
+      font-size: 0.8rem; font-weight: 600; color: rgba(0,0,0,0.75);
+      text-align: right;
+    }
+    .vp-bar-track {
+      flex: 1; height: 10px; background: rgba(0,0,0,0.06);
+      border-radius: 99px; overflow: hidden; position: relative;
+    }
+    .vp-bar-fill {
+      height: 100%; border-radius: 99px;
+      transition: width 1s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .vp-bar-val {
+      width: 52px; flex-shrink: 0;
+      font-size: 0.78rem; font-weight: 700;
+      font-family: 'DM Mono', monospace;
+      text-align: left;
+    }
+    .vp-bar-badge {
+      width: 50px; flex-shrink: 0; text-align: center;
+      font-size: 0.6rem; font-weight: 800; letter-spacing: 0.05em;
+      padding: 2px 6px; border-radius: 5px;
+    }
+
+    /* ── MANUAL PANEL ── */
+    .vp-manual-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 18px; overflow: hidden;
+    }
+    .vp-manual-header {
+      padding: 18px 20px 14px;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .vp-manual-title {
+      font-size: 0.78rem; font-weight: 700; letter-spacing: 0.06em;
+      text-transform: uppercase; color: var(--text-muted);
+    }
+    .vp-manual-reset {
+      font-size: 0.7rem; color: var(--text-muted); background: transparent;
+      border: 1px solid var(--border); border-radius: 6px; padding: 3px 9px;
+      cursor: pointer; font-family: inherit; font-weight: 600;
+      transition: all 0.2s;
+    }
+    .vp-manual-reset:hover { color: #111; border-color: rgba(0,0,0,0.35); }
+    .vp-manual-body { padding: 14px 20px; max-height: 540px; overflow-y: auto; }
+    .vp-manual-body::-webkit-scrollbar { width: 4px; }
+    .vp-manual-body::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.08); border-radius: 2px; }
+    .vp-ex-item { margin-bottom: 14px; padding-bottom: 14px; border-bottom: 1px solid var(--border); }
+    .vp-ex-item:last-child { margin-bottom: 0; padding-bottom: 0; border-bottom: none; }
+    .vp-ex-name { font-size: 0.8rem; font-weight: 700; margin-bottom: 8px; line-height: 1.3; }
+    .vp-ex-muscles { display: flex; flex-direction: column; gap: 5px; }
+    .vp-muscle-row { display: flex; align-items: center; gap: 7px; }
+    .vp-muscle-name { font-size: 0.72rem; color: var(--text-muted); width: 90px; flex-shrink: 0; }
+    .vp-pct-input {
+      width: 54px; padding: 4px 8px; background: var(--surface2);
+      border: 1px solid var(--border); border-radius: 6px;
+      font-size: 0.75rem; font-family: 'DM Mono', monospace;
+      color: #111; outline: none; text-align: center;
+      transition: border-color 0.2s;
+    }
+    .vp-pct-input:focus { border-color: var(--green); }
+    .vp-pct-label { font-size: 0.68rem; color: var(--text-muted); }
+
+    /* ── RECALC BTN ── */
+    .vp-recalc {
+      width: 100%; padding: 13px; margin: 0;
+      background: var(--green); color: #0A0A0A;
+      border: none; border-radius: 0 0 18px 18px;
+      font-size: 0.875rem; font-weight: 800; cursor: pointer;
+      font-family: inherit; transition: all 0.2s;
+      display: flex; align-items: center; justify-content: center; gap: 7px;
+    }
+    .vp-recalc:hover { background: #00C853; }
+
+    /* ── SILHUETA / RADAR ── */
+    .vp-visual-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 18px; padding: 24px; margin-top: 20px;
+    }
+    .vp-visual-title {
+      font-size: 0.78rem; font-weight: 700; letter-spacing: 0.06em;
+      text-transform: uppercase; color: var(--text-muted); margin-bottom: 20px;
+    }
+
+    /* ── RADAR SVG ── */
+    .vp-radar-wrap {
+      display: flex; align-items: center; justify-content: center;
+      position: relative;
+    }
+
+    /* ── LEGENDA ── */
+    .vp-legend {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
+      margin-top: 22px;
+    }
+    .vp-legend-item {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 0.72rem; color: var(--text-muted);
+    }
+    .vp-legend-dot {
+      width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+    }
+
+    /* ── BALANCE SCORE ── */
+    .vp-balance {
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 14px; padding: 20px 22px; margin-top: 20px;
+      max-width: 1100px; margin-left: auto; margin-right: auto;
+      display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px;
+    }
+    .vp-insight {
+      padding: 14px 16px; border-radius: 12px;
+      border: 1px solid var(--border);
+    }
+    .vp-insight-icon { font-size: 1.3rem; margin-bottom: 6px; }
+    .vp-insight-title { font-size: 0.72rem; font-weight: 700; margin-bottom: 3px; }
+    .vp-insight-desc { font-size: 0.7rem; color: var(--text-muted); line-height: 1.5; }
+
+    /* ── EMPTY ── */
+    .vp-empty {
+      min-height: calc(100vh - 64px);
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 12px;
+      color: var(--text-muted); text-align: center; padding: 40px;
+    }
+
+    /* ── TOAST ── */
+    .vp-toast {
+      position: fixed; bottom: 24px; left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      background: #FFFFFF; border: 1px solid var(--border); box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+      color: #111; padding: 10px 20px; border-radius: 10px;
+      font-size: 0.8rem; font-weight: 600; z-index: 999;
+      transition: transform 0.3s ease; white-space: nowrap;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    }
+    .vp-toast.show { transform: translateX(-50%) translateY(0); }
+
+    @media (max-width: 900px) {
+      .vp-main { grid-template-columns: 1fr; }
+      .vp-stats-row { grid-template-columns: repeat(2, 1fr); }
+      .vp-balance { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 560px) {
+      .vp-stats-row { grid-template-columns: 1fr 1fr; }
+      .vp-hero-title { font-size: 1.4rem; }
+    }
+  </style>
+
+  <!-- NAV -->
+  <nav class="vp-nav">
+    <div class="vp-nav-inner">
+      <div style="display:flex;align-items:center;gap:14px;">
+        <button onclick="router.goToStudentDetails(window._vpStudentId)" class="vp-back">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        <div style="width:1px;height:24px;background:rgba(255,255,255,0.1);"></div>
+        <img src="assets/branca_larga.png" style="height:26px;object-fit:contain;" onerror="this.style.display='none'">
+      </div>
+      <nav style="display:flex;align-items:center;gap:6px;">
+        <button id="vpLogout" class="vp-logout">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          Sair
+        </button>
+      </nav>
+    </div>
+  </nav>
+
+  <!-- CONTEÚDO DINÂMICO -->
+  <div id="vpRoot">
+    <div class="vp-loading">
+      <div class="vp-spinner"></div>
+      <p style="font-size:0.875rem;color:rgba(0,0,0,0.4);">Calculando volume semanal...</p>
+    </div>
+  </div>
+
+  <div id="vpToast" class="vp-toast"></div>
+
+<script>
+(function() {
+
+  // ── Grupos musculares ─────────────────────────────────────────
+  const MUSCLES = [
+    'Peito','Costas','Ombros','Bíceps','Tríceps',
+    'Quadríceps','Posterior','Glúteos','Panturrilhas','Abdômen','Lombar'
+  ];
+
+  // Mapeamento muscleGroup (1 palavra) → nome display
+  const MUSCLE_ALIAS = {
+    'Peito':'Peito','Costas':'Costas','Ombros':'Ombros','Bíceps':'Bíceps',
+    'Tríceps':'Tríceps','Pernas':'Quadríceps','Quadríceps':'Quadríceps',
+    'Posterior de coxa':'Posterior','Posterior':'Posterior',
+    'Glúteos':'Glúteos','Panturrilhas':'Panturrilhas','Panturrilha':'Panturrilhas',
+    'Abdômen':'Abdômen','Lombar':'Lombar','Funcional':'Costas','Cardio':'Abdômen',
+    'Full Body':'Costas'
+  };
+
+  // Cores por músculo
+  const MUSCLE_COLOR = {
+    'Peito':     '#3B82F6',
+    'Costas':    '#10B981',
+    'Ombros':    '#8B5CF6',
+    'Bíceps':    '#F59E0B',
+    'Tríceps':   '#EF4444',
+    'Quadríceps':'#06B6D4',
+    'Posterior': '#EC4899',
+    'Glúteos':   '#84CC16',
+    'Panturrilhas':'#F97316',
+    'Abdômen':   '#6366F1',
+    'Lombar':    '#14B8A6',
+  };
+
+  // Referências de volume semanal (séries ponderadas)
+  const VOLUME_REF = {
+    'Peito':10,'Costas':12,'Ombros':10,'Bíceps':8,'Tríceps':8,
+    'Quadríceps':12,'Posterior':10,'Glúteos':10,'Panturrilhas':8,'Abdômen':8,'Lombar':8
+  };
+
+  // Estado
+  let studentId = '';
+  let studentName = '';
+  let workouts = [];
+  let allExercises = {};  // id → exercise data
+  let manualPercentages = {};   // exId_day → { muscle: pct }
+  let mode = 'auto';    // 'auto' | 'manual'
+  let volumeData = {};  // muscle → weighted sets
+
+  // ── Init ──────────────────────────────────────────────────────
+  window._vpStudentId = '';
+
+  async function init() {
+    // Obter studentId
+    if (window.routeParams && window.routeParams.id) {
+      studentId = window.routeParams.id;
+    } else {
+      const hash = window.location.hash || '';
+      const parts = hash.replace('#','').split('/').filter(Boolean);
+      const idx = parts.indexOf('volume');
+      if (idx !== -1 && parts[idx+1]) studentId = parts[idx+1];
+    }
+    window._vpStudentId = studentId;
+
+    document.getElementById('vpLogout').onclick = async () => {
+      await authManager.logout();
+      router.goToLogin();
+    };
+
+    if (!studentId) {
+      showEmpty('ID do aluno não encontrado.');
+      return;
+    }
+
+    try {
+      // Carregar aluno + treinos + exercícios em paralelo
+      const [student, wks, exList] = await Promise.all([
+        dbManager.getUserData(studentId),
+        dbManager.getStudentWorkouts(studentId),
+        dbManager.getPersonalExercises()
+      ]);
+
+      studentName = student?.name || 'Aluno';
+      workouts = wks || [];
+
+      // Mapear exercícios por nome (lowercase) para lookup rápido
+      (exList || []).forEach(ex => {
+        const key = (ex.name || '').toLowerCase().trim();
+        allExercises[key] = ex;
+      });
+
+      if (workouts.length === 0) {
+        showEmpty('Este aluno não possui treinos cadastrados.');
+        return;
+      }
+
+      // Inicializar percentuais manuais com valores padrão
+      initManualPercentages();
+      calculate();
+      render();
+
+    } catch(e) {
+      console.error(e);
+      showEmpty('Erro ao carregar dados: ' + e.message);
+    }
+  }
+
+  // ── Inicializar percentuais manuais ───────────────────────────
+  // Chave = nome normalizado → uma configuração se propaga para todas as ocorrências iguais
+  function normalizeExName(ex) {
+    return (ex.exerciseName || ex.name || '—').toLowerCase().trim();
+  }
+
+  function initManualPercentages() {
+    workouts.forEach(w => {
+      const days = w.days || {};
+      Object.keys(days).forEach(day => {
+        (days[day] || []).forEach((ex) => {
+          const key = normalizeExName(ex);
+          if (!manualPercentages[key]) {
+            manualPercentages[key] = getDefaultPercentages(ex);
+          }
+        });
+      });
+    });
+  }
+
+  // Retorna objeto { muscle: pct, ... } para um exercício
+  function getDefaultPercentages(ex) {
+    // Se o exercício tem campo muscles (novo formato)
+    if (ex.muscles && Array.isArray(ex.muscles) && ex.muscles.length > 0) {
+      const obj = {};
+      ex.muscles.forEach(m => {
+        const mapped = MUSCLE_ALIAS[m.group] || m.group;
+        if (mapped) obj[mapped] = m.percentage || 0;
+      });
+      return obj;
+    }
+    // Fallback: muscleGroup com 100%
+    const name = (ex.exerciseName || ex.name || '').toLowerCase().trim();
+    const dbEx = allExercises[name];
+    const mg = dbEx?.muscleGroup || ex.muscleGroup || ex.muscle || '';
+    const mapped = MUSCLE_ALIAS[mg] || null;
+    if (mapped) return { [mapped]: 100 };
+    return {};
+  }
+
+  // ── Cálculo ───────────────────────────────────────────────────
+  function calculate() {
+    volumeData = {};
+    MUSCLES.forEach(m => volumeData[m] = 0);
+
+    workouts.forEach(w => {
+      const days = w.days || {};
+      Object.keys(days).forEach(day => {
+        (days[day] || []).forEach((ex, idx) => {
+          const sets = parseFloat(ex.sets) || 0;
+          if (sets === 0) return;
+
+          let pcts;
+          if (mode === 'manual') {
+            const key = normalizeExName(ex);
+            pcts = manualPercentages[key] || getDefaultPercentages(ex);
+          } else {
+            pcts = getDefaultPercentages(ex);
+          }
+
+          Object.entries(pcts).forEach(([muscle, pct]) => {
+            if (MUSCLES.includes(muscle) && pct > 0) {
+              volumeData[muscle] += sets * (pct / 100);
+            }
+          });
+        });
+      });
+    });
+  }
+
+  // ── Render ────────────────────────────────────────────────────
+  function render() {
+    const totalSets = Object.values(volumeData).reduce((a,b) => a+b, 0);
+    const totalExercises = workouts.reduce((sum, w) => {
+      const days = w.days || {};
+      return sum + Object.values(days).reduce((s, exs) => s + (exs?.length || 0), 0);
+    }, 0);
+    const activeDays = new Set();
+    workouts.forEach(w => {
+      const days = w.days || {};
+      Object.keys(days).forEach(d => { if (days[d]?.length > 0) activeDays.add(d); });
+    });
+    const activeMuscles = MUSCLES.filter(m => volumeData[m] > 0).length;
+    const maxVol = Math.max(...Object.values(volumeData), 1);
+
+    // Contagem de exercícios únicos (para manual panel)
+    let totalExItems = 0;
+    workouts.forEach(w => {
+      Object.values(w.days || {}).forEach(exs => { totalExItems += (exs?.length || 0); });
+    });
+
+    document.getElementById('vpRoot').innerHTML = `
+      <!-- HERO -->
+      <div class="vp-hero">
+        <div class="vp-hero-label">Análise Semanal</div>
+        <h1 class="vp-hero-title">${studentName}</h1>
+        <p class="vp-hero-sub">Volume de treino calculado com base nos treinos atribuídos</p>
+      </div>
+
+      <!-- STATS -->
+      <div class="vp-stats-row">
+        <div class="vp-stat">
+          <div class="vp-stat-label">Séries Totais</div>
+          <div class="vp-stat-value" style="color:var(--green);">${Math.round(totalSets)}</div>
+          <div class="vp-stat-sub">ponderadas por músculo</div>
+        </div>
+        <div class="vp-stat">
+          <div class="vp-stat-label">Exercícios</div>
+          <div class="vp-stat-value">${totalExercises}</div>
+          <div class="vp-stat-sub">na semana</div>
+        </div>
+        <div class="vp-stat">
+          <div class="vp-stat-label">Dias Ativos</div>
+          <div class="vp-stat-value">${activeDays.size}</div>
+          <div class="vp-stat-sub">de 7 dias</div>
+        </div>
+        <div class="vp-stat">
+          <div class="vp-stat-label">Músculos</div>
+          <div class="vp-stat-value">${activeMuscles}</div>
+          <div class="vp-stat-sub">estimulados</div>
+        </div>
+      </div>
+
+      <!-- TOGGLE -->
+      <div class="vp-mode-row">
+        <div>
+          <div class="vp-mode-label">Modo de cálculo</div>
+          <div style="font-size:0.75rem;color:var(--text-muted);margin-top:2px;">
+            ${mode === 'auto' ? 'Usando percentuais padrão da base de exercícios' : 'Percentuais configurados manualmente por exercício'}
+          </div>
+        </div>
+        <div class="vp-toggle">
+          <button class="vp-toggle-btn ${mode==='auto'?'active':''}" onclick="switchMode('auto')">⚡ Automático</button>
+          <button class="vp-toggle-btn ${mode==='manual'?'active':''}" onclick="switchMode('manual')">✏️ Manual</button>
+        </div>
+      </div>
+
+      <!-- GRID -->
+      <div class="vp-main">
+
+        <!-- BARRAS -->
+        <div>
+          <div class="vp-bars-card">
+            <div class="vp-bars-title">Estímulo por Grupo Muscular</div>
+            ${MUSCLES.map(m => {
+              const val = volumeData[m] || 0;
+              const ref = VOLUME_REF[m] || 10;
+              const pct = Math.min((val / maxVol) * 100, 100);
+              const ratio = val / ref;
+              let status, statusBg, statusColor;
+              if (val === 0)        { status = 'ZERO';       statusBg = 'rgba(0,0,0,0.04)'; statusColor = 'rgba(0,0,0,0.25)'; }
+              else if (ratio < 0.5) { status = 'BAIXO';      statusBg = 'rgba(239,68,68,0.12)';  statusColor = '#EF4444'; }
+              else if (ratio < 0.85){ status = 'OK';         statusBg = 'rgba(245,158,11,0.12)'; statusColor = '#F59E0B'; }
+              else if (ratio <= 1.3){ status = 'IDEAL';      statusBg = 'rgba(0,230,118,0.12)';  statusColor = '#00E676'; }
+              else                  { status = 'ALTO';       statusBg = 'rgba(239,68,68,0.12)';  statusColor = '#EF4444'; }
+              const color = MUSCLE_COLOR[m] || '#888';
+              return `
+                <div class="vp-bar-row" title="${m}: ${val.toFixed(1)} séries ponderadas">
+                  <div class="vp-bar-muscle">${m}</div>
+                  <div class="vp-bar-track">
+                    <div class="vp-bar-fill" style="width:0%;background:${color};box-shadow:0 0 8px ${color}55;"
+                      data-target="${pct}"></div>
+                  </div>
+                  <div class="vp-bar-val" style="color:${color};">${val.toFixed(1)}</div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+
+          <!-- RADAR -->
+          <div class="vp-visual-card">
+            <div class="vp-visual-title">Mapa de Equilíbrio Muscular</div>
+            <div class="vp-radar-wrap">
+              <svg id="radarSvg" viewBox="0 0 400 380" width="100%" style="max-width:420px;"></svg>
+            </div>
+            <div class="vp-legend" id="radarLegend"></div>
+          </div>
+        </div>
+
+        <!-- PAINEL DIREITO -->
+        <div>
+          ${mode === 'manual' ? renderManualPanel() : renderAutoPanel()}
+        </div>
+      </div>
+
+      <!-- INSIGHTS -->
+      <div style="max-width:1100px;margin:0 auto 60px;padding:0 28px;">
+        <div id="insightsGrid" class="vp-balance"></div>
+      </div>
+    `;
+
+    // Animar barras
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        document.querySelectorAll('.vp-bar-fill[data-target]').forEach(el => {
+          el.style.width = el.dataset.target + '%';
+        });
+      }, 80);
+    });
+
+    // Desenhar radar
+    drawRadar();
+
+    // Renderizar insights
+    renderInsights();
+
+    // Bind mode toggle
+    window.switchMode = function(m) {
+      mode = m;
+      calculate();
+      render();
+    };
+
+    // Bind manual inputs
+    if (mode === 'manual') bindManualInputs();
+
+    // Bind recalc
+    const recalcBtn = document.getElementById('vpRecalc');
+    if (recalcBtn) {
+      recalcBtn.onclick = () => {
+        readManualInputs();
+        calculate();
+        render();
+        toast('✓ Recalculado');
+      };
+    }
+  }
+
+  // ── Painel automático ─────────────────────────────────────────
+  function renderAutoPanel() {
+    // Lista dos treinos com breakdown
+    let html = `
+      <div class="vp-manual-card" style="border-radius:18px;">
+        <div class="vp-manual-header">
+          <div class="vp-manual-title">Exercícios da Semana</div>
+        </div>
+        <div class="vp-manual-body" style="max-height:620px;">
+    `;
+
+    workouts.forEach(w => {
+      const days = w.days || {};
+      const DAYS_PT = { monday:'Seg', tuesday:'Ter', wednesday:'Qua', thursday:'Qui', friday:'Sex', saturday:'Sáb', sunday:'Dom' };
+      const dayOrder = ['monday','tuesday','wednesday','thursday','friday','saturday','sunday'];
+
+      html += `<div style="margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid var(--border);">
+        <div style="font-size:0.78rem;font-weight:700;color:rgba(0,0,0,0.8);margin-bottom:10px;">${w.name}</div>`;
+
+      dayOrder.forEach(day => {
+        const exs = days[day];
+        if (!exs || exs.length === 0) return;
+        html += `<div style="margin-bottom:8px;">
+          <div style="font-size:0.65rem;font-weight:700;letter-spacing:0.08em;color:var(--green);text-transform:uppercase;margin-bottom:5px;">${DAYS_PT[day]}</div>`;
+        exs.forEach((ex, idx) => {
+          const pcts = getDefaultPercentages(ex);
+          const sets = ex.sets || '?';
+          const name = ex.exerciseName || ex.name || '—';
+          const musclesHtml = Object.entries(pcts).map(([m, p]) =>
+            `<span style="font-size:0.6rem;background:rgba(0,0,0,0.04);border-radius:4px;padding:1px 6px;color:${MUSCLE_COLOR[m]||'#aaa'};">${m} ${p}%</span>`
+          ).join('');
+          html += `<div style="display:flex;align-items:flex-start;gap:8px;padding:5px 0;">
+            <span style="font-size:0.62rem;font-family:'DM Mono',monospace;color:var(--text-muted);min-width:28px;margin-top:1px;">${sets}s</span>
+            <div>
+              <div style="font-size:0.75rem;font-weight:600;margin-bottom:3px;">${name}</div>
+              <div style="display:flex;flex-wrap:wrap;gap:3px;">${musclesHtml || '<span style="font-size:0.6rem;color:var(--text-muted);">sem mapeamento</span>'}</div>
+            </div>
+          </div>`;
+        });
+        html += `</div>`;
+      });
+
+      html += `</div>`;
+    });
+
+    html += `</div></div>`;
+    return html;
+  }
+
+  // ── Painel manual ─────────────────────────────────────────────
+  function renderManualPanel() {
+    let html = `<div class="vp-manual-card">
+      <div class="vp-manual-header">
+        <div class="vp-manual-title">Ajustar Percentuais</div>
+        <button class="vp-manual-reset" id="vpReset">Resetar</button>
+      </div>
+      <div class="vp-manual-body">
+        <p style="font-size:0.7rem;color:var(--text-muted);margin-bottom:14px;line-height:1.5;">
+          Configure os percentuais abaixo. Exercícios repetidos na semana compartilham a mesma configuração.
+        </p>`;
+
+    // Coletar exercícios únicos por nome normalizado, preservando ordem de aparição
+    const seen = new Set();
+    const uniqueExercises = []; // { key, ex, occurrences }
+
+    workouts.forEach(w => {
+      const days = w.days || {};
+      const dayOrder = ['monday','tuesday','wednesday','thursday','friday','saturday','sunday'];
+      const DAYS_PT = { monday:'Seg', tuesday:'Ter', wednesday:'Qua', thursday:'Qui', friday:'Sex', saturday:'Sáb', sunday:'Dom' };
+
+      dayOrder.forEach(day => {
+        (days[day] || []).forEach((ex) => {
+          const key = normalizeExName(ex);
+          if (!seen.has(key)) {
+            seen.add(key);
+            uniqueExercises.push({ key, ex, days: [] });
+          }
+          // Registrar em quais dias aparece
+          const entry = uniqueExercises.find(e => e.key === key);
+          if (entry && !entry.days.includes(DAYS_PT[day])) {
+            entry.days.push(DAYS_PT[day]);
+          }
+        });
+      });
+    });
+
+    uniqueExercises.forEach(({ key, ex, days: exDays }) => {
+      const pcts = manualPercentages[key] || getDefaultPercentages(ex);
+      const name = ex.exerciseName || ex.name || '—';
+      const sets = ex.sets || '?';
+      const daysLabel = exDays.join(' · ');
+
+      html += `<div class="vp-ex-item">
+        <div class="vp-ex-name">${name}
+          <span style="font-size:0.6rem;color:var(--text-muted);font-weight:500;margin-left:4px;">${sets} séries</span>
+          ${exDays.length > 1
+            ? `<span style="font-size:0.58rem;background:rgba(0,200,83,0.12);color:var(--green);border-radius:4px;padding:1px 6px;margin-left:4px;font-weight:600;">${daysLabel}</span>`
+            : `<span style="font-size:0.58rem;color:var(--text-muted);margin-left:4px;">${daysLabel}</span>`
+          }
+        </div>
+        <div class="vp-ex-muscles">`;
+
+      const existingMuscles = Object.keys(pcts);
+      const muscleList = existingMuscles.length > 0
+        ? existingMuscles
+        : [MUSCLE_ALIAS[ex.muscleGroup || ex.muscle] || 'Costas'];
+
+      muscleList.forEach((m) => {
+        const val = pcts[m] || 0;
+        html += `<div class="vp-muscle-row">
+          <div class="vp-muscle-name" style="color:${MUSCLE_COLOR[m]||'rgba(0,0,0,0.4)'};">${m}</div>
+          <input type="number" class="vp-pct-input" min="0" max="100" value="${val}"
+            data-key="${key}" data-muscle="${m}">
+          <span class="vp-pct-label">%</span>
+        </div>`;
+      });
+
+      // Dropdown para adicionar músculo extra
+      const remaining = MUSCLES.filter(m => !muscleList.includes(m));
+      if (remaining.length > 0) {
+        html += `<div class="vp-muscle-row">
+          <select class="vp-pct-input" style="width:auto;padding:4px 6px;"
+            onchange="addMuscleToEx(this,'${key}')">
+            <option value="">+ músculo</option>
+            ${remaining.map(m => `<option value="${m}">${m}</option>`).join('')}
+          </select>
+        </div>`;
+      }
+
+      html += `</div></div>`;
+    });
+
+    html += `</div>
+      <button class="vp-recalc" id="vpRecalc">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+        Recalcular Volume
+      </button>
+    </div>`;
+
+    return html;
+  }
+
+  // ── Adicionar músculo extra ───────────────────────────────────
+  window.addMuscleToEx = function(sel, key) {
+    const muscle = sel.value;
+    if (!muscle) return;
+    if (!manualPercentages[key]) manualPercentages[key] = {};
+    manualPercentages[key][muscle] = 0;
+    render();
+  };
+
+  // ── Ler inputs manuais ────────────────────────────────────────
+  function readManualInputs() {
+    document.querySelectorAll('.vp-pct-input[data-key]').forEach(input => {
+      const key = input.dataset.key;
+      const muscle = input.dataset.muscle;
+      if (!key || !muscle) return;
+      if (!manualPercentages[key]) manualPercentages[key] = {};
+      manualPercentages[key][muscle] = parseFloat(input.value) || 0;
+    });
+  }
+
+  function bindManualInputs() {
+    document.getElementById('vpReset')?.addEventListener('click', () => {
+      manualPercentages = {};
+      initManualPercentages();
+      calculate();
+      render();
+      toast('Percentuais resetados');
+    });
+  }
+
+  // ── RADAR ─────────────────────────────────────────────────────
+  function drawRadar() {
+    const svg = document.getElementById('radarSvg');
+    if (!svg) return;
+
+    const cx = 200, cy = 195, R = 150;
+    const muscles = MUSCLES;
+    const n = muscles.length;
+    const maxV = Math.max(...muscles.map(m => volumeData[m] || 0), 1);
+
+    // Pontos do polígono de volume
+    function getPoint(i, val, maxVal, radius) {
+      const angle = (Math.PI * 2 * i / n) - Math.PI / 2;
+      const r = radius * (val / maxVal);
+      return [cx + r * Math.cos(angle), cy + r * Math.sin(angle)];
+    }
+
+    function getGridPoint(i, r) {
+      const angle = (Math.PI * 2 * i / n) - Math.PI / 2;
+      return [cx + r * Math.cos(angle), cy + r * Math.sin(angle)];
+    }
+
+    let svgContent = '';
+
+    // Grades
+    [0.25, 0.5, 0.75, 1].forEach((ratio, gi) => {
+      const pts = muscles.map((_, i) => getGridPoint(i, R * ratio).join(','));
+      svgContent += `<polygon points="${pts.join(' ')}" fill="none" stroke="rgba(0,0,0,0.07)" stroke-width="1"/>`;
+    });
+
+    // Eixos
+    muscles.forEach((_, i) => {
+      const [x, y] = getGridPoint(i, R);
+      svgContent += `<line x1="${cx}" y1="${cy}" x2="${x}" y2="${y}" stroke="rgba(0,0,0,0.05)" stroke-width="1"/>`;
+    });
+
+    // Referência removida — radar mostra só volume atual
+
+    // Volume atual (escala pelo maior valor do próprio treino)
+    const maxRadarVal = Math.max(...muscles.map(m => volumeData[m] || 0), 1);
+    const volPts = muscles.map((m, i) => {
+      const val = volumeData[m] || 0;
+      const norm = val / maxRadarVal;
+      return getGridPoint(i, R * Math.min(norm, 1.0)).join(',');
+    });
+    svgContent += `<polygon points="${volPts.join(' ')}" fill="rgba(0,230,118,0.12)" stroke="#00C853" stroke-width="2"/>`;
+
+    // Pontos
+    muscles.forEach((m, i) => {
+      const val = volumeData[m] || 0;
+      const norm = val / maxRadarVal;
+      const [x, y] = getGridPoint(i, R * Math.min(norm, 1.0));
+      const color = MUSCLE_COLOR[m] || '#00C853';
+      svgContent += `<circle cx="${x}" cy="${y}" r="5" fill="${color}" stroke="#FFFFFF" stroke-width="2"/>`;
+    });
+
+    // Labels
+    muscles.forEach((m, i) => {
+      const [lx, ly] = getGridPoint(i, R + 22);
+      const color = MUSCLE_COLOR[m] || '#888';
+      const val = volumeData[m] || 0;
+      svgContent += `
+        <text x="${lx}" y="${ly}" text-anchor="middle" dominant-baseline="middle"
+          font-size="9.5" font-family="DM Sans, sans-serif" font-weight="700" fill="${val > 0 ? color : 'rgba(0,0,0,0.2)'}">
+          ${m.toUpperCase()}
+        </text>`;
+    });
+
+    svg.innerHTML = svgContent;
+
+    // Legenda
+    const legendEl = document.getElementById('radarLegend');
+    if (legendEl) {
+      legendEl.innerHTML = `
+        <div class="vp-legend-item">
+          <div class="vp-legend-dot" style="background:#00C853;"></div>
+          Volume por grupo muscular
+        </div>
+      `;
+    }
+  }
+
+  // ── Insights ──────────────────────────────────────────────────
+  function renderInsights() {
+    const el = document.getElementById('insightsGrid');
+    if (!el) return;
+
+    // Músculo mais trabalhado
+    let topMuscle = 'Nenhum', topVal = 0;
+    MUSCLES.forEach(m => { if (volumeData[m] > topVal) { topVal = volumeData[m]; topMuscle = m; } });
+
+    // Músculo negligenciado (presente no plano mas abaixo da ref)
+    const neglected = MUSCLES.filter(m => {
+      const ref = VOLUME_REF[m];
+      return volumeData[m] > 0 && volumeData[m] < ref * 0.5;
+    });
+
+    // Desequilíbrio push/pull
+    const push = (volumeData['Peito'] || 0) + (volumeData['Ombros'] || 0) + (volumeData['Tríceps'] || 0);
+    const pull = (volumeData['Costas'] || 0) + (volumeData['Bíceps'] || 0);
+    const ppRatio = pull > 0 ? (push / pull) : 999;
+    let ppInsight, ppColor;
+    if (pull === 0 && push === 0) { ppInsight = 'Sem dados de push/pull'; ppColor = 'rgba(0,0,0,0.04)'; }
+    else if (ppRatio < 0.7)       { ppInsight = `Pull dominante (${pull.toFixed(1)} vs ${push.toFixed(1)})`; ppColor = 'rgba(245,158,11,0.08)'; }
+    else if (ppRatio > 1.5)       { ppInsight = `Push dominante (${push.toFixed(1)} vs ${pull.toFixed(1)})`; ppColor = 'rgba(239,68,68,0.08)'; }
+    else                          { ppInsight = `Equilibrado (${push.toFixed(1)} push / ${pull.toFixed(1)} pull)`; ppColor = 'rgba(0,230,118,0.08)'; }
+
+    el.innerHTML = `
+      <div class="vp-insight" style="background:rgba(0,230,118,0.06);border-color:rgba(0,230,118,0.2);">
+        <div class="vp-insight-icon">🏆</div>
+        <div class="vp-insight-title" style="color:var(--green);">Mais estimulado</div>
+        <div class="vp-insight-desc">${topMuscle} com <strong style="color:#111;">${topVal.toFixed(1)} séries ponderadas</strong> na semana.</div>
+      </div>
+      <div class="vp-insight" style="background:${ppColor};border-color:rgba(0,0,0,0.1);">
+        <div class="vp-insight-icon">⚖️</div>
+        <div class="vp-insight-title" style="color:#F59E0B;">Balanço Push/Pull</div>
+        <div class="vp-insight-desc">${ppInsight}</div>
+      </div>
+      <div class="vp-insight" style="background:${neglected.length > 0 ? 'rgba(239,68,68,0.06)' : 'rgba(0,230,118,0.06)'};border-color:rgba(0,0,0,0.1);">
+        <div class="vp-insight-icon">${neglected.length > 0 ? '⚠️' : '✅'}</div>
+        <div class="vp-insight-title" style="color:${neglected.length > 0 ? '#EF4444' : 'var(--green)'};">
+          ${neglected.length > 0 ? 'Atenção necessária' : 'Volume equilibrado'}
+        </div>
+        <div class="vp-insight-desc">
+          ${neglected.length > 0
+            ? `${neglected.join(', ')} com volume abaixo do ideal.`
+            : 'Todos os grupos ativos estão dentro da faixa de referência.'}
+        </div>
+      </div>
+    `;
+  }
+
+  function showEmpty(msg) {
+    document.getElementById('vpRoot').innerHTML = `
+      <div class="vp-empty">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="rgba(0,0,0,0.2)" stroke-width="1.5">
+          <path d="M6 4v16M18 4v16M6 12h12M3 4h4M17 4h4M3 20h4M17 20h4"/>
+        </svg>
+        <p style="font-size:1rem;font-weight:600;color:rgba(0,0,0,0.55);">${msg}</p>
+        <button onclick="router.goToStudentDetails(window._vpStudentId)" class="vp-back" style="margin-top:8px;">Voltar</button>
+      </div>`;
+  }
+
+  function toast(msg) {
+    const el = document.getElementById('vpToast');
+    if (!el) return;
+    el.textContent = msg;
+    el.classList.add('show');
+    setTimeout(() => el.classList.remove('show'), 2200);
+  }
+
+  // ── Start ─────────────────────────────────────────────────────
+  setTimeout(init, 120);
+})();
+</script>
+</div>

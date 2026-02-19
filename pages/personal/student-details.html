@@ -229,6 +229,11 @@
                 </div>
               </div>
               <div style="display:flex;gap:8px;flex-shrink:0;">
+                <button onclick="router.goToVolumeAnalysis('${studentId}')"
+                style="padding:7px 14px;background:rgba(0,230,118,0.12);border:1px solid rgba(0,230,118,0.3);border-radius:8px;font-size:0.78rem;font-weight:600;color:#00A843;cursor:pointer;transition:all 0.2s;font-family:inherit;"
+                onmouseover="this.style.background='rgba(0,230,118,0.22)'" onmouseout="this.style.background='rgba(0,230,118,0.12)'">
+                📊 Volume
+                </button>
                 <button onclick="editWorkout('${w.id}')"
                   style="padding:7px 14px;background:#F4F4F4;border:none;border-radius:8px;font-size:0.78rem;font-weight:600;color:#374151;cursor:pointer;transition:all 0.2s;font-family:inherit;"
                   onmouseover="this.style.background='#EBEBEB'" onmouseout="this.style.background='#F4F4F4'">

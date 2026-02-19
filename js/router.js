@@ -15,7 +15,8 @@ class Router {
       '/personal/student/:id': 'pages/personal/student-details.html',
       '/personal/feedbacks': 'pages/personal/feedbacks.html',
       '/student/dashboard': 'pages/student/dashboard.html',
-      '/student/view-workout': 'pages/student/view-workout.html'
+      '/student/view-workout': 'pages/student/view-workout.html',
+      '/personal/volume/:id': 'pages/personal/volume-analysis.html'
     };
 
     this.protectedRoutes = {
@@ -25,6 +26,7 @@ class Router {
       '/personal/student/:id': 'personal',
       '/personal/feedbacks': 'personal',
       '/student/dashboard': 'student',
+      '/personal/volume/:id': 'personal',
       '/student/view-workout': 'student'
     };
 
@@ -365,6 +367,10 @@ class Router {
 
   goTo(path) {
     this.navigate(path);
+  }
+
+  goToVolumeAnalysis(studentId) {
+  this.navigate(`/personal/volume/${studentId}`);
   }
 
   async init() {
