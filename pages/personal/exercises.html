@@ -17,15 +17,18 @@
     .filter-chip:hover { border-color: #D1D5DB; color: #374151; }
     .filter-chip.active { background: #0A0A0A; border-color: #0A0A0A; color: #fff; }
     .muscle-badge { padding: 3px 8px; border-radius: 6px; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.03em; }
-    .add-btn { background: #00E676; color: #0A0A0A; border: none; border-radius: 8px; padding: 7px 14px; font-size: 0.78rem; font-weight: 700; cursor: pointer; transition: all 0.2s; font-family: inherit; }
-    .add-btn:hover { background: #00C853; box-shadow: 0 4px 12px rgba(0,230,118,0.3); }
     .spinner { width: 28px; height: 28px; border: 3px solid rgba(0,0,0,0.08); border-top-color: #00E676; border-radius: 50%; animation: spin 0.8s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
     .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); z-index: 100; display: flex; align-items: center; justify-content: center; padding: 20px; }
-    .modal-box { background: #fff; border-radius: 20px; padding: 32px; width: 100%; max-width: 500px; max-height: 90vh; overflow-y: auto; }
+    .modal-box { background: #fff; border-radius: 20px; padding: 32px; width: 100%; max-width: 520px; max-height: 90vh; overflow-y: auto; }
     .modal-input { width: 100%; padding: 12px 14px; border: 2px solid #EBEBEB; border-radius: 10px; font-size: 0.88rem; outline: none; transition: border-color 0.2s; font-family: inherit; background: #FAFAFA; box-sizing: border-box; }
     .modal-input:focus { border-color: #0A0A0A; background: #fff; }
     .modal-input::placeholder { color: #9CA3AF; }
+    .muscle-row { display: grid; grid-template-columns: 1fr 90px; gap: 8px; align-items: center; }
+    .pct-display { font-size: 0.8rem; font-weight: 700; text-align: center; padding: 6px 0; border-radius: 8px; }
+    .pct-ok { background: #ECFDF5; color: #059669; }
+    .pct-over { background: #FEF2F2; color: #DC2626; }
+    .pct-under { background: #FFF7ED; color: #D97706; }
   </style>
 
   <!-- HEADER -->
@@ -64,6 +67,7 @@
       <div>
         <p style="color: #9CA3AF; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; margin: 0 0 6px;">BIBLIOTECA</p>
         <h1 style="font-size: 1.9rem; font-weight: 800; color: #0A0A0A; margin: 0; letter-spacing: -0.03em;">Exercícios</h1>
+        <p style="color: #6B7280; font-size: 0.85rem; margin: 6px 0 0;">Exercícios prontos + seus exercícios personalizados</p>
       </div>
       <button id="openAddExerciseModal" class="nav-link-accent" style="padding: 10px 22px; font-size: 0.875rem;">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -88,6 +92,7 @@
         <button class="filter-chip" data-group="Tríceps">Tríceps</button>
         <button class="filter-chip" data-group="Abdômen">Abdômen</button>
         <button class="filter-chip" data-group="Glúteos">Glúteos</button>
+        <button class="filter-chip" data-group="meu">⭐ Meus</button>
       </div>
     </div>
 
@@ -105,31 +110,86 @@
   <div id="addExerciseModal" class="modal-overlay" style="display: none;">
     <div class="modal-box">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
-        <h2 style="font-size: 1.2rem; font-weight: 800; color: #0A0A0A; margin: 0; letter-spacing: -0.02em;">Novo Exercício</h2>
+        <div>
+          <h2 style="font-size: 1.2rem; font-weight: 800; color: #0A0A0A; margin: 0 0 4px; letter-spacing: -0.02em;">Novo Exercício</h2>
+          <p style="font-size: 0.78rem; color: #9CA3AF; margin: 0;">Será salvo na sua biblioteca pessoal</p>
+        </div>
         <button id="closeAddModal" style="background: #F4F4F4; border: none; width: 32px; height: 32px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #6B7280; font-size: 1.1rem; transition: all 0.2s;">✕</button>
       </div>
 
       <div id="addExerciseError" style="display: none; background: #FFF1F2; border: 1px solid #FECDD3; border-radius: 8px; padding: 10px 13px; margin-bottom: 16px; font-size: 0.82rem; color: #BE123C; font-weight: 500;"></div>
 
       <div style="display: flex; flex-direction: column; gap: 14px;">
+
+        <!-- Nome -->
         <div>
           <label style="display: block; font-size: 0.78rem; font-weight: 700; color: #374151; margin-bottom: 7px;">Nome do exercício *</label>
           <input type="text" id="exName" class="modal-input" placeholder="Ex: Supino Reto com Barra">
         </div>
+
+        <!-- Grupos musculares (até 3) -->
         <div>
-          <label style="display: block; font-size: 0.78rem; font-weight: 700; color: #374151; margin-bottom: 7px;">Grupo muscular *</label>
-          <select id="exGroup" class="modal-input" style="appearance: none; cursor: pointer; background: #FAFAFA; padding-right: 36px;">
-            <option value="">Selecione o grupo</option>
-            <option>Peito</option><option>Costas</option><option>Pernas</option>
-            <option>Ombros</option><option>Bíceps</option><option>Tríceps</option>
-            <option>Abdômen</option><option>Glúteos</option><option>Panturrilha</option>
-            <option>Cardio</option><option>Funcional</option>
-          </select>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <label style="font-size: 0.78rem; font-weight: 700; color: #374151;">Grupos musculares * <span style="font-weight: 400; color: #9CA3AF;">(até 3, somando 100%)</span></label>
+            <div id="pctTotal" class="pct-display pct-under" style="padding: 3px 10px; min-width: 72px;">0% / 100%</div>
+          </div>
+
+          <!-- Músculo 1 (primário — obrigatório) -->
+          <div style="margin-bottom: 8px;">
+            <p style="font-size: 0.7rem; font-weight: 700; color: #9CA3AF; text-transform: uppercase; letter-spacing: 0.06em; margin: 0 0 6px;">Primário</p>
+            <div class="muscle-row">
+              <select id="muscle1Group" class="modal-input" style="appearance: none; cursor: pointer;">
+                <option value="">Selecione o grupo *</option>
+                <option>Peito</option><option>Costas</option><option>Pernas</option>
+                <option>Ombros</option><option>Bíceps</option><option>Tríceps</option>
+                <option>Quadríceps</option><option>Posterior</option><option>Glúteos</option>
+                <option>Abdômen</option><option>Panturrilhas</option><option>Lombar</option>
+                <option>Cardio</option><option>Full Body</option>
+              </select>
+              <input type="number" id="muscle1Pct" class="modal-input" placeholder="%" min="1" max="100" style="text-align: center;">
+            </div>
+          </div>
+
+          <!-- Músculo 2 (opcional) -->
+          <div style="margin-bottom: 8px;">
+            <p style="font-size: 0.7rem; font-weight: 700; color: #9CA3AF; text-transform: uppercase; letter-spacing: 0.06em; margin: 0 0 6px;">Secundário <span style="font-weight: 400; text-transform: none;">(opcional)</span></p>
+            <div class="muscle-row">
+              <select id="muscle2Group" class="modal-input" style="appearance: none; cursor: pointer;">
+                <option value="">Nenhum</option>
+                <option>Peito</option><option>Costas</option><option>Pernas</option>
+                <option>Ombros</option><option>Bíceps</option><option>Tríceps</option>
+                <option>Quadríceps</option><option>Posterior</option><option>Glúteos</option>
+                <option>Abdômen</option><option>Panturrilhas</option><option>Lombar</option>
+                <option>Cardio</option><option>Full Body</option>
+              </select>
+              <input type="number" id="muscle2Pct" class="modal-input" placeholder="%" min="1" max="99" style="text-align: center;">
+            </div>
+          </div>
+
+          <!-- Músculo 3 (opcional) -->
+          <div>
+            <p style="font-size: 0.7rem; font-weight: 700; color: #9CA3AF; text-transform: uppercase; letter-spacing: 0.06em; margin: 0 0 6px;">Terciário <span style="font-weight: 400; text-transform: none;">(opcional)</span></p>
+            <div class="muscle-row">
+              <select id="muscle3Group" class="modal-input" style="appearance: none; cursor: pointer;">
+                <option value="">Nenhum</option>
+                <option>Peito</option><option>Costas</option><option>Pernas</option>
+                <option>Ombros</option><option>Bíceps</option><option>Tríceps</option>
+                <option>Quadríceps</option><option>Posterior</option><option>Glúteos</option>
+                <option>Abdômen</option><option>Panturrilhas</option><option>Lombar</option>
+                <option>Cardio</option><option>Full Body</option>
+              </select>
+              <input type="number" id="muscle3Pct" class="modal-input" placeholder="%" min="1" max="99" style="text-align: center;">
+            </div>
+          </div>
         </div>
+
+        <!-- Vídeo -->
         <div>
           <label style="display: block; font-size: 0.78rem; font-weight: 700; color: #374151; margin-bottom: 7px;">URL do vídeo (YouTube) <span style="color: #9CA3AF; font-weight: 400;">opcional</span></label>
           <input type="url" id="exVideo" class="modal-input" placeholder="https://youtube.com/watch?v=...">
         </div>
+
+        <!-- Descrição -->
         <div>
           <label style="display: block; font-size: 0.78rem; font-weight: 700; color: #374151; margin-bottom: 7px;">Descrição / observações <span style="color: #9CA3AF; font-weight: 400;">opcional</span></label>
           <textarea id="exDesc" class="modal-input" rows="3" placeholder="Dicas de execução, variações..." style="resize: vertical;"></textarea>
@@ -147,93 +207,155 @@
 
 <script>
 (async function() {
-  // ── Aguardar DOM estar pronto ─────────────────────────────────
   await new Promise(r => document.readyState === 'loading'
-    ? document.addEventListener('DOMContentLoaded', r)
-    : r()
-  );
+    ? document.addEventListener('DOMContentLoaded', r) : r());
   await new Promise(r => setTimeout(r, 80));
+
+  const currentUid = authManager.getCurrentUser()?.uid || '';
 
   const groupColors = {
     'Peito': '#FEF3C7', 'Costas': '#DBEAFE', 'Pernas': '#D1FAE5',
     'Ombros': '#EDE9FE', 'Bíceps': '#FCE7F3', 'Tríceps': '#FEE2E2',
-    'Abdômen': '#FFF7ED', 'Glúteos': '#F0FDF4', 'Panturrilha': '#F0F9FF',
-    'Cardio': '#FEF9C3', 'Funcional': '#F5F3FF'
+    'Abdômen': '#FFF7ED', 'Glúteos': '#F0FDF4', 'Panturrilhas': '#F0F9FF',
+    'Cardio': '#FEF9C3', 'Funcional': '#F5F3FF', 'Full Body': '#F3F4F6',
+    'Quadríceps': '#ECFDF5', 'Posterior': '#FDF2F8', 'Lombar': '#E0F2FE'
   };
   const groupTextColors = {
     'Peito': '#92400E', 'Costas': '#1E40AF', 'Pernas': '#065F46',
     'Ombros': '#5B21B6', 'Bíceps': '#9D174D', 'Tríceps': '#991B1B',
-    'Abdômen': '#9A3412', 'Glúteos': '#14532D', 'Panturrilha': '#0C4A6E',
-    'Cardio': '#713F12', 'Funcional': '#4C1D95'
+    'Abdômen': '#9A3412', 'Glúteos': '#14532D', 'Panturrilhas': '#0C4A6E',
+    'Cardio': '#713F12', 'Funcional': '#4C1D95', 'Full Body': '#374151',
+    'Quadríceps': '#065F46', 'Posterior': '#831843', 'Lombar': '#0E4270'
   };
 
   let allExercises = [];
   let currentFilter = 'all';
 
   // ── Logout ────────────────────────────────────────────────────
-  const logoutBtn = document.getElementById('logoutBtn');
-  if (logoutBtn) {
-    logoutBtn.onclick = async () => {
-      await authManager.logout();
-      router.goToLogin();
-    };
-  }
+  document.getElementById('logoutBtn').onclick = async () => {
+    await authManager.logout();
+    router.goToLogin();
+  };
 
   // ── Modal ─────────────────────────────────────────────────────
-  const openBtn = document.getElementById('openAddExerciseModal');
-  const closeBtn = document.getElementById('closeAddModal');
-  const cancelBtn = document.getElementById('cancelAddExercise');
   const modal = document.getElementById('addExerciseModal');
-
-  if (openBtn) openBtn.onclick = () => { modal.style.display = 'flex'; document.getElementById('exName').focus(); };
-  if (closeBtn) closeBtn.onclick = closeModal;
-  if (cancelBtn) cancelBtn.onclick = closeModal;
-  if (modal) modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
+  document.getElementById('openAddExerciseModal').onclick = () => {
+    modal.style.display = 'flex';
+    document.getElementById('exName').focus();
+  };
+  document.getElementById('closeAddModal').onclick = closeModal;
+  document.getElementById('cancelAddExercise').onclick = closeModal;
+  modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
 
   function closeModal() {
-    if (!modal) return;
     modal.style.display = 'none';
-    document.getElementById('exName').value = '';
-    document.getElementById('exGroup').value = '';
-    document.getElementById('exVideo').value = '';
-    document.getElementById('exDesc').value = '';
-    const errDiv = document.getElementById('addExerciseError');
-    if (errDiv) errDiv.style.display = 'none';
+    ['exName','exVideo','exDesc'].forEach(id => document.getElementById(id).value = '');
+    ['muscle1Group','muscle2Group','muscle3Group'].forEach(id => document.getElementById(id).value = '');
+    ['muscle1Pct','muscle2Pct','muscle3Pct'].forEach(id => document.getElementById(id).value = '');
+    updatePctTotal();
+    document.getElementById('addExerciseError').style.display = 'none';
   }
+
+  // ── Contador de % ─────────────────────────────────────────────
+  function updatePctTotal() {
+    const p1 = parseInt(document.getElementById('muscle1Pct').value) || 0;
+    const p2 = parseInt(document.getElementById('muscle2Pct').value) || 0;
+    const p3 = parseInt(document.getElementById('muscle3Pct').value) || 0;
+    const total = p1 + p2 + p3;
+    const el = document.getElementById('pctTotal');
+    el.textContent = `${total}% / 100%`;
+    el.className = 'pct-display ' + (total === 100 ? 'pct-ok' : total > 100 ? 'pct-over' : 'pct-under');
+    el.style.padding = '3px 10px';
+    el.style.minWidth = '72px';
+    el.style.borderRadius = '8px';
+    return total;
+  }
+
+  ['muscle1Pct','muscle2Pct','muscle3Pct'].forEach(id => {
+    document.getElementById(id).addEventListener('input', updatePctTotal);
+  });
+
+  // Auto-preenche % primário quando secundário/terciário mudam
+  ['muscle2Pct','muscle3Pct'].forEach(id => {
+    document.getElementById(id).addEventListener('input', () => {
+      const p2 = parseInt(document.getElementById('muscle2Pct').value) || 0;
+      const p3 = parseInt(document.getElementById('muscle3Pct').value) || 0;
+      const remaining = 100 - p2 - p3;
+      if (remaining >= 0 && !document.getElementById('muscle1Pct').value) {
+        document.getElementById('muscle1Pct').value = remaining;
+        updatePctTotal();
+      }
+    });
+  });
 
   // ── Salvar exercício ──────────────────────────────────────────
-  const saveBtn = document.getElementById('saveExerciseBtn');
-  if (saveBtn) {
-    saveBtn.onclick = async () => {
-      const name = document.getElementById('exName').value.trim();
-      const group = document.getElementById('exGroup').value;
-      const video = document.getElementById('exVideo').value.trim();
-      const desc = document.getElementById('exDesc').value.trim();
-      const errDiv = document.getElementById('addExerciseError');
+  document.getElementById('saveExerciseBtn').onclick = async () => {
+    const name   = document.getElementById('exName').value.trim();
+    const video  = document.getElementById('exVideo').value.trim();
+    const desc   = document.getElementById('exDesc').value.trim();
+    const errDiv = document.getElementById('addExerciseError');
+    errDiv.style.display = 'none';
 
-      errDiv.style.display = 'none';
-      if (!name) { errDiv.textContent = 'Nome do exercício é obrigatório.'; errDiv.style.display = 'block'; return; }
-      if (!group) { errDiv.textContent = 'Selecione o grupo muscular.'; errDiv.style.display = 'block'; return; }
+    if (!name) {
+      errDiv.textContent = 'Nome do exercício é obrigatório.';
+      return errDiv.style.display = 'block';
+    }
 
-      saveBtn.textContent = 'Salvando...';
-      saveBtn.disabled = true;
-      try {
-        const result = await dbManager.addExercise({ name, muscleGroup: group, videoUrl: video, description: desc });
-        if (result && result.success !== false) {
-          closeModal();
-          await loadExercises();
-        } else {
-          errDiv.textContent = (result && result.error) || 'Erro ao salvar.';
-          errDiv.style.display = 'block';
-        }
-      } catch(e) {
-        errDiv.textContent = 'Erro inesperado ao salvar.';
+    const g1 = document.getElementById('muscle1Group').value;
+    const p1 = parseInt(document.getElementById('muscle1Pct').value) || 0;
+    const g2 = document.getElementById('muscle2Group').value;
+    const p2 = parseInt(document.getElementById('muscle2Pct').value) || 0;
+    const g3 = document.getElementById('muscle3Group').value;
+    const p3 = parseInt(document.getElementById('muscle3Pct').value) || 0;
+
+    if (!g1 || !p1) {
+      errDiv.textContent = 'Selecione o grupo muscular primário e sua porcentagem.';
+      return errDiv.style.display = 'block';
+    }
+
+    const total = updatePctTotal();
+    if (total > 100) {
+      errDiv.textContent = `A soma das porcentagens é ${total}%. O máximo é 100%.`;
+      return errDiv.style.display = 'block';
+    }
+    if (total < 100) {
+      errDiv.textContent = `A soma das porcentagens é ${total}%. Deve somar exatamente 100%.`;
+      return errDiv.style.display = 'block';
+    }
+
+    // Montar array de músculos (só os preenchidos)
+    const muscles = [{ group: g1, percentage: p1 }];
+    if (g2 && p2) muscles.push({ group: g2, percentage: p2 });
+    if (g3 && p3) muscles.push({ group: g3, percentage: p3 });
+
+    const btn = document.getElementById('saveExerciseBtn');
+    btn.textContent = 'Salvando...';
+    btn.disabled = true;
+
+    try {
+      const result = await dbManager.addExercise({
+        name,
+        muscleGroup: g1,   // grupo principal (retrocompatibilidade)
+        muscles,           // array detalhado
+        videoUrl: video,
+        description: desc
+      });
+
+      if (result && result.success !== false) {
+        closeModal();
+        await loadExercises();
+      } else {
+        errDiv.textContent = (result && result.error) || 'Erro ao salvar.';
         errDiv.style.display = 'block';
       }
-      saveBtn.textContent = 'Salvar Exercício';
-      saveBtn.disabled = false;
-    };
-  }
+    } catch(e) {
+      errDiv.textContent = 'Erro inesperado ao salvar.';
+      errDiv.style.display = 'block';
+    }
+
+    btn.textContent = 'Salvar Exercício';
+    btn.disabled = false;
+  };
 
   // ── Filtros ───────────────────────────────────────────────────
   document.querySelectorAll('.filter-chip').forEach(chip => {
@@ -245,20 +367,30 @@
     });
   });
 
-  const searchInput = document.getElementById('searchInput');
-  if (searchInput) searchInput.addEventListener('input', renderExercises);
+  document.getElementById('searchInput').addEventListener('input', renderExercises);
 
   // ── Render exercícios ─────────────────────────────────────────
   function renderExercises() {
     const search = (document.getElementById('searchInput')?.value || '').toLowerCase();
     const filtered = allExercises.filter(ex => {
-      const matchGroup = currentFilter === 'all' || ex.muscleGroup === currentFilter;
-      const matchSearch = !search || (ex.name || '').toLowerCase().includes(search) || (ex.muscleGroup || '').toLowerCase().includes(search);
-      return matchGroup && matchSearch;
+      const isOwn = ex.personalId === currentUid;
+
+      if (currentFilter === 'meu') {
+        if (!isOwn) return false;
+      } else if (currentFilter !== 'all') {
+        const inMuscles = (ex.muscles || []).some(m => m.group === currentFilter);
+        const inGroup   = ex.muscleGroup === currentFilter;
+        if (!inMuscles && !inGroup) return false;
+      }
+
+      const matchSearch = !search
+        || (ex.name || '').toLowerCase().includes(search)
+        || (ex.muscleGroup || '').toLowerCase().includes(search)
+        || (ex.muscles || []).some(m => m.group.toLowerCase().includes(search));
+      return matchSearch;
     });
 
     const grid = document.getElementById('exercisesGrid');
-    if (!grid) return;
 
     if (filtered.length === 0) {
       grid.innerHTML = `
@@ -271,17 +403,33 @@
 
     grid.innerHTML = '';
     filtered.forEach(ex => {
+      const isOwn = ex.personalId === currentUid;
       const bg = groupColors[ex.muscleGroup] || '#F4F4F4';
       const tc = groupTextColors[ex.muscleGroup] || '#374151';
       const card = document.createElement('div');
       card.className = 'exercise-card';
+
+      // Montar badges dos músculos com %
+      const musclesBadges = (ex.muscles && ex.muscles.length > 0)
+        ? ex.muscles.map(m => `
+            <span class="muscle-badge" style="background:${groupColors[m.group]||'#F4F4F4'};color:${groupTextColors[m.group]||'#374151'};">
+              ${m.group} ${m.percentage}%
+            </span>`).join('')
+        : `<span class="muscle-badge" style="background:${bg};color:${tc};">${ex.muscleGroup || '—'}</span>`;
+
       card.innerHTML = `
         <div style="padding: 20px 20px 16px;">
-          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:12px;">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:10px;">
             <h3 style="font-size:0.95rem;font-weight:700;color:#0A0A0A;margin:0;line-height:1.4;flex:1;">${ex.name}</h3>
-            <span class="muscle-badge" style="background:${bg};color:${tc};flex-shrink:0;">${ex.muscleGroup || '—'}</span>
+            ${isOwn
+              ? '<span style="font-size:0.62rem;font-weight:700;background:rgba(0,230,118,0.12);color:#00A843;border:1px solid rgba(0,230,118,0.25);border-radius:6px;padding:2px 7px;flex-shrink:0;">Meu</span>'
+              : '<span style="font-size:0.62rem;font-weight:700;background:#F4F4F4;color:#6B7280;border-radius:6px;padding:2px 7px;flex-shrink:0;">Pronto</span>'
+            }
           </div>
-          ${ex.description ? `<p style="font-size:0.8rem;color:#6B7280;margin:0 0 12px;line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">${ex.description}</p>` : ''}
+          <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:${ex.description || ex.videoUrl ? '12px' : '0'};">
+            ${musclesBadges}
+          </div>
+          ${ex.description ? `<p style="font-size:0.8rem;color:#6B7280;margin:0 0 10px;line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">${ex.description}</p>` : ''}
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
             ${ex.videoUrl ? `<a href="${ex.videoUrl}" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:5px;font-size:0.75rem;font-weight:600;color:#6B7280;text-decoration:none;background:#F4F4F4;padding:5px 10px;border-radius:7px;"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg> Ver vídeo</a>` : ''}
           </div>
@@ -293,14 +441,13 @@
   // ── Carregar exercícios ───────────────────────────────────────
   async function loadExercises() {
     const grid = document.getElementById('exercisesGrid');
-    if (!grid) return;
     grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:64px 20px;"><div class="spinner" style="margin:0 auto 16px;"></div><p style="color:#9CA3AF;font-size:0.875rem;margin:0;">Carregando...</p></div>`;
     try {
       allExercises = await dbManager.getExercises() || [];
       renderExercises();
     } catch(e) {
       console.error('Erro ao carregar exercícios:', e);
-      if (grid) grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:48px;"><p style="color:#BE123C;">Erro ao carregar exercícios.</p></div>`;
+      grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:48px;"><p style="color:#BE123C;">Erro ao carregar exercícios.</p></div>`;
     }
   }
 

@@ -98,18 +98,20 @@ class DatabaseManager {
       const user = authManager.getCurrentUser();
       if (!user) throw new Error('Usuário não autenticado');
 
-      let name, desc, vUrl, muscleGroup;
+      let name, desc, vUrl, muscleGroup, muscles;
 
       if (typeof nameOrObj === 'object') {
-        name = nameOrObj.name;
-        desc = nameOrObj.description || '';
-        vUrl = nameOrObj.videoUrl || '';
+        name        = nameOrObj.name;
+        desc        = nameOrObj.description || '';
+        vUrl        = nameOrObj.videoUrl || '';
         muscleGroup = nameOrObj.muscleGroup || '';
+        muscles     = nameOrObj.muscles || [];       // [{ group, percentage }]
       } else {
-        name = nameOrObj;
-        desc = description || '';
-        vUrl = videoUrl || '';
+        name        = nameOrObj;
+        desc        = description || '';
+        vUrl        = videoUrl || '';
         muscleGroup = '';
+        muscles     = [];
       }
 
       const embedUrl = this.convertYouTubeUrl(vUrl);
@@ -120,8 +122,9 @@ class DatabaseManager {
         name: name || '',
         description: desc || '',
         muscleGroup: muscleGroup || '',
+        muscles: muscles,                            // array de grupos musculares com %
         videoUrl: embedUrl || '',
-        personalId: user.uid,
+        personalId: user.uid,                        // sempre salva com personalId do criador
         createdBy: user.uid,
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
       };
@@ -139,22 +142,55 @@ class DatabaseManager {
     return await this.createExercise(data);
   }
 
+  /**
+   * Busca exercícios próprios do personal + exercícios prontos (sem personalId)
+   */
   async getPersonalExercises() {
     try {
       const user = authManager.getCurrentUser();
       if (!user) throw new Error('Usuário não autenticado');
 
-      let snapshot = await db.collection('exercises')
-        .where('createdBy', '==', user.uid)
-        .get();
+      // Busca em paralelo: próprios + prontos
+      const [ownSnap, readySnap1, readySnap2] = await Promise.all([
+        // Exercícios criados pelo personal
+        db.collection('exercises').where('personalId', '==', user.uid).get(),
+        // Exercícios prontos: personalId vazio
+        db.collection('exercises').where('personalId', '==', '').get(),
+        // Exercícios prontos: sem campo personalId (legados)
+        db.collection('exercises').where('createdBy', '==', 'admin').get().catch(() => ({ docs: [] }))
+      ]);
 
-      if (snapshot.empty) {
-        snapshot = await db.collection('exercises')
-          .where('personalId', '==', user.uid)
-          .get();
-      }
+      const seen = new Set();
+      const exercises = [];
 
-      const exercises = snapshot.docs.map(doc => doc.data()).sort((a, b) => {
+      const addDocs = (docs) => {
+        docs.forEach(doc => {
+          if (!seen.has(doc.id)) {
+            seen.add(doc.id);
+            exercises.push(doc.data());
+          }
+        });
+      };
+
+      addDocs(ownSnap.docs);
+      addDocs(readySnap1.docs);
+      addDocs(readySnap2.docs);
+
+      // Tentar também exercícios sem campo personalId (prontos legados)
+      // via query separada — só funciona se as regras permitirem
+      try {
+        const allSnap = await db.collection('exercises').get();
+        allSnap.docs.forEach(doc => {
+          const d = doc.data();
+          const isReady = !d.personalId || d.personalId === '' || d.personalId === null;
+          if (isReady && !seen.has(doc.id)) {
+            seen.add(doc.id);
+            exercises.push(d);
+          }
+        });
+      } catch (e) { /* regras podem bloquear, ok */ }
+
+      exercises.sort((a, b) => {
         if (!a.createdAt) return 1;
         if (!b.createdAt) return -1;
         return b.createdAt.seconds - a.createdAt.seconds;
@@ -194,9 +230,6 @@ class DatabaseManager {
 
   // ── Workouts ──────────────────────────────────────────────────────
 
-  /**
-   * Criar treino — NUNCA salva campos undefined no Firestore
-   */
   async createWorkout(nameOrObj, description, days, studentId) {
     try {
       const user = authManager.getCurrentUser();
@@ -205,35 +238,29 @@ class DatabaseManager {
       let name, desc, daysData, stdId;
 
       if (typeof nameOrObj === 'object') {
-        name = nameOrObj.name || '';
-        desc = nameOrObj.description || '';
+        name     = nameOrObj.name || '';
+        desc     = nameOrObj.description || '';
         daysData = nameOrObj.days || {};
-        stdId = nameOrObj.studentId || null;
+        stdId    = nameOrObj.studentId || null;
       } else {
-        name = nameOrObj || '';
-        desc = description || '';
+        name     = nameOrObj || '';
+        desc     = description || '';
         daysData = days || {};
-        stdId = studentId || null;
+        stdId    = studentId || null;
       }
 
       const workoutRef = db.collection('workouts').doc();
 
-      // Objeto sem campos undefined
       const workoutData = {
         id: workoutRef.id,
         name: name,
-        description: desc,          // sempre string
+        description: desc,
         personalId: user.uid,
         days: daysData,
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
       };
 
-      // Só adiciona studentId se não for null/undefined
-      if (stdId) {
-        workoutData.studentId = stdId;
-      } else {
-        workoutData.studentId = '';  // evita undefined
-      }
+      workoutData.studentId = stdId || '';
 
       await workoutRef.set(workoutData);
       console.log('✓ Treino criado:', name);
@@ -328,12 +355,8 @@ class DatabaseManager {
     return await this.getWorkout(workoutId);
   }
 
-  /**
-   * Atualizar treino — remove campos undefined antes de salvar
-   */
   async updateWorkout(workoutId, updates) {
     try {
-      // Limpar undefined do objeto de updates
       const cleanUpdates = {};
       for (const [key, value] of Object.entries(updates)) {
         cleanUpdates[key] = value === undefined ? '' : value;

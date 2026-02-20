@@ -21,8 +21,6 @@ service cloud.firestore {
 
 
     // ── USERS ────────────────────────────────────────────────────────────
-    // Qualquer autenticado lê qualquer usuário.
-    // Necessário para queries: where('personalId','==',uid), where('userType','==','student')
     match /users/{userId} {
       allow read: if isAuth();
       allow create: if isUser(userId);
@@ -32,79 +30,56 @@ service cloud.firestore {
 
 
     // ── EXERCISES ────────────────────────────────────────────────────────
+    // "Prontos" (dono do site): personalId == "" ou campo ausente → todos leem
+    // Do personal: personalId == uid → só ele lê/edita
     match /exercises/{exerciseId} {
       allow read: if isAuth() && (
         resource == null ||
+        resource.data.personalId == "" ||
+        !("personalId" in resource.data) ||
         resource.data.personalId == request.auth.uid ||
-        resource.data.createdBy == request.auth.uid ||
-        getUserData().personalId == resource.data.personalId ||
-        getUserData().personalId == resource.data.createdBy
+        getUserData().personalId == resource.data.personalId
       );
-      allow create: if isAuth() && isPersonal() && (
-        request.resource.data.personalId == request.auth.uid ||
-        request.resource.data.createdBy == request.auth.uid
-      );
-      allow update: if isAuth() && isPersonal() && (
-        resource.data.personalId == request.auth.uid ||
-        resource.data.createdBy == request.auth.uid
-      );
-      allow delete: if isAuth() && isPersonal() && (
-        resource.data.personalId == request.auth.uid ||
-        resource.data.createdBy == request.auth.uid
-      );
+      allow create: if isAuth() && isPersonal() &&
+        request.resource.data.personalId == request.auth.uid;
+      allow update: if isAuth() && isPersonal() &&
+        resource.data.personalId == request.auth.uid;
+      allow delete: if isAuth() && isPersonal() &&
+        resource.data.personalId == request.auth.uid;
     }
 
 
     // ── WORKOUTS ─────────────────────────────────────────────────────────
     match /workouts/{workoutId} {
-
-      // GET direto por ID: personal que criou OU aluno atribuído
       allow get: if isAuth() && (
         resource.data.personalId == request.auth.uid ||
         resource.data.studentId == request.auth.uid
       );
-
-      // LIST (query): permite para qualquer autenticado.
-      // A segurança real está no .where() feito pelo código — o Firestore
-      // retorna apenas os docs que batem com o filtro, e a rule de get
-      // garante que só o dono/aluno lê o documento individualmente.
-      // Sem isso, qualquer .where(...).get() retorna "insufficient permissions".
       allow list: if isAuth();
-
-      // Personal cria
       allow create: if isAuth() &&
         request.resource.data.personalId == request.auth.uid;
-
-      // Personal edita/deleta seus treinos
       allow update, delete: if isAuth() &&
         resource.data.personalId == request.auth.uid;
     }
 
 
-// ── FEEDBACKS ────────────────────────────────────────────────────────
-match /feedbacks/{feedbackId} {
-  // Aluno cria seu próprio feedback
-  allow create: if isAuth() &&
-    request.resource.data.studentId == request.auth.uid;
-
-  // Aluno lê/atualiza — permite mesmo se doc não existe (resource == null)
-  allow get, update: if isAuth() && (
-    resource == null ||
-    resource.data.studentId == request.auth.uid
-  );
-
-  // Personal lê e deleta feedbacks dos treinos que criou
-  allow get, delete: if isAuth() && isPersonal() && (
-    resource == null ||
-    (
-      exists(/databases/$(database)/documents/workouts/$(resource.data.workoutId)) &&
-      get(/databases/$(database)/documents/workouts/$(resource.data.workoutId)).data.personalId == request.auth.uid
-    )
-  );
-
-  // LIST para queries
-  allow list: if isAuth();
-}
+    // ── FEEDBACKS ────────────────────────────────────────────────────────
+    match /feedbacks/{feedbackId} {
+      allow create: if isAuth() &&
+        request.resource.data.studentId == request.auth.uid;
+      allow get, update: if isAuth() && (
+        resource == null ||
+        resource.data.studentId == request.auth.uid
+      );
+      allow get, delete: if isAuth() && isPersonal() && (
+        resource == null ||
+        (
+          exists(/databases/$(database)/documents/workouts/$(resource.data.workoutId)) &&
+          get(/databases/$(database)/documents/workouts/$(resource.data.workoutId)).data.personalId == request.auth.uid
+        )
+      );
+      allow list: if isAuth();
+    }
 
 
     // ── REFERRAL CODES ─────────────────────────────────────────────────
