@@ -1,6 +1,12 @@
 /**
- * Módulo de Autenticação - CORRIGIDO
- * Gerencia cadastro, login, logout e persistência de sessão
+ * Módulo de Autenticação — Refatorado
+ *
+ * FLUXO:
+ * - Personal cria conta do aluno (nome + email) → status: 'pending'
+ *   → cria também doc em pendingActivations/{emailKey} como índice público
+ * - Aluno acessa /primeiro-acesso → checkPendingStudent faz get no índice público
+ *   → sem query na coleção users (evita bloqueio das regras Firestore)
+ * - Aluno define senha → activateStudentAccount migra doc, deleta índice
  */
 
 class AuthManager {
@@ -8,87 +14,39 @@ class AuthManager {
     this.currentUser = null;
     this.currentUserType = null;
     this.listeners = [];
-    this.anonymousUser = null;
     this.isInitialized = false;
     this.authStateUnsubscribe = null;
     this.initializationPromise = null;
   }
 
-  /**
-   * Inicializar monitoramento de autenticação
-   */
+  // ── Inicialização ──────────────────────────────────────────────
+
   initialize() {
-    // Se já está inicializando, retorna a promise existente
-    if (this.initializationPromise) {
-      return this.initializationPromise;
-    }
-
-    // Se já foi inicializado, retorna promise resolvida
-    if (this.isInitialized) {
-      console.log('⚠️ AuthManager já inicializado');
-      return Promise.resolve();
-    }
-
-    console.log('🔐 Inicializando AuthManager...');
+    if (this.initializationPromise) return this.initializationPromise;
+    if (this.isInitialized) return Promise.resolve();
 
     this.initializationPromise = new Promise((resolve) => {
-      // Limpar listener anterior se existir
-      if (this.authStateUnsubscribe) {
-        this.authStateUnsubscribe();
-      }
-
-      // Flag para garantir que resolve só acontece uma vez
       let resolved = false;
 
-      // Monitorar mudanças de autenticação
       this.authStateUnsubscribe = auth.onAuthStateChanged(async (user) => {
-        console.log('🔄 Estado de autenticação mudou:', user ? user.email : 'Não autenticado');
-        
-        // Ignorar usuários anônimos
-        if (user && user.isAnonymous) {
-          console.log('⚠️ Usuário anônimo detectado, ignorando...');
-          this.currentUser = null;
-          this.currentUserType = null;
-          this.notifyListeners();
-          
-          if (!resolved) {
-            resolved = true;
-            this.isInitialized = true;
-            resolve();
-          }
-          return;
-        }
-
         if (user) {
           this.currentUser = user;
-          
-          // Buscar tipo de usuário no Firestore
           try {
-            const userDoc = await db.collection('users').doc(user.uid).get();
-            if (userDoc.exists) {
-              this.currentUserType = userDoc.data().userType;
-              console.log('✓ Tipo de usuário:', this.currentUserType);
-            } else {
-              console.warn('⚠️ Dados do usuário não encontrados no Firestore');
-              this.currentUserType = null;
-            }
-          } catch (error) {
-            console.error('❌ Erro ao buscar tipo de usuário:', error);
+            const doc = await db.collection('users').doc(user.uid).get();
+            this.currentUserType = doc.exists ? doc.data().userType : null;
+          } catch (e) {
             this.currentUserType = null;
           }
         } else {
           this.currentUser = null;
           this.currentUserType = null;
         }
-        
-        // Notificar listeners
+
         this.notifyListeners();
 
-        // Resolver a promise de inicialização apenas na primeira vez
         if (!resolved) {
           resolved = true;
           this.isInitialized = true;
-          console.log('✓ AuthManager inicializado');
           resolve();
         }
       });
@@ -97,450 +55,379 @@ class AuthManager {
     return this.initializationPromise;
   }
 
-  /**
-   * Reinicializar o AuthManager (útil após logout)
-   */
   async reinitialize() {
-    console.log('🔄 Reinicializando AuthManager...');
-    
-    // Marcar como não inicializado
     this.isInitialized = false;
     this.initializationPromise = null;
-    
-    // Aguardar um pouco para garantir que o Firebase processou o signOut
-    await new Promise(resolve => setTimeout(resolve, 100));
-    
-    // Inicializar novamente
+    await new Promise(r => setTimeout(r, 100));
     await this.initialize();
-    
-    console.log('✓ Reinicialização concluída');
   }
 
-  /**
-   * Notificar todos os listeners
-   */
   notifyListeners() {
-    this.listeners.forEach(callback => {
-      try {
-        callback(this.currentUser, this.currentUserType);
-      } catch (error) {
-        console.error('❌ Erro no listener:', error);
-      }
+    this.listeners.forEach(cb => {
+      try { cb(this.currentUser, this.currentUserType); } catch (e) { /* ignore */ }
     });
   }
 
-  /**
-   * Gerar código único para Personal Trainer
-   */
-  generateReferralCode() {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    let code = '';
-    for (let i = 0; i < 6; i++) {
-      code += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    return code;
-  }
-
-  /**
-   * Garantir autenticação anônima temporária para verificar código
-   */
-  async ensureAnonymousAuth() {
-    try {
-      // Se já está autenticado (anônimo ou não), retornar
-      if (auth.currentUser) {
-        console.log('✓ Usuário já autenticado:', auth.currentUser.uid);
-        return auth.currentUser;
-      }
-
-      console.log('⏳ Criando autenticação anônima temporária...');
-      const credential = await auth.signInAnonymously();
-      this.anonymousUser = credential.user;
-      console.log('✓ Autenticação anônima criada:', this.anonymousUser.uid);
-      return this.anonymousUser;
-    } catch (error) {
-      console.error('❌ Erro ao criar autenticação anônima:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Limpar autenticação anônima
-   */
-  async clearAnonymousAuth() {
-    try {
-      if (this.anonymousUser && auth.currentUser && auth.currentUser.isAnonymous) {
-        console.log('⏳ Removendo autenticação anônima...');
-        await auth.currentUser.delete();
-        this.anonymousUser = null;
-        console.log('✓ Autenticação anônima removida');
-      }
-    } catch (error) {
-      console.error('❌ Erro ao remover autenticação anônima:', error);
-      // Não lançar erro, pois não é crítico
-    }
-  }
-
-  /**
-   * Verificar se código de referência existe
-   */
-  async checkReferralCode(code) {
-    try {
-      console.log('=== VERIFICANDO CÓDIGO ===');
-      console.log('Código recebido:', code);
-      
-      // Garantir autenticação anônima antes de consultar
-
-      await this.ensureAnonymousAuth();
-      console.log('✓ Autenticação garantida');
-      
-      const normalizedCode = code.toUpperCase().trim();
-      console.log('Código normalizado:', normalizedCode);
-      
-      // Buscar o Personal pelo código
-      const snapshot = await db.collection('users')
-        .where('referralCode', '==', normalizedCode)
-        .where('userType', '==', 'personal')
-        .get();
-      
-      console.log('Query executada');
-      console.log('Snapshot vazio?', snapshot.empty);
-      console.log('Número de docs:', snapshot.docs.length);
-      
-      if (snapshot.empty) {
-        console.log('❌ Nenhum Personal encontrado com este código');
-        return { 
-          exists: false,
-          error: 'Código não encontrado'
-        };
-      }
-      
-      const personalDoc = snapshot.docs[0];
-      const personalData = personalDoc.data();
-      
-      console.log('✓ Personal encontrado!');
-      console.log('ID:', personalDoc.id);
-      console.log('Nome:', personalData.name);
-      
-      return {
-        exists: true,
-        personalId: personalDoc.id,
-        personalName: personalData.name
-      };
-    } catch (error) {
-      console.error('=== ERRO AO VERIFICAR CÓDIGO ===');
-      console.error('Erro completo:', error);
-      
-      return { 
-        exists: false, 
-        error: error.message || 'Erro desconhecido'
-      };
-    }
-  }
-
-  /**
-   * Registra um listener para mudanças de autenticação
-   */
   onAuthStateChanged(callback) {
     this.listeners.push(callback);
-    
-    // Se já está inicializado, notificar imediatamente
-    if (this.isInitialized) {
-      callback(this.currentUser, this.currentUserType);
+    if (this.isInitialized) callback(this.currentUser, this.currentUserType);
+  }
+
+  cleanup() {
+    if (this.authStateUnsubscribe) this.authStateUnsubscribe();
+    this.listeners = [];
+  }
+
+  // ── Cadastro de Personal Trainer ───────────────────────────────
+
+  async signupPersonal(email, password, name) {
+    try {
+      if (!email || !password || !name) throw new Error('Todos os campos são obrigatórios');
+      if (password.length < 6) throw new Error('A senha deve ter pelo menos 6 caracteres');
+
+      const credential = await auth.createUserWithEmailAndPassword(email, password);
+      const user = credential.user;
+
+      await db.collection('users').doc(user.uid).set({
+        uid: user.uid,
+        name,
+        email,
+        userType: 'personal',
+        status: 'active',
+        students: [],
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+
+      this.currentUser = user;
+      this.currentUserType = 'personal';
+
+      return { success: true, user, userType: 'personal' };
+    } catch (error) {
+      return { success: false, error: this._translateError(error) };
+    }
+  }
+
+  // ── Gerenciamento de Alunos pelo Personal ──────────────────────
+
+  /**
+   * Personal cria pré-conta de aluno (sem senha).
+   * Cria doc em users/ com status 'pending' e índice em pendingActivations/.
+   */
+  async createStudentAccount(name, email) {
+    try {
+      const personalUser = this.currentUser;
+      if (!personalUser) throw new Error('Não autenticado');
+      if (this.currentUserType !== 'personal') throw new Error('Apenas personals podem criar alunos');
+      if (!name || !email) throw new Error('Nome e e-mail são obrigatórios');
+
+      const normalizedEmail = email.toLowerCase().trim();
+
+      const existing = await db.collection('users')
+        .where('email', '==', normalizedEmail)
+        .get();
+      if (!existing.empty) throw new Error('Este e-mail já está cadastrado');
+
+      const studentRef = db.collection('users').doc();
+
+      await studentRef.set({
+        uid:              studentRef.id,
+        name:             name.trim(),
+        email:            normalizedEmail,
+        userType:         'student',
+        status:           'pending',
+        personalId:       personalUser.uid,
+        authUid:          null,
+        assignedWorkouts: [],
+        createdAt:        firebase.firestore.FieldValue.serverTimestamp(),
+        createdBy:        personalUser.uid
+      });
+
+      await db.collection('users').doc(personalUser.uid).update({
+        students: firebase.firestore.FieldValue.arrayUnion(studentRef.id)
+      });
+
+      // Índice público para o fluxo de primeiro acesso.
+      // ID = email sanitizado. Permite get sem auth pela página de primeiro acesso.
+      const emailKey = normalizedEmail.replace(/[^a-z0-9]/g, '_');
+      await db.collection('pendingActivations').doc(emailKey).set({
+        studentDocId: studentRef.id,
+        status:       'pending',
+        createdAt:    firebase.firestore.FieldValue.serverTimestamp()
+      });
+
+      return { success: true, studentDocId: studentRef.id };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  }
+
+  async deactivateStudent(studentDocId) {
+    try {
+      await db.collection('users').doc(studentDocId).update({ status: 'inactive' });
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  }
+
+  async reactivateStudent(studentDocId) {
+    try {
+      await db.collection('users').doc(studentDocId).update({ status: 'active' });
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  }
+
+  async deleteStudent(studentDocId) {
+    try {
+      const personalUser = this.currentUser;
+      if (!personalUser) throw new Error('Não autenticado');
+
+      // Buscar email do aluno para limpar o índice
+      try {
+        const studentDoc = await db.collection('users').doc(studentDocId).get();
+        if (studentDoc.exists) {
+          const emailKey = studentDoc.data().email.replace(/[^a-z0-9]/g, '_');
+          await db.collection('pendingActivations').doc(emailKey).delete();
+        }
+      } catch (e) { /* índice pode não existir, ignorar */ }
+
+      await db.collection('users').doc(personalUser.uid).update({
+        students: firebase.firestore.FieldValue.arrayRemove(studentDocId)
+      });
+
+      await db.collection('users').doc(studentDocId).delete();
+
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  }
+
+  // ── Primeiro Acesso do Aluno ───────────────────────────────────
+
+  /**
+   * Verifica se um e-mail tem conta pendente de ativação.
+   *
+   * USA GET DIRETO no índice pendingActivations/{emailKey} — não faz query.
+   * Queries na coleção users são bloqueadas pelas regras para usuários não autenticados.
+   *
+   * Retorna:
+   *   { exists: true,  studentDocId, name, personalId } → pendente, pode ativar
+   *   { exists: false, alreadyActive: true }            → já ativada, fazer login
+   *   { exists: false, noIndex: true }                  → aluno sem índice (criado antes desta versão)
+   *   { exists: false }                                 → e-mail não encontrado
+   */
+  async checkPendingStudent(email) {
+    try {
+      const normalizedEmail = email.toLowerCase().trim();
+      const emailKey = normalizedEmail.replace(/[^a-z0-9]/g, '_');
+
+      // Get direto no índice público — permitido pelas regras sem autenticação
+      const indexDoc = await db.collection('pendingActivations').doc(emailKey).get();
+
+      if (!indexDoc.exists) {
+        // Índice não existe. Pode ser:
+        // (a) e-mail nunca cadastrado
+        // (b) aluno já ativou e o índice foi deletado → alreadyActive
+        // (c) aluno criado antes desta versão → noIndex
+        // Não conseguimos distinguir (a) de (c) sem auth. Retornamos noIndex
+        // para que a página informe o personal.
+        return { exists: false, noIndex: true };
+      }
+
+      const indexData = indexDoc.data();
+
+      if (indexData.status !== 'pending') {
+        return { exists: false, alreadyActive: true };
+      }
+
+      // Get direto no doc do aluno pelo ID do índice
+      // Permitido pelas regras: get público de doc com status=pending
+      const studentDoc = await db.collection('users').doc(indexData.studentDocId).get();
+
+      if (!studentDoc.exists || studentDoc.data().status !== 'pending') {
+        return { exists: false, alreadyActive: true };
+      }
+
+      const studentData = studentDoc.data();
+
+      return {
+        exists:       true,
+        studentDocId: indexData.studentDocId,
+        name:         studentData.name,
+        personalId:   studentData.personalId
+      };
+    } catch (error) {
+      return { exists: false, error: error.message };
     }
   }
 
   /**
-   * Cadastro de novo usuário
+   * Aluno define senha e ativa a conta.
+   *
+   * Idempotente — pode ser chamado N vezes com segurança:
+   * 1. Lê doc provisório (get, sem update)
+   * 2. Cria Auth ou faz login se já existe
+   * 3. Verifica se migração já concluída
+   * 4. Cria doc definitivo users/{uid}
+   * 5. Deleta doc provisório
+   * 6. Atualiza lista do personal
+   * 7. Deleta índice pendingActivations
    */
-  async signup(email, password, name, userType, referralCode = null) {
+  async activateStudentAccount(email, password, studentDocId) {
     try {
-      console.log('=== INICIANDO CADASTRO ===');
-      console.log('Email:', email);
-      console.log('Nome:', name);
-      console.log('Tipo:', userType);
-      console.log('Código:', referralCode);
+      if (password.length < 6) throw new Error('A senha deve ter pelo menos 6 caracteres');
 
-      // Validar entrada
-      if (!email || !password || !name || !userType) {
-        throw new Error('Todos os campos são obrigatórios');
+      const normalizedEmail = email.toLowerCase().trim();
+
+      // ── 1. Ler doc provisório (apenas get, sem update) ─────────────
+      const provisoryDoc = await db.collection('users').doc(studentDocId).get();
+      if (!provisoryDoc.exists) {
+        throw new Error('Dados do aluno não encontrados. Entre em contato com seu personal trainer.');
       }
+      const studentData = provisoryDoc.data();
 
-      if (password.length < 6) {
-        throw new Error('A senha deve ter pelo menos 6 caracteres');
-      }
-
-      if (!['personal', 'student'].includes(userType)) {
-        throw new Error('Tipo de usuário inválido');
-      }
-
-      // Se é aluno, verificar código de referência
-      let personalId = null;
-      if (userType === 'student') {
-        if (!referralCode) {
-          throw new Error('Código de referência do Personal é obrigatório para alunos');
+      // ── 2. Criar Auth ou recuperar se já existe ────────────────────
+      let user;
+      try {
+        const credential = await auth.createUserWithEmailAndPassword(normalizedEmail, password);
+        user = credential.user;
+      } catch (authError) {
+        if (authError.code === 'auth/email-already-in-use') {
+          // Tentativa anterior criou o Auth mas não finalizou o Firestore.
+          const credential = await auth.signInWithEmailAndPassword(normalizedEmail, password);
+          user = credential.user;
+        } else {
+          throw authError;
         }
-        
-        console.log('⏳ Verificando código do Personal...');
-        const codeCheck = await this.checkReferralCode(referralCode);
-        console.log('Resultado da verificação:', codeCheck);
-        
-        if (!codeCheck.exists) {
-          const errorMsg = codeCheck.error || 'Código inválido';
-          throw new Error(`Código de referência inválido: ${errorMsg}`);
-        }
-        
-        personalId = codeCheck.personalId;
-        console.log('✓ Personal ID encontrado:', personalId);
-
-        // Limpar autenticação anônima antes de criar conta real
-        await this.clearAnonymousAuth();
       }
 
-      // Criar usuário no Firebase Auth
-      console.log('⏳ Criando usuário no Firebase Auth...');
-      const userCredential = await auth.createUserWithEmailAndPassword(email, password);
-      const user = userCredential.user;
-      console.log('✓ Usuário criado no Auth:', user.uid);
-
-      // Gerar código de referência para Personal
-      const newReferralCode = userType === 'personal' ? this.generateReferralCode() : null;
-
-      // Salvar dados do usuário no Firestore
-      const userData = {
-        uid: user.uid,
-        name: name,
-        email: email,
-        userType: userType,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp()
-      };
-
-      if (userType === 'personal') {
-        userData.referralCode = newReferralCode;
-        userData.students = [];
-        console.log('Código gerado para Personal:', newReferralCode);
-      } else {
-        userData.personalId = personalId;
-        userData.assignedWorkouts = [];
-        console.log('Aluno vinculado ao Personal ID:', personalId);
+      // ── 3. Verificar se migração já foi concluída ──────────────────
+      const existingDoc = await db.collection('users').doc(user.uid).get();
+      if (existingDoc.exists && existingDoc.data().status === 'active') {
+        this.currentUser     = user;
+        this.currentUserType = 'student';
+        return { success: true, user, userType: 'student' };
       }
 
-      console.log('⏳ Salvando dados no Firestore...');
-      await db.collection('users').doc(user.uid).set(userData);
-      console.log('✓ Dados salvos com sucesso!');
+      // ── 4. Criar doc definitivo users/{uid} ────────────────────────
+      await db.collection('users').doc(user.uid).set({
+        ...studentData,
+        uid:         user.uid,
+        authUid:     user.uid,
+        status:      'active',
+        activatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
 
-      // Se é aluno, adicionar à lista de alunos do Personal
-      if (userType === 'student' && personalId) {
-        console.log('⏳ Adicionando aluno à lista do Personal...');
-        
+      // ── 5. Deletar doc provisório ──────────────────────────────────
+      try {
+        await db.collection('users').doc(studentDocId).delete();
+      } catch (e) {
+        console.warn('Aviso: não foi possível deletar doc provisório:', e.message);
+      }
+
+      // ── 6. Atualizar lista do personal ─────────────────────────────
+      const personalId = studentData.personalId;
+      if (personalId) {
         try {
+          await db.collection('users').doc(personalId).update({
+            students: firebase.firestore.FieldValue.arrayRemove(studentDocId)
+          });
           await db.collection('users').doc(personalId).update({
             students: firebase.firestore.FieldValue.arrayUnion(user.uid)
           });
-          console.log('✓ Aluno adicionado à lista do Personal!');
-        } catch (updateError) {
-          console.error('❌ Erro ao atualizar lista do Personal:', updateError);
-          // Não falhar o cadastro por isso
+        } catch (e) {
+          console.warn('Aviso: não foi possível atualizar lista do personal:', e.message);
         }
       }
 
-      this.currentUser = user;
-      this.currentUserType = userType;
-
-      console.log('=== CADASTRO CONCLUÍDO COM SUCESSO ===');
-      return {
-        success: true,
-        user: user,
-        userType: userType,
-        referralCode: newReferralCode
-      };
-    } catch (error) {
-      console.error('=== ERRO NO CADASTRO ===');
-      console.error('Erro completo:', error);
-      
-      // Limpar autenticação anônima em caso de erro
-      await this.clearAnonymousAuth();
-      
-      let errorMessage = error.message;
-      
-      // Traduzir erros comuns do Firebase
-      if (error.code === 'auth/email-already-in-use') {
-        errorMessage = 'Este email já está cadastrado';
-      } else if (error.code === 'auth/invalid-email') {
-        errorMessage = 'Email inválido';
-      } else if (error.code === 'auth/weak-password') {
-        errorMessage = 'Senha muito fraca';
+      // ── 7. Deletar índice pendingActivations ───────────────────────
+      try {
+        const emailKey = normalizedEmail.replace(/[^a-z0-9]/g, '_');
+        await db.collection('pendingActivations').doc(emailKey).delete();
+      } catch (e) {
+        console.warn('Aviso: não foi possível remover índice pendingActivations:', e.message);
       }
-      
-      return {
-        success: false,
-        error: errorMessage
-      };
+
+      this.currentUser     = user;
+      this.currentUserType = 'student';
+
+      return { success: true, user, userType: 'student' };
+    } catch (error) {
+      return { success: false, error: this._translateError(error) };
     }
   }
 
-  /**
-   * Login de usuário existente
-   */
+  // ── Login / Logout ─────────────────────────────────────────────
+
   async login(email, password) {
     try {
-      console.log('=== INICIANDO LOGIN ===');
+      const credential = await auth.signInWithEmailAndPassword(email, password);
+      const user = credential.user;
 
-      // Limpar qualquer autenticação anônima antes do login
-      await this.clearAnonymousAuth();
+      const doc = await db.collection('users').doc(user.uid).get();
+      if (!doc.exists) throw new Error('Dados do usuário não encontrados');
 
-      if (!email || !password) {
-        throw new Error('Email e senha são obrigatórios');
+      const data = doc.data();
+
+      if (data.userType === 'student' && data.status === 'inactive') {
+        await auth.signOut();
+        return { success: false, error: 'Sua conta foi desativada. Entre em contato com seu personal trainer.' };
       }
 
-      // Autenticar no Firebase Auth
-      console.log('⏳ Autenticando...');
-      const userCredential = await auth.signInWithEmailAndPassword(email, password);
-      const user = userCredential.user;
-      console.log('✓ Autenticado:', user.email);
-
-      // Buscar tipo de usuário no Firestore
-      console.log('⏳ Buscando dados do usuário...');
-      const userDoc = await db.collection('users').doc(user.uid).get();
-      
-      if (!userDoc.exists) {
-        throw new Error('Dados do usuário não encontrados');
-      }
-
-      const userData = userDoc.data();
       this.currentUser = user;
-      this.currentUserType = userData.userType;
+      this.currentUserType = data.userType;
 
-      console.log('✓ Login realizado com sucesso');
-      console.log('Tipo de usuário:', this.currentUserType);
-
-      return {
-        success: true,
-        user: user,
-        userType: userData.userType
-      };
+      return { success: true, user, userType: data.userType };
     } catch (error) {
-      console.error('❌ Erro ao fazer login:', error);
-      let errorMessage = error.message;
-      
-      // Traduzir erros comuns do Firebase
-      if (error.code === 'auth/user-not-found') {
-        errorMessage = 'Usuário não encontrado';
-      } else if (error.code === 'auth/wrong-password') {
-        errorMessage = 'Senha incorreta';
-      } else if (error.code === 'auth/invalid-email') {
-        errorMessage = 'Email inválido';
-      } else if (error.code === 'auth/user-disabled') {
-        errorMessage = 'Usuário desabilitado';
-      } else if (error.code === 'auth/invalid-credential') {
-        errorMessage = 'Email ou senha incorretos';
-      } else if (error.code === 'auth/too-many-requests') {
-        errorMessage = 'Muitas tentativas. Tente novamente mais tarde';
-      }
-      
-      return {
-        success: false,
-        error: errorMessage
-      };
+      return { success: false, error: this._translateError(error) };
     }
   }
 
-  /**
-   * Logout do usuário atual
-   */
   async logout() {
+    this.currentUser = null;
+    this.currentUserType = null;
     try {
-      console.log('⏳ Fazendo logout...');
-      
-      // Limpar estado local ANTES do signOut
-      this.currentUser = null;
-      this.currentUserType = null;
-      this.anonymousUser = null;
-      
-      // Fazer logout no Firebase
       await auth.signOut();
-      
-      // Aguardar propagação do estado
-      await new Promise(resolve => setTimeout(resolve, 200));
-      
-      // Reinicializar para limpar o estado completamente
+      await new Promise(r => setTimeout(r, 200));
       await this.reinitialize();
-      
-      console.log('✓ Logout realizado');
-      return { success: true };
-    } catch (error) {
-      console.error('❌ Erro ao fazer logout:', error);
-      
-      // Mesmo com erro, limpar estado local
-      this.currentUser = null;
-      this.currentUserType = null;
-      this.anonymousUser = null;
-      
-      return {
-        success: false,
-        error: error.message
-      };
-    }
+    } catch (e) { /* ignore */ }
+    return { success: true };
   }
 
-  /**
-   * Obter usuário atual
-   */
-  getCurrentUser() {
-    return this.currentUser;
-  }
+  // ── Getters ────────────────────────────────────────────────────
 
-  /**
-   * Obter tipo de usuário atual
-   */
-  getCurrentUserType() {
-    return this.currentUserType;
-  }
+  getCurrentUser()     { return this.currentUser; }
+  getCurrentUserType() { return this.currentUserType; }
+  isAuthenticated()    { return this.currentUser !== null; }
+  isPersonal()         { return this.currentUserType === 'personal'; }
+  isStudent()          { return this.currentUserType === 'student'; }
 
-  /**
-   * Verificar se usuário está autenticado
-   */
-  isAuthenticated() {
-    return this.currentUser !== null && !this.currentUser?.isAnonymous;
-  }
+  // ── Helpers ────────────────────────────────────────────────────
 
-  /**
-   * Verificar se usuário é Personal Trainer
-   */
-  isPersonal() {
-    return this.currentUserType === 'personal';
-  }
-
-  /**
-   * Verificar se usuário é Aluno
-   */
-  isStudent() {
-    return this.currentUserType === 'student';
-  }
-
-  /**
-   * Cleanup - remover listeners
-   */
-  cleanup() {
-    if (this.authStateUnsubscribe) {
-      this.authStateUnsubscribe();
-      this.authStateUnsubscribe = null;
-    }
-    this.listeners = [];
+  _translateError(error) {
+    const map = {
+      'auth/email-already-in-use': 'Este e-mail já está cadastrado',
+      'auth/invalid-email':        'E-mail inválido',
+      'auth/weak-password':        'Senha muito fraca',
+      'auth/user-not-found':       'Usuário não encontrado',
+      'auth/wrong-password':       'Senha incorreta',
+      'auth/invalid-credential':   'E-mail ou senha incorretos',
+      'auth/too-many-requests':    'Muitas tentativas. Tente novamente mais tarde',
+      'auth/user-disabled':        'Usuário desabilitado'
+    };
+    return map[error.code] || error.message || 'Erro desconhecido';
   }
 }
 
-// Instância global do AuthManager
 const authManager = new AuthManager();
 
-// Inicializar quando o documento estiver pronto
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', async () => {
-    await authManager.initialize();
-  });
+  document.addEventListener('DOMContentLoaded', () => authManager.initialize());
 } else {
   authManager.initialize();
 }
 
-// Exportar para uso global
-window.authManager = authManager;
 window.authManager = authManager;

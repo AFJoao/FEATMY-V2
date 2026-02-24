@@ -4,139 +4,62 @@
   <link rel="stylesheet" href="css/mobile-responsive-fixes.css">
 
   <style>
-    .featmy-btn-primary {
-      background: #00E676;
-      color: #0A0A0A;
-      font-weight: 700;
-      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-    }
-    .featmy-btn-primary:hover {
-      background: #00C853;
-      transform: translateY(-1px);
-      box-shadow: 0 8px 24px rgba(0, 230, 118, 0.35);
-    }
-    .featmy-btn-ghost {
-      background: transparent;
-      color: rgba(255,255,255,0.85);
-      border: 1px solid rgba(255,255,255,0.18);
-      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-    }
-    .featmy-btn-ghost:hover {
-      background: rgba(255,255,255,0.1);
-      border-color: rgba(255,255,255,0.4);
-      color: #fff;
-    }
-    .student-card {
-      background: #fff;
-      border: 1px solid #EBEBEB;
-      border-radius: 16px;
-      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-    }
-    .student-card:hover {
-      border-color: #00E676;
-      transform: translateY(-2px);
-      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.08);
-    }
-    .code-display {
-      font-family: 'DM Mono', monospace;
-      letter-spacing: 0.18em;
-    }
-    .copy-btn {
-      background: #00E676;
-      color: #0A0A0A;
-      font-weight: 700;
-      border-radius: 10px;
-      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-    }
-    .copy-btn:hover {
-      background: #00C853;
-      transform: translateY(-1px);
-      box-shadow: 0 6px 20px rgba(0, 230, 118, 0.3);
-    }
-    .nav-link {
-      color: rgba(255,255,255,0.75);
-      font-weight: 500;
-      font-size: 0.875rem;
-      padding: 8px 16px;
-      border-radius: 8px;
-      border: 1px solid transparent;
-      transition: all 0.2s ease;
-      display: flex;
-      align-items: center;
-      gap: 7px;
-      text-decoration: none;
-      white-space: nowrap;
-    }
-    .nav-link:hover {
-      color: #fff;
-      background: rgba(255,255,255,0.09);
-      border-color: rgba(255,255,255,0.15);
-    }
-    .nav-link-accent {
-      background: #00E676;
-      color: #0A0A0A;
-      font-weight: 700;
-      padding: 8px 18px;
-      border-radius: 8px;
-      font-size: 0.875rem;
-      transition: all 0.2s ease;
-      display: flex;
-      align-items: center;
-      gap: 7px;
-      text-decoration: none;
-      white-space: nowrap;
-    }
-    .nav-link-accent:hover {
-      background: #00C853;
-      box-shadow: 0 4px 16px rgba(0,230,118,0.3);
-    }
-    .spinner {
-      width: 28px;
-      height: 28px;
-      border: 3px solid rgba(0,0,0,0.08);
-      border-top-color: #00E676;
-      border-radius: 50%;
-      animation: spin 0.8s linear infinite;
-    }
+    .nav-link { color: rgba(255,255,255,0.75); font-weight: 500; font-size: 0.875rem; padding: 8px 16px; border-radius: 8px; border: 1px solid transparent; transition: all 0.2s ease; display: flex; align-items: center; gap: 7px; text-decoration: none; white-space: nowrap; cursor: pointer; background: transparent; font-family: inherit; }
+    .nav-link:hover { color: #fff; background: rgba(255,255,255,0.09); border-color: rgba(255,255,255,0.15); }
+    .nav-link-accent { background: #00E676; color: #0A0A0A; font-weight: 700; padding: 8px 18px; border-radius: 8px; font-size: 0.875rem; transition: all 0.2s ease; display: inline-flex; align-items: center; gap: 7px; text-decoration: none; white-space: nowrap; border: none; cursor: pointer; font-family: inherit; }
+    .nav-link-accent:hover { background: #00C853; box-shadow: 0 4px 16px rgba(0,230,118,0.3); }
+
+    .student-card { background: #fff; border: 1px solid #EBEBEB; border-radius: 16px; overflow: hidden; display: flex; flex-direction: column; transition: all 0.2s cubic-bezier(0.4,0,0.2,1); }
+    .student-card.clickable .card-body { cursor: pointer; }
+    .student-card.clickable:hover { border-color: #00E676; transform: translateY(-2px); box-shadow: 0 10px 28px rgba(0,0,0,0.07); }
+    .card-body { padding: 18px 20px 14px; }
+    .card-footer { padding: 10px 20px 14px; border-top: 1px solid #F4F4F4; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+
+    .spinner { width: 28px; height: 28px; border: 3px solid rgba(0,0,0,0.08); border-top-color: #00E676; border-radius: 50%; animation: spin 0.8s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
+
+    .badge { font-size: 0.7rem; font-weight: 700; padding: 3px 9px; border-radius: 20px; flex-shrink: 0; }
+    .badge-active   { background: #ECFDF5; color: #047857; border: 1px solid #A7F3D0; }
+    .badge-pending  { background: #FFFBEB; color: #92400E; border: 1px solid #FDE68A; }
+    .badge-inactive { background: #FFF1F2; color: #BE123C; border: 1px solid #FECDD3; }
+
+    .card-action { padding: 6px 12px; border-radius: 7px; font-size: 0.75rem; font-weight: 600; border: none; cursor: pointer; font-family: inherit; transition: opacity 0.15s; }
+    .card-action:hover { opacity: 0.72; }
+
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 200; display: flex; align-items: center; justify-content: center; padding: 20px; opacity: 0; pointer-events: none; transition: opacity 0.2s ease; }
+    .modal-overlay.open { opacity: 1; pointer-events: all; }
+    .modal-box { background: #fff; border-radius: 20px; padding: 32px; width: 100%; max-width: 420px; transform: translateY(12px); transition: transform 0.2s ease; }
+    .modal-overlay.open .modal-box { transform: translateY(0); }
+    .modal-input { width: 100%; padding: 12px 14px; border: 2px solid #EBEBEB; border-radius: 10px; font-size: 0.9rem; font-family: inherit; outline: none; transition: border-color 0.2s; box-sizing: border-box; background: #FAFAFA; }
+    .modal-input:focus { border-color: #0A0A0A; background: #fff; }
+    .modal-input::placeholder { color: #9CA3AF; }
+    .modal-btn { width: 100%; padding: 13px; background: #00E676; color: #0A0A0A; border: none; border-radius: 10px; font-size: 0.9rem; font-weight: 800; cursor: pointer; font-family: inherit; transition: background 0.2s; }
+    .modal-btn:hover { background: #00C853; }
+    .modal-btn:disabled { opacity: 0.5; cursor: not-allowed; }
   </style>
 
   <!-- HEADER -->
   <header style="background: #0A0A0A; position: sticky; top: 0; z-index: 50; border-bottom: 1px solid rgba(255,255,255,0.06);">
     <div style="max-width: 1400px; margin: 0 auto; padding: 0 32px; height: 64px; display: flex; justify-content: space-between; align-items: center;">
-      
-      <!-- Logo -->
       <div style="display: flex; align-items: center; gap: 12px;">
         <img src="assets/branca_larga.png" style="height: 28px; object-fit: contain;" onerror="this.style.display='none'">
         <span style="background: rgba(0,230,118,0.15); color: #00E676; font-size: 0.65rem; font-weight: 700; padding: 2px 8px; border-radius: 20px; letter-spacing: 0.04em; text-transform: uppercase; border: 1px solid rgba(0,230,118,0.25);">Personal</span>
       </div>
-
-      <!-- Navigation -->
       <nav style="display: flex; align-items: center; gap: 6px;">
         <a href="#/personal/exercises" class="nav-link">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-            <path d="M6 4v16M18 4v16M6 12h12M3 4h4M17 4h4M3 20h4M17 20h4"/>
-          </svg>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 4v16M18 4v16M6 12h12M3 4h4M17 4h4M3 20h4M17 20h4"/></svg>
           Exercícios
         </a>
         <a href="#/personal/create-workout" class="nav-link-accent">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-          </svg>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           Criar Treino
         </a>
         <a href="#/personal/feedbacks" class="nav-link">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-          </svg>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
           Feedbacks
         </a>
-        <button id="logoutBtn" class="nav-link" style="cursor: pointer; background: transparent; border: 1px solid rgba(255,255,255,0.14);">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
-            <polyline points="16 17 21 12 16 7"/>
-            <line x1="21" y1="12" x2="9" y2="12"/>
-          </svg>
+        <button id="logoutBtn" class="nav-link" style="border: 1px solid rgba(255,255,255,0.14);">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
           Sair
         </button>
       </nav>
@@ -144,189 +67,226 @@
   </header>
 
   <!-- MAIN -->
-  <main style="max-width: 1400px; margin: 0 auto; padding: 40px 32px 60px;">
+  <main style="max-width: 1200px; margin: 0 auto; padding: 40px 32px 60px;">
 
-    <!-- Welcome Row -->
-    <div style="margin-bottom: 40px; display: flex; justify-content: space-between; align-items: flex-end;">
-      <div>
-        <p style="color: #9CA3AF; font-size: 0.875rem; font-weight: 500; margin: 0 0 6px 0; letter-spacing: 0.02em;">BEM-VINDO DE VOLTA</p>
-        <h1 style="font-size: 2rem; font-weight: 800; color: #0A0A0A; margin: 0; letter-spacing: -0.03em;">Olá, <span id="personalName" style="color: #0A0A0A;">...</span> 👋</h1>
-        <p style="color: #6B7280; font-size: 0.925rem; margin: 8px 0 0; font-weight: 400;">Gerencie seus alunos e acompanhe a evolução</p>
-      </div>
+    <div style="margin-bottom: 36px;">
+      <p style="color: #9CA3AF; font-size: 0.8rem; font-weight: 600; margin: 0 0 6px; letter-spacing: 0.05em; text-transform: uppercase;">Bem-vindo de volta</p>
+      <h1 style="font-size: 2rem; font-weight: 800; color: #0A0A0A; margin: 0; letter-spacing: -0.03em;">Olá, <span id="personalName">...</span> 👋</h1>
     </div>
 
-    <!-- 2-col grid -->
-    <div style="display: grid; grid-template-columns: 380px 1fr; gap: 24px; align-items: start;">
-
-      <!-- LEFT: Referral Code Card -->
-      <div style="background: #0A0A0A; border-radius: 20px; padding: 28px; position: sticky; top: 88px;">
-        
-        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 22px;">
-          <div style="width: 36px; height: 36px; background: rgba(0,230,118,0.15); border-radius: 10px; display: flex; align-items: center; justify-content: center; border: 1px solid rgba(0,230,118,0.25);">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#00E676" stroke-width="2">
-              <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
-              <line x1="7" y1="7" x2="7.01" y2="7"/>
-            </svg>
-          </div>
-          <div>
-            <p style="color: rgba(255,255,255,0.4); font-size: 0.7rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; margin: 0;">SEU CÓDIGO</p>
-            <p style="color: #fff; font-size: 0.9rem; font-weight: 600; margin: 2px 0 0;">Código de Referência</p>
-          </div>
-        </div>
-
-        <p style="color: rgba(255,255,255,0.45); font-size: 0.8rem; margin: 0 0 14px; line-height: 1.6;">Compartilhe com seus alunos para que possam se cadastrar</p>
-
-        <!-- Code Box -->
-        <div style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 20px 24px; text-align: center; margin-bottom: 14px;">
-          <p id="referralCode" class="code-display" style="font-size: 2.2rem; font-weight: 700; color: #fff; margin: 0;">------</p>
-        </div>
-
-        <button id="copyCodeBtn" class="copy-btn" style="width: 100%; padding: 13px; font-size: 0.875rem; display: flex; align-items: center; justify-content: center; gap: 8px; border: none; cursor: pointer;">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
-            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-          </svg>
-          Copiar Código
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <h2 style="font-size: 1.2rem; font-weight: 700; color: #0A0A0A; margin: 0;">Meus Alunos</h2>
+        <span id="studentsCount" style="background: #F4F4F4; color: #6B7280; font-size: 0.75rem; font-weight: 700; padding: 3px 10px; border-radius: 20px;">0</span>
+      </div>
+      <div style="display: flex; gap: 8px;">
+        <button id="reloadBtn" style="background: #F4F4F4; border: none; color: #6B7280; padding: 9px 16px; border-radius: 8px; font-size: 0.8rem; font-weight: 600; cursor: pointer; font-family: inherit;" onmouseover="this.style.background='#EBEBEB'" onmouseout="this.style.background='#F4F4F4'">↻ Atualizar</button>
+        <button id="addStudentBtn" class="nav-link-accent">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Adicionar Aluno
         </button>
-
-        <!-- Divider -->
-        <div style="border-top: 1px solid rgba(255,255,255,0.08); margin: 20px 0 16px;"></div>
-
-        <!-- Quick Stats -->
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-          <div style="background: rgba(255,255,255,0.05); border-radius: 10px; padding: 14px;">
-            <p style="color: rgba(255,255,255,0.4); font-size: 0.7rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; margin: 0 0 4px;">ALUNOS</p>
-            <p id="studentsCount" style="color: #fff; font-size: 1.6rem; font-weight: 800; margin: 0; letter-spacing: -0.03em;">0</p>
-          </div>
-          <div style="background: rgba(0,230,118,0.1); border: 1px solid rgba(0,230,118,0.2); border-radius: 10px; padding: 14px;">
-            <p style="color: rgba(0,230,118,0.6); font-size: 0.7rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; margin: 0 0 4px;">STATUS</p>
-            <p style="color: #00E676; font-size: 0.85rem; font-weight: 700; margin: 0;">Ativo ●</p>
-          </div>
-        </div>
       </div>
-
-      <!-- RIGHT: Students List -->
-      <div>
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-          <h2 style="font-size: 1.25rem; font-weight: 700; color: #0A0A0A; margin: 0; letter-spacing: -0.02em;">
-            Meus Alunos
-          </h2>
-          <button id="reloadStudentsBtn" style="background: #F4F4F4; border: none; color: #6B7280; padding: 8px 16px; border-radius: 8px; font-size: 0.8rem; font-weight: 600; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='#EBEBEB'" onmouseout="this.style.background='#F4F4F4'">
-            ↻ Atualizar
-          </button>
-        </div>
-
-        <div id="studentsList" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px;">
-          <div style="grid-column: 1 / -1; text-align: center; padding: 60px 20px;">
-            <div class="spinner" style="margin: 0 auto 16px;"></div>
-            <p style="color: #9CA3AF; font-size: 0.875rem; margin: 0;">Carregando alunos...</p>
-          </div>
-        </div>
-      </div>
-
     </div>
+
+    <div id="studentsList" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px;"></div>
+
   </main>
+
+  <!-- MODAL -->
+  <div id="modalOverlay" class="modal-overlay">
+    <div class="modal-box">
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px;">
+        <div>
+          <h3 style="font-size: 1.1rem; font-weight: 800; color: #0A0A0A; margin: 0 0 4px;">Adicionar Aluno</h3>
+          <p style="font-size: 0.8rem; color: #9CA3AF; margin: 0;">O aluno definirá a senha no primeiro acesso</p>
+        </div>
+        <button id="closeModal" style="background: #F4F4F4; border: none; width: 32px; height: 32px; border-radius: 8px; cursor: pointer; font-size: 20px; line-height: 1; color: #6B7280; flex-shrink: 0;">×</button>
+      </div>
+
+      <div id="modalError" style="display: none; background: #FFF1F2; border: 1px solid #FECDD3; border-radius: 8px; padding: 10px 13px; margin-bottom: 14px; font-size: 0.82rem; color: #BE123C; font-weight: 500;"></div>
+
+      <div style="display: flex; flex-direction: column; gap: 14px;">
+        <div>
+          <label style="display: block; font-size: 0.77rem; font-weight: 700; color: #374151; margin-bottom: 6px;">Nome do aluno</label>
+          <input type="text" id="newStudentName" class="modal-input" placeholder="Nome completo">
+        </div>
+        <div>
+          <label style="display: block; font-size: 0.77rem; font-weight: 700; color: #374151; margin-bottom: 6px;">E-mail do aluno</label>
+          <input type="email" id="newStudentEmail" class="modal-input" placeholder="aluno@email.com">
+        </div>
+        <button id="createStudentBtn" class="modal-btn" style="margin-top: 4px;">Criar conta do aluno</button>
+      </div>
+    </div>
+  </div>
+
 </div>
 
 <script>
 (async function() {
 
-  let currentReferralCode = "";
-  let isLoading = false;
-
-  await new Promise(res => document.readyState === "loading"
-    ? document.addEventListener("DOMContentLoaded", res)
-    : res()
-  );
-
   await new Promise(r => setTimeout(r, 120));
 
-  console.log('✓ Dashboard Personal carregado - Botão Feedbacks deve estar visível no header');
+  // ── Logout ────────────────────────────────────────────────────────
+  document.getElementById('logoutBtn').onclick = async () => {
+    await authManager.logout();
+    router.goToLogin();
+  };
 
-  const logoutBtn = document.getElementById("logoutBtn");
-  if (logoutBtn) {
-    logoutBtn.onclick = async () => {
-      await authManager.logout();
-      router.goToLogin();
-    };
-  }
+  // ── Nome do personal ──────────────────────────────────────────────
+  dbManager.getCurrentUserData().then(d => {
+    document.getElementById('personalName').textContent = d?.name || 'Personal';
+  });
 
-  const copyCodeBtn = document.getElementById("copyCodeBtn");
-  if (copyCodeBtn) {
-    copyCodeBtn.onclick = () => {
-      navigator.clipboard.writeText(currentReferralCode).then(() => {
-        const orig = copyCodeBtn.innerHTML;
-        copyCodeBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg> Copiado!`;
-        setTimeout(() => copyCodeBtn.innerHTML = orig, 2000);
-      });
-    };
-  }
+  // ── Modal ─────────────────────────────────────────────────────────
+  const overlay  = document.getElementById('modalOverlay');
+  const modalErr = document.getElementById('modalError');
 
-  document.getElementById("reloadStudentsBtn").onclick = () => loadStudents();
+  const openModal = () => {
+    document.getElementById('newStudentName').value  = '';
+    document.getElementById('newStudentEmail').value = '';
+    modalErr.style.display = 'none';
+    overlay.classList.add('open');
+    setTimeout(() => document.getElementById('newStudentName').focus(), 150);
+  };
+  const closeModal = () => overlay.classList.remove('open');
 
-  async function loadPersonalData() {
-    const data = await dbManager.getCurrentUserData();
-    document.getElementById("personalName").textContent = data?.name || "Personal";
-    currentReferralCode = data?.referralCode || "ERRO";
-    document.getElementById("referralCode").textContent = currentReferralCode;
-  }
+  document.getElementById('addStudentBtn').onclick = openModal;
+  document.getElementById('closeModal').onclick    = closeModal;
+  overlay.addEventListener('click', e => { if (e.target === overlay) closeModal(); });
 
+  // ── Criar aluno ───────────────────────────────────────────────────
+  document.getElementById('createStudentBtn').onclick = async () => {
+    const name  = document.getElementById('newStudentName').value.trim();
+    const email = document.getElementById('newStudentEmail').value.trim();
+    const btn   = document.getElementById('createStudentBtn');
+
+    modalErr.style.display = 'none';
+    if (!name || !email) {
+      modalErr.textContent   = 'Preencha nome e e-mail.';
+      modalErr.style.display = 'block';
+      return;
+    }
+
+    btn.textContent = 'Criando...';
+    btn.disabled    = true;
+
+    const result = await authManager.createStudentAccount(name, email);
+
+    if (result.success) {
+      closeModal();
+      await loadStudents();
+    } else {
+      modalErr.textContent   = result.error || 'Erro ao criar aluno.';
+      modalErr.style.display = 'block';
+      btn.textContent        = 'Criar conta do aluno';
+      btn.disabled           = false;
+    }
+  };
+
+  document.getElementById('reloadBtn').onclick = loadStudents;
+
+  // ── Carregar e renderizar alunos ──────────────────────────────────
   async function loadStudents() {
-    if (isLoading) return;
-    isLoading = true;
-
-    const list = document.getElementById("studentsList");
-    const count = document.getElementById("studentsCount");
-
+    const list = document.getElementById('studentsList');
     list.innerHTML = `
-      <div style="grid-column:1/-1; text-align:center; padding:60px 20px;">
-        <div class="spinner" style="margin:0 auto 16px;"></div>
-        <p style="color:#9CA3AF; font-size:0.875rem; margin:0;">Carregando alunos...</p>
-      </div>
-    `;
+      <div style="grid-column:1/-1;text-align:center;padding:60px 20px;">
+        <div class="spinner" style="margin:0 auto 14px;"></div>
+        <p style="color:#9CA3AF;font-size:0.875rem;margin:0;">Carregando...</p>
+      </div>`;
 
     const students = await dbManager.getMyStudents();
-    count.textContent = students.length;
+    document.getElementById('studentsCount').textContent = students.length;
 
     if (students.length === 0) {
       list.innerHTML = `
-        <div style="grid-column:1/-1; padding:48px 32px; background:#FAFAFA; border-radius:16px; border:2px dashed #E5E7EB; text-align:center;">
-          <div style="width:52px;height:52px;background:#F4F4F4;border-radius:14px;margin:0 auto 16px;display:flex;align-items:center;justify-content:center;">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        <div style="grid-column:1/-1;padding:48px 32px;background:#FAFAFA;border-radius:16px;border:2px dashed #E5E7EB;text-align:center;">
+          <div style="width:48px;height:48px;background:#F4F4F4;border-radius:12px;margin:0 auto 14px;display:flex;align-items:center;justify-content:center;">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
           </div>
-          <p style="font-size:1rem;font-weight:600;color:#374151;margin:0 0 6px;">Nenhum aluno vinculado</p>
-          <p style="font-size:0.85rem;color:#9CA3AF;margin:0;">Compartilhe seu código de referência para que alunos possam se cadastrar</p>
-        </div>
-      `;
-      return isLoading = false;
+          <p style="font-size:1rem;font-weight:600;color:#374151;margin:0 0 6px;">Nenhum aluno ainda</p>
+          <p style="font-size:0.85rem;color:#9CA3AF;margin:0;">Adicione seu primeiro aluno pelo botão acima</p>
+        </div>`;
+      return;
     }
 
-    list.innerHTML = "";
+    list.innerHTML = '';
     students.forEach(st => {
+      const status   = st.status || 'active';
+      const isActive = status === 'active';
       const initials = (st.name || 'A').split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
-      const card = document.createElement("div");
-      card.className = "student-card";
-      card.style.cssText = "padding:20px;cursor:pointer;";
+      const badgeClass = { active: 'badge-active', pending: 'badge-pending', inactive: 'badge-inactive' }[status] || 'badge-inactive';
+      const badgeLabel = { active: 'Ativo', pending: 'Pendente', inactive: 'Inativo' }[status] || status;
+      const safeName   = (st.name || '').replace(/"/g, '&quot;');
+
+      const card = document.createElement('div');
+      card.className = `student-card${isActive ? ' clickable' : ''}`;
       card.innerHTML = `
-        <div style="display:flex;align-items:center;gap:14px;">
-          <div style="width:44px;height:44px;background:#0A0A0A;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-            <span style="color:#00E676;font-size:0.9rem;font-weight:700;">${initials}</span>
+        <div class="card-body">
+          <div style="display:flex;align-items:center;gap:14px;">
+            <div style="width:42px;height:42px;background:#0A0A0A;border-radius:11px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+              <span style="color:#00E676;font-size:0.85rem;font-weight:700;">${initials}</span>
+            </div>
+            <div style="flex:1;min-width:0;">
+              <p style="font-weight:700;font-size:0.95rem;color:#0A0A0A;margin:0 0 2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${st.name}</p>
+              <p style="font-size:0.78rem;color:#9CA3AF;margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${st.email}</p>
+            </div>
+            <span class="badge ${badgeClass}">${badgeLabel}</span>
           </div>
-          <div style="flex:1;min-width:0;">
-            <p style="font-weight:700;font-size:0.95rem;color:#0A0A0A;margin:0 0 3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${st.name}</p>
-            <p style="font-size:0.78rem;color:#9CA3AF;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${st.email}</p>
-          </div>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" stroke-width="2" style="flex-shrink:0;"><polyline points="9 18 15 12 9 6"/></svg>
+          ${status === 'pending' ? `<p style="font-size:0.74rem;color:#9CA3AF;margin:10px 0 0;display:flex;align-items:center;gap:5px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>Aguardando primeiro acesso</p>` : ''}
+        </div>
+        <div class="card-footer">
+          ${isActive
+            ? `<button class="card-action" data-action="deactivate" data-id="${st.uid}" data-name="${safeName}" style="background:#FFFBEB;color:#92400E;">Desativar</button>`
+            : ''}
+          ${status === 'inactive'
+            ? `<button class="card-action" data-action="reactivate" data-id="${st.uid}" style="background:#ECFDF5;color:#047857;">Reativar</button>`
+            : ''}
+          <button class="card-action" data-action="delete" data-id="${st.uid}" data-name="${safeName}" style="background:#FFF1F2;color:#DC2626;margin-left:auto;">Excluir</button>
         </div>
       `;
-      card.onclick = () => router.goTo(`/personal/student/${st.uid}`);
+
+      // Card body inteiro clicável para alunos ativos
+      if (isActive) {
+        card.querySelector('.card-body').onclick = () => router.goTo(`/personal/student/${st.uid}`);
+      }
+
       list.appendChild(card);
     });
 
-    isLoading = false;
+    // Bind dos botões do footer (stopPropagation garante que não dispara o click do card-body)
+    document.querySelectorAll('[data-action]').forEach(btn => {
+      btn.onclick = async (e) => {
+        e.stopPropagation();
+        const { action, id, name } = btn.dataset;
+
+        if (action === 'deactivate') {
+          if (!confirm(`Desativar ${name}? O aluno não conseguirá mais fazer login.`)) return;
+        } else if (action === 'delete') {
+          if (!confirm(`Excluir permanentemente ${name}? Esta ação não pode ser desfeita.`)) return;
+        }
+
+        const original  = btn.textContent;
+        btn.textContent = '...';
+        btn.disabled    = true;
+
+        const fn = {
+          deactivate: () => authManager.deactivateStudent(id),
+          reactivate: () => authManager.reactivateStudent(id),
+          delete:     () => authManager.deleteStudent(id),
+        }[action];
+
+        const result = await fn();
+        if (result.success) {
+          await loadStudents();
+        } else {
+          alert('Erro: ' + result.error);
+          btn.textContent = original;
+          btn.disabled    = false;
+        }
+      };
+    });
   }
 
-  await loadPersonalData();
   await loadStudents();
 
 })();

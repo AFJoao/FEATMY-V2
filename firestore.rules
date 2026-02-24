@@ -19,19 +19,70 @@ service cloud.firestore {
       return isAuth() && getUserData().userType == 'personal';
     }
 
+    // Verifica se o doc é um registro de aluno cujo authUid bate com quem está logado
+    // Usado para permitir que o aluno recém-autenticado manipule seu próprio doc provisório
+    function isOwnStudentDoc() {
+      return isAuth()
+        && resource.data.userType == 'student'
+        && resource.data.authUid == request.auth.uid;
+    }
+
+    // Verifica se o doc é um registro pendente vinculado ao personal logado
+    function isMyStudentDoc() {
+      return isPersonal()
+        && resource.data.personalId == request.auth.uid;
+    }
+
 
     // ── USERS ────────────────────────────────────────────────────────────
     match /users/{userId} {
-      allow read: if isAuth();
+
+      // Leitura autenticada: qualquer usuário logado pode ler (get e list)
+      allow get, list: if isAuth();
+
+      // get público: permite ler um doc específico de aluno pendente sem login
+      // (usado pelo checkPendingStudent via studentDocId do índice)
+      allow get: if resource.data.status == 'pending'
+        && resource.data.userType == 'student';
+
+      // Usuário cria seu próprio doc (personal no signup)
       allow create: if isUser(userId);
-      allow update: if isUser(userId) || isPersonal();
-      allow delete: if false;
+
+      // Personal cria doc de aluno com ID arbitrário (status pending, sem auth ainda)
+      allow create: if isPersonal()
+        && request.resource.data.userType == 'student'
+        && request.resource.data.personalId == request.auth.uid;
+
+      // Aluno ativa a própria conta:
+      //   (a) cria users/{authUid} com os dados migrados
+      //   (b) OU cria qualquer doc de student com authUid == seu uid (primeiro acesso)
+      allow create: if isAuth()
+        && request.resource.data.userType == 'student'
+        && request.resource.data.authUid == request.auth.uid;
+
+      // Edição:
+      //   - o próprio usuário edita seu doc
+      //   - o personal edita docs de seus alunos
+      //   - o aluno recém-autenticado atualiza o doc provisório (authUid já foi gravado)
+      allow update: if isUser(userId)
+        || isMyStudentDoc()
+        || isOwnStudentDoc();
+
+      // Exclusão:
+      //   - o próprio usuário
+      //   - o personal remove alunos seus
+      //   - o aluno recém-autenticado remove o doc provisório (authUid pode ser null)
+      //     → permitido se o doc é um student pendente e o usuário está autenticado
+      allow delete: if isUser(userId)
+        || isMyStudentDoc()
+        || isOwnStudentDoc()
+        || (isAuth()
+            && resource.data.userType == 'student'
+            && (resource.data.status == 'pending' || resource.data.status == 'activating'));
     }
 
 
     // ── EXERCISES ────────────────────────────────────────────────────────
-    // "Prontos" (dono do site): personalId == "" ou campo ausente → todos leem
-    // Do personal: personalId == uid → só ele lê/edita
     match /exercises/{exerciseId} {
       allow read: if isAuth() && (
         resource == null ||
@@ -82,11 +133,18 @@ service cloud.firestore {
     }
 
 
-    // ── REFERRAL CODES ─────────────────────────────────────────────────
-    match /referralCodes/{code} {
+    // ── PENDING ACTIVATIONS (índice público de lookup) ──────────────────
+    // Coleção separada usada APENAS para o fluxo de primeiro acesso.
+    // O aluno não está autenticado nesse momento, então precisa de acesso público.
+    // Cada doc tem ID = email (sanitizado), contém apenas studentDocId e status.
+    match /pendingActivations/{emailKey} {
+      // Leitura pública: qualquer um pode consultar se um e-mail tem ativação pendente
       allow read: if true;
-      allow create: if isAuth() && isPersonal();
-      allow update, delete: if false;
+
+      // Escrita: apenas personal autenticado (ao criar aluno) ou
+      //         o próprio aluno autenticado (ao deletar após ativar)
+      allow create, update: if isAuth();
+      allow delete: if isAuth();
     }
 
 

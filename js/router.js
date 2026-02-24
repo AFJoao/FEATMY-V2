@@ -9,6 +9,7 @@ class Router {
       '/': 'pages/login.html',
       '/login': 'pages/login.html',
       '/signup': 'pages/signup.html',
+      '/primeiro-acesso': 'pages/primeiro-acesso.html',
       '/personal/dashboard': 'pages/personal/dashboard.html',
       '/personal/exercises': 'pages/personal/exercises.html',
       '/personal/create-workout': 'pages/personal/create-workout.html',
@@ -30,7 +31,10 @@ class Router {
       '/student/view-workout': 'student'
     };
 
-    this.publicRoutes = ['/login', '/signup', '/'];
+    // Rotas públicas — acessíveis sem login
+    // /primeiro-acesso incluído: aluno não tem auth ainda nesse momento
+    this.publicRoutes = ['/login', '/signup', '/', '/primeiro-acesso'];
+
     this.isReady = false;
     this.authReady = false;
     this.currentPath = null;
@@ -54,7 +58,6 @@ class Router {
     console.log('⏳ Aguardando inicialização do AuthManager...');
     
     return new Promise((resolve) => {
-      // Se o AuthManager já está inicializado
       if (authManager.isInitialized) {
         console.log('✓ AuthManager já inicializado');
         this.authReady = true;
@@ -62,7 +65,6 @@ class Router {
         return;
       }
 
-      // Esperar pela inicialização
       const checkInterval = setInterval(() => {
         if (authManager.isInitialized) {
           clearInterval(checkInterval);
@@ -72,7 +74,6 @@ class Router {
         }
       }, 50);
 
-      // Timeout de segurança (10 segundos)
       setTimeout(() => {
         clearInterval(checkInterval);
         console.warn('⚠️ Timeout aguardando AuthManager - prosseguindo mesmo assim');
@@ -83,12 +84,10 @@ class Router {
   }
 
   matchRoute(path) {
-    // Verificar rota exata primeiro
     if (this.routes[path]) {
       return { route: path, params: {} };
     }
 
-    // Verificar rotas com parâmetros
     for (const [route, file] of Object.entries(this.routes)) {
       if (!route.includes(':')) continue;
 
@@ -118,12 +117,10 @@ class Router {
   }
 
   getRequiredType(path) {
-    // Verificar tipo exato
     if (this.protectedRoutes[path]) {
       return this.protectedRoutes[path];
     }
 
-    // Verificar rotas com parâmetros
     for (const [route, type] of Object.entries(this.protectedRoutes)) {
       if (!route.includes(':')) continue;
 
@@ -147,24 +144,20 @@ class Router {
   }
 
   async navigate(path = '/') {
-    // Se já está navegando para o mesmo path, ignorar
     if (this.isNavigating && this.currentPath === path) {
       console.log('⏳ Já navegando para:', path);
       return;
     }
 
-    // Adicionar à fila de navegação apenas se for diferente
     if (this.navigationQueue.length === 0 || this.navigationQueue[this.navigationQueue.length - 1] !== path) {
       this.navigationQueue.push(path);
     }
 
-    // Se já está navegando, retornar (será processado depois)
     if (this.isNavigating) {
       console.log('⏳ Navegação em andamento, adicionando à fila:', path);
       return;
     }
 
-    // Processar fila
     while (this.navigationQueue.length > 0) {
       const nextPath = this.navigationQueue.shift();
       await this._navigate(nextPath);
@@ -185,18 +178,13 @@ class Router {
         await this.waitForAuth();
       }
 
-      const requiredType = this.getRequiredType(path);
-      const isAuthenticated = authManager.isAuthenticated();
-      const currentUserType = authManager.getCurrentUserType();
+      const requiredType     = this.getRequiredType(path);
+      const isAuthenticated  = authManager.isAuthenticated();
+      const currentUserType  = authManager.getCurrentUserType();
 
-      console.log('Estado:', {
-        path,
-        requiredType,
-        isAuthenticated,
-        currentUserType
-      });
+      console.log('Estado:', { path, requiredType, isAuthenticated, currentUserType });
 
-      // Verificar se é rota protegida
+      // ── Rota protegida ───────────────────────────────────────────
       if (requiredType) {
         if (!isAuthenticated) {
           console.log('❌ Não autenticado, redirecionando para login');
@@ -207,12 +195,11 @@ class Router {
 
         if (currentUserType !== requiredType) {
           console.log('⚠️ Tipo de usuário incompatível com a rota');
-          const redirectPath = currentUserType === 'personal' 
-            ? '/personal/dashboard' 
+          const redirectPath = currentUserType === 'personal'
+            ? '/personal/dashboard'
             : '/student/dashboard';
-          
+
           if (path !== redirectPath) {
-            console.log('Redirecionando para:', redirectPath);
             window.location.hash = '#' + redirectPath;
             this.isNavigating = false;
             return;
@@ -220,13 +207,17 @@ class Router {
         }
       }
 
-      // Se é rota pública e usuário está autenticado
-      if (this.publicRoutes.includes(path) && isAuthenticated) {
-        console.log('✓ Usuário já autenticado, redirecionando para dashboard');
-        const redirectPath = currentUserType === 'personal' 
-          ? '/personal/dashboard' 
+      // ── Rota pública com usuário logado ──────────────────────────
+      // CORREÇÃO: só redireciona se userType for conhecido (personal ou student).
+      // Se userType === null, o usuário pode estar no meio do fluxo de ativação
+      // (createUserWithEmailAndPassword disparou onAuthStateChanged antes do doc existir).
+      // Nesse caso, deixa a página pública carregar normalmente.
+      if (this.publicRoutes.includes(path) && isAuthenticated && currentUserType) {
+        console.log('✓ Usuário autenticado com tipo definido, redirecionando para dashboard');
+        const redirectPath = currentUserType === 'personal'
+          ? '/personal/dashboard'
           : '/student/dashboard';
-        
+
         if (path !== redirectPath) {
           window.location.hash = '#' + redirectPath;
           this.isNavigating = false;
@@ -234,7 +225,7 @@ class Router {
         }
       }
 
-      // Carregar página se for diferente da atual
+      // ── Carregar página ──────────────────────────────────────────
       if (this.currentPath !== path) {
         await this.loadPage(path);
         this.currentPath = path;
@@ -256,13 +247,10 @@ class Router {
     }
 
     const pagePath = this.routes[matchResult.route];
-    
-    // Armazenar parâmetros da rota para uso nas páginas
     window.routeParams = matchResult.params;
 
     try {
       console.log('Carregando página:', pagePath);
-      // Adicionar timestamp para evitar cache
       const cacheBuster = '?v=' + Date.now();
       const response = await fetch(pagePath + cacheBuster);
       
@@ -278,14 +266,11 @@ class Router {
         return;
       }
 
-      // Limpar completamente o container (remove event listeners também)
       container.innerHTML = '';
       container.textContent = '';
       
-      // Aguardar limpeza
       await new Promise(resolve => setTimeout(resolve, 50));
       
-      // Inserir novo HTML
       container.innerHTML = html;
       console.log('✓ HTML carregado');
       
@@ -294,14 +279,11 @@ class Router {
       const scripts = container.querySelectorAll('script');
       console.log('Scripts encontrados:', scripts.length);
       
-      // Executar scripts em um escopo isolado
       for (const script of scripts) {
         try {
-          // Criar função anônima para isolar escopo
           const scriptFunction = new Function(script.textContent);
           scriptFunction();
           console.log('✓ Script executado');
-          
           await new Promise(resolve => setTimeout(resolve, 10));
         } catch (error) {
           console.error('Erro ao executar script:', error);
@@ -333,56 +315,23 @@ class Router {
     }
   }
 
-  goToLogin() {
-    this.navigate('/login');
-  }
-
-  goToSignup() {
-    this.navigate('/signup');
-  }
-
-  goToPersonalDashboard() {
-    this.navigate('/personal/dashboard');
-  }
-
-  goToStudentDashboard() {
-    this.navigate('/student/dashboard');
-  }
-
-  goToCreateWorkout() {
-    this.navigate('/personal/create-workout');
-  }
-
-  goToExercises() {
-    this.navigate('/personal/exercises');
-  }
-
-  goToViewWorkout() {
-    this.navigate('/student/view-workout');
-  }
-
-  goToStudentDetails(studentId) {
-    this.navigate(`/personal/student/${studentId}`);
-  }
-
-  goTo(path) {
-    this.navigate(path);
-  }
-
-  goToVolumeAnalysis(studentId) {
-  this.navigate(`/personal/volume/${studentId}`);
-  }
+  goToLogin()             { this.navigate('/login'); }
+  goToSignup()            { this.navigate('/signup'); }
+  goToPersonalDashboard() { this.navigate('/personal/dashboard'); }
+  goToStudentDashboard()  { this.navigate('/student/dashboard'); }
+  goToCreateWorkout()     { this.navigate('/personal/create-workout'); }
+  goToExercises()         { this.navigate('/personal/exercises'); }
+  goToViewWorkout()       { this.navigate('/student/view-workout'); }
+  goToStudentDetails(studentId) { this.navigate(`/personal/student/${studentId}`); }
+  goTo(path)              { this.navigate(path); }
+  goToVolumeAnalysis(studentId) { this.navigate(`/personal/volume/${studentId}`); }
 
   async init() {
     console.log('=== INICIALIZANDO ROUTER ===');
-    
-    // Aguardar AuthManager estar pronto
     await this.waitForAuth();
-    
     this.isReady = true;
     const initialPath = window.location.hash.slice(1) || '/';
     console.log('Caminho inicial:', initialPath);
-    
     await this.navigate(initialPath);
   }
 }

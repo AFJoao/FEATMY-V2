@@ -50,7 +50,6 @@
   <div style="width: 45%; background: #0A0A0A; display: flex; flex-direction: column; justify-content: space-between; padding: 48px; position: relative; overflow: hidden;">
     <div style="position: absolute; inset: 0; background: radial-gradient(ellipse at 20% 80%, rgba(0,230,118,0.08) 0%, transparent 60%), radial-gradient(ellipse at 80% 20%, rgba(255,255,255,0.03) 0%, transparent 60%); pointer-events: none;"></div>
 
-    <!-- LOGO grande e centralizada -->
     <div style="position: relative; flex: 1; display: flex; align-items: center; justify-content: center;">
       <img src="assets/branca_larga.png" alt="Featym" style="width: 72%; max-width: 320px; object-fit: contain; filter: drop-shadow(0 0 40px rgba(0,230,118,0.12));" onerror="this.style.display='none'">
     </div>
@@ -103,9 +102,27 @@
         <button type="submit" class="login-btn">Entrar</button>
       </form>
 
-      <p style="text-align: center; margin-top: 24px; font-size: 0.875rem; color: #6B7280;">
-        Não tem conta? <a href="#/signup" class="login-link">Cadastre-se aqui</a>
+      <!-- ── Links de acesso ── -->
+      <p style="text-align: center; margin-top: 20px; font-size: 0.875rem; color: #6B7280;">
+        Personal Trainer? <a href="#/signup" class="login-link">Cadastre-se aqui →</a>
       </p>
+
+      <div style="border-top: 1px solid #F4F4F4; margin: 16px 0;"></div>
+
+      <!-- Card destacado: primeiro acesso aluno -->
+      <div style="background: #FFFBEB; border: 1px solid #FDE68A; border-radius: 12px; padding: 14px 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px;">
+        <div>
+          <p style="font-size: 0.8rem; font-weight: 700; color: #92400E; margin: 0 0 2px;">É aluno?</p>
+          <p style="font-size: 0.75rem; color: #B45309; margin: 0;">Acesse pela primeira vez aqui</p>
+        </div>
+        <a href="#/primeiro-acesso"
+           style="background: #F59E0B; color: #fff; font-size: 0.78rem; font-weight: 700; padding: 9px 14px; border-radius: 8px; text-decoration: none; white-space: nowrap; flex-shrink: 0;"
+           onmouseover="this.style.background='#D97706'"
+           onmouseout="this.style.background='#F59E0B'">
+          Primeiro acesso →
+        </a>
+      </div>
+
     </div>
   </div>
 </div>
