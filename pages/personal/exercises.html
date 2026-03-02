@@ -1,24 +1,41 @@
 <div class="exercises-page" style="font-family: 'DM Sans', system-ui, sans-serif; background: #FFFFFF; min-height: 100vh;">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/mobile-responsive-fixes.css">
 
   <style>
     .nav-link { color: rgba(255,255,255,0.75); font-weight: 500; font-size: 0.875rem; padding: 8px 16px; border-radius: 8px; border: 1px solid transparent; transition: all 0.2s ease; display: flex; align-items: center; gap: 7px; text-decoration: none; white-space: nowrap; cursor: pointer; background: transparent; }
     .nav-link:hover { color: #fff; background: rgba(255,255,255,0.09); border-color: rgba(255,255,255,0.15); }
-    .nav-link-accent { background: #00E676; color: #0A0A0A; font-weight: 700; padding: 8px 18px; border-radius: 8px; font-size: 0.875rem; transition: all 0.2s ease; display: flex; align-items: center; gap: 7px; text-decoration: none; white-space: nowrap; border: none; cursor: pointer; }
+    .nav-link-accent { background: #00E676; color: #0A0A0A; font-weight: 700; padding: 8px 18px; border-radius: 8px; font-size: 0.875rem; transition: all 0.2s ease; display: flex; align-items: center; gap: 7px; text-decoration: none; white-space: nowrap; border: none; cursor: pointer; font-family: inherit; }
     .nav-link-accent:hover { background: #00C853; box-shadow: 0 4px 16px rgba(0,230,118,0.3); }
+
     .exercise-card { background: #fff; border: 1px solid #EBEBEB; border-radius: 16px; transition: all 0.25s cubic-bezier(0.4,0,0.2,1); overflow: hidden; }
     .exercise-card:hover { border-color: #00E676; transform: translateY(-2px); box-shadow: 0 12px 32px rgba(0,0,0,0.08); }
+
     .search-input { width: 100%; padding: 12px 16px 12px 44px; border: 2px solid #EBEBEB; border-radius: 12px; font-size: 0.9rem; outline: none; transition: all 0.2s; font-family: inherit; background: #FAFAFA; box-sizing: border-box; }
     .search-input:focus { border-color: #0A0A0A; background: #fff; }
     .search-input::placeholder { color: #9CA3AF; }
-    .filter-chip { padding: 7px 16px; border-radius: 20px; border: 1.5px solid #EBEBEB; font-size: 0.8rem; font-weight: 600; cursor: pointer; transition: all 0.2s; background: #fff; color: #6B7280; white-space: nowrap; font-family: inherit; }
+
+    /* ── FILTER CHIPS: scroll horizontal no mobile ── */
+    .filter-chips-wrap {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      overflow-x: auto;
+      /* esconde scrollbar mas mantém scroll */
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+      padding-bottom: 2px; /* evita clip do border dos chips */
+    }
+    .filter-chips-wrap::-webkit-scrollbar { display: none; }
+
+    .filter-chip { padding: 7px 16px; border-radius: 20px; border: 1.5px solid #EBEBEB; font-size: 0.8rem; font-weight: 600; cursor: pointer; transition: all 0.2s; background: #fff; color: #6B7280; white-space: nowrap; font-family: inherit; flex-shrink: 0; }
     .filter-chip:hover { border-color: #D1D5DB; color: #374151; }
     .filter-chip.active { background: #0A0A0A; border-color: #0A0A0A; color: #fff; }
+
     .muscle-badge { padding: 3px 8px; border-radius: 6px; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.03em; }
     .spinner { width: 28px; height: 28px; border: 3px solid rgba(0,0,0,0.08); border-top-color: #00E676; border-radius: 50%; animation: spin 0.8s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
+
     .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); z-index: 100; display: flex; align-items: center; justify-content: center; padding: 20px; }
     .modal-box { background: #fff; border-radius: 20px; padding: 32px; width: 100%; max-width: 520px; max-height: 90vh; overflow-y: auto; }
     .modal-input { width: 100%; padding: 12px 14px; border: 2px solid #EBEBEB; border-radius: 10px; font-size: 0.88rem; outline: none; transition: border-color 0.2s; font-family: inherit; background: #FAFAFA; box-sizing: border-box; }
@@ -29,6 +46,42 @@
     .pct-ok { background: #ECFDF5; color: #059669; }
     .pct-over { background: #FEF2F2; color: #DC2626; }
     .pct-under { background: #FFF7ED; color: #D97706; }
+
+    /* ── Header badge — some no mobile ── */
+    .header-badge { background: rgba(0,230,118,0.15); color: #00E676; font-size: 0.65rem; font-weight: 700; padding: 2px 8px; border-radius: 20px; letter-spacing: 0.04em; text-transform: uppercase; border: 1px solid rgba(0,230,118,0.25); }
+
+    /* ── Mobile ── */
+    @media (max-width: 768px) {
+      /* Badge some */
+      .header-badge { display: none !important; }
+
+      /* Nav: só ícones */
+      .nav-label { display: none !important; }
+      .nav-link { padding: 8px !important; min-width: 38px; justify-content: center; }
+      .nav-link-accent { padding: 8px 10px !important; font-size: 0 !important; gap: 0 !important; min-width: 38px; justify-content: center; }
+      .nav-link-accent svg { display: block !important; }
+
+      /* Padding main */
+      .ex-main { padding: 24px 16px 48px !important; }
+
+      /* Page header: título menor, botão full width */
+      .ex-page-header { flex-direction: column !important; align-items: flex-start !important; gap: 12px !important; }
+      .ex-page-header button { width: 100% !important; justify-content: center; }
+
+      /* Grid de exercícios: 1 coluna */
+      #exercisesGrid { grid-template-columns: 1fr !important; }
+
+      /* Filtros: label "Grupo:" some pra caber mais chips */
+      .filter-group-label { display: none !important; }
+
+      /* Search box sem ícone inline fica OK, mas vamos garantir padding */
+      .search-input { font-size: 16px !important; } /* evita zoom iOS */
+
+      /* Modal fullscreen-ish */
+      .modal-box { padding: 24px !important; border-radius: 16px !important; }
+      .modal-overlay { padding: 12px !important; align-items: flex-end !important; }
+      .modal-box { border-radius: 20px 20px 12px 12px !important; }
+    }
   </style>
 
   <!-- HEADER -->
@@ -36,34 +89,34 @@
     <div style="max-width: 1400px; margin: 0 auto; padding: 0 32px; height: 64px; display: flex; justify-content: space-between; align-items: center;">
       <div style="display: flex; align-items: center; gap: 12px;">
         <img src="assets/branca_larga.png" alt="Featym" style="height: 28px; object-fit: contain;" onerror="this.style.display='none'">
-        <span style="background: rgba(0,230,118,0.15); color: #00E676; font-size: 0.65rem; font-weight: 700; padding: 2px 8px; border-radius: 20px; letter-spacing: 0.04em; text-transform: uppercase; border: 1px solid rgba(0,230,118,0.25);">Personal</span>
+        <span class="header-badge">Personal</span>
       </div>
       <nav style="display: flex; align-items: center; gap: 6px;">
         <a href="#/personal/dashboard" class="nav-link">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-          Dashboard
+          <span class="nav-label">Dashboard</span>
         </a>
         <a href="#/personal/create-workout" class="nav-link-accent">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          Criar Treino
+          <span class="nav-label" style="margin-left:4px;">Criar Treino</span>
         </a>
         <a href="#/personal/feedbacks" class="nav-link">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-          Feedbacks
+          <span class="nav-label">Feedbacks</span>
         </a>
         <button id="logoutBtn" class="nav-link" style="border: 1px solid rgba(255,255,255,0.14);">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-          Sair
+          <span class="nav-label">Sair</span>
         </button>
       </nav>
     </div>
   </header>
 
   <!-- MAIN -->
-  <main style="max-width: 1400px; margin: 0 auto; padding: 40px 32px 60px;">
+  <main class="ex-main" style="max-width: 1400px; margin: 0 auto; padding: 40px 32px 60px;">
 
     <!-- Page Header -->
-    <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 32px; flex-wrap: wrap; gap: 16px;">
+    <div class="ex-page-header" style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 32px; gap: 16px;">
       <div>
         <p style="color: #9CA3AF; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; margin: 0 0 6px;">BIBLIOTECA</p>
         <h1 style="font-size: 1.9rem; font-weight: 800; color: #0A0A0A; margin: 0; letter-spacing: -0.03em;">Exercícios</h1>
@@ -77,22 +130,26 @@
 
     <!-- Search + Filters -->
     <div style="background: #FAFAFA; border: 1px solid #EBEBEB; border-radius: 16px; padding: 20px 24px; margin-bottom: 28px;">
+      <!-- Search -->
       <div style="position: relative; margin-bottom: 16px;">
         <svg style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); pointer-events: none;" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
         <input type="text" id="searchInput" class="search-input" placeholder="Buscar exercícios por nome ou músculo...">
       </div>
-      <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
-        <span style="font-size: 0.75rem; font-weight: 700; color: #9CA3AF; letter-spacing: 0.05em; text-transform: uppercase; margin-right: 4px;">Grupo:</span>
-        <button class="filter-chip active" data-group="all">Todos</button>
-        <button class="filter-chip" data-group="Peito">Peito</button>
-        <button class="filter-chip" data-group="Costas">Costas</button>
-        <button class="filter-chip" data-group="Pernas">Pernas</button>
-        <button class="filter-chip" data-group="Ombros">Ombros</button>
-        <button class="filter-chip" data-group="Bíceps">Bíceps</button>
-        <button class="filter-chip" data-group="Tríceps">Tríceps</button>
-        <button class="filter-chip" data-group="Abdômen">Abdômen</button>
-        <button class="filter-chip" data-group="Glúteos">Glúteos</button>
-        <button class="filter-chip" data-group="meu">⭐ Meus</button>
+      <!-- Filters — scroll horizontal no mobile -->
+      <div style="display: flex; gap: 8px; align-items: center;">
+        <span class="filter-group-label" style="font-size: 0.75rem; font-weight: 700; color: #9CA3AF; letter-spacing: 0.05em; text-transform: uppercase; white-space: nowrap; flex-shrink: 0;">Grupo:</span>
+        <div class="filter-chips-wrap">
+          <button class="filter-chip active" data-group="all">Todos</button>
+          <button class="filter-chip" data-group="Peito">Peito</button>
+          <button class="filter-chip" data-group="Costas">Costas</button>
+          <button class="filter-chip" data-group="Pernas">Pernas</button>
+          <button class="filter-chip" data-group="Ombros">Ombros</button>
+          <button class="filter-chip" data-group="Bíceps">Bíceps</button>
+          <button class="filter-chip" data-group="Tríceps">Tríceps</button>
+          <button class="filter-chip" data-group="Abdômen">Abdômen</button>
+          <button class="filter-chip" data-group="Glúteos">Glúteos</button>
+          <button class="filter-chip" data-group="meu">⭐ Meus</button>
+        </div>
       </div>
     </div>
 
@@ -121,20 +178,17 @@
 
       <div style="display: flex; flex-direction: column; gap: 14px;">
 
-        <!-- Nome -->
         <div>
           <label style="display: block; font-size: 0.78rem; font-weight: 700; color: #374151; margin-bottom: 7px;">Nome do exercício *</label>
           <input type="text" id="exName" class="modal-input" placeholder="Ex: Supino Reto com Barra">
         </div>
 
-        <!-- Grupos musculares (até 3) -->
         <div>
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
             <label style="font-size: 0.78rem; font-weight: 700; color: #374151;">Grupos musculares * <span style="font-weight: 400; color: #9CA3AF;">(até 3, somando 100%)</span></label>
-            <div id="pctTotal" class="pct-display pct-under" style="padding: 3px 10px; min-width: 72px;">0% / 100%</div>
+            <div id="pctTotal" class="pct-display pct-under" style="padding: 3px 10px; min-width: 72px; border-radius: 8px;">0% / 100%</div>
           </div>
 
-          <!-- Músculo 1 (primário — obrigatório) -->
           <div style="margin-bottom: 8px;">
             <p style="font-size: 0.7rem; font-weight: 700; color: #9CA3AF; text-transform: uppercase; letter-spacing: 0.06em; margin: 0 0 6px;">Primário</p>
             <div class="muscle-row">
@@ -150,7 +204,6 @@
             </div>
           </div>
 
-          <!-- Músculo 2 (opcional) -->
           <div style="margin-bottom: 8px;">
             <p style="font-size: 0.7rem; font-weight: 700; color: #9CA3AF; text-transform: uppercase; letter-spacing: 0.06em; margin: 0 0 6px;">Secundário <span style="font-weight: 400; text-transform: none;">(opcional)</span></p>
             <div class="muscle-row">
@@ -166,7 +219,6 @@
             </div>
           </div>
 
-          <!-- Músculo 3 (opcional) -->
           <div>
             <p style="font-size: 0.7rem; font-weight: 700; color: #9CA3AF; text-transform: uppercase; letter-spacing: 0.06em; margin: 0 0 6px;">Terciário <span style="font-weight: 400; text-transform: none;">(opcional)</span></p>
             <div class="muscle-row">
@@ -183,13 +235,11 @@
           </div>
         </div>
 
-        <!-- Vídeo -->
         <div>
           <label style="display: block; font-size: 0.78rem; font-weight: 700; color: #374151; margin-bottom: 7px;">URL do vídeo (YouTube) <span style="color: #9CA3AF; font-weight: 400;">opcional</span></label>
           <input type="url" id="exVideo" class="modal-input" placeholder="https://youtube.com/watch?v=...">
         </div>
 
-        <!-- Descrição -->
         <div>
           <label style="display: block; font-size: 0.78rem; font-weight: 700; color: #374151; margin-bottom: 7px;">Descrição / observações <span style="color: #9CA3AF; font-weight: 400;">opcional</span></label>
           <textarea id="exDesc" class="modal-input" rows="3" placeholder="Dicas de execução, variações..." style="resize: vertical;"></textarea>
@@ -231,7 +281,6 @@
   let allExercises = [];
   let currentFilter = 'all';
 
-  // ── Logout ────────────────────────────────────────────────────
   document.getElementById('logoutBtn').onclick = async () => {
     await authManager.logout();
     router.goToLogin();
@@ -256,7 +305,7 @@
     document.getElementById('addExerciseError').style.display = 'none';
   }
 
-  // ── Contador de % ─────────────────────────────────────────────
+  // ── % total ───────────────────────────────────────────────────
   function updatePctTotal() {
     const p1 = parseInt(document.getElementById('muscle1Pct').value) || 0;
     const p2 = parseInt(document.getElementById('muscle2Pct').value) || 0;
@@ -265,17 +314,11 @@
     const el = document.getElementById('pctTotal');
     el.textContent = `${total}% / 100%`;
     el.className = 'pct-display ' + (total === 100 ? 'pct-ok' : total > 100 ? 'pct-over' : 'pct-under');
-    el.style.padding = '3px 10px';
-    el.style.minWidth = '72px';
-    el.style.borderRadius = '8px';
     return total;
   }
-
   ['muscle1Pct','muscle2Pct','muscle3Pct'].forEach(id => {
     document.getElementById(id).addEventListener('input', updatePctTotal);
   });
-
-  // Auto-preenche % primário quando secundário/terciário mudam
   ['muscle2Pct','muscle3Pct'].forEach(id => {
     document.getElementById(id).addEventListener('input', () => {
       const p2 = parseInt(document.getElementById('muscle2Pct').value) || 0;
@@ -323,7 +366,6 @@
       return errDiv.style.display = 'block';
     }
 
-    // Montar array de músculos (só os preenchidos)
     const muscles = [{ group: g1, percentage: p1 }];
     if (g2 && p2) muscles.push({ group: g2, percentage: p2 });
     if (g3 && p3) muscles.push({ group: g3, percentage: p3 });
@@ -333,14 +375,7 @@
     btn.disabled = true;
 
     try {
-      const result = await dbManager.addExercise({
-        name,
-        muscleGroup: g1,   // grupo principal (retrocompatibilidade)
-        muscles,           // array detalhado
-        videoUrl: video,
-        description: desc
-      });
-
+      const result = await dbManager.addExercise({ name, muscleGroup: g1, muscles, videoUrl: video, description: desc });
       if (result && result.success !== false) {
         closeModal();
         await loadExercises();
@@ -369,20 +404,16 @@
 
   document.getElementById('searchInput').addEventListener('input', renderExercises);
 
-  // ── Render exercícios ─────────────────────────────────────────
+  // ── Render ────────────────────────────────────────────────────
   function renderExercises() {
     const search = (document.getElementById('searchInput')?.value || '').toLowerCase();
     const filtered = allExercises.filter(ex => {
       const isOwn = ex.personalId === currentUid;
-
-      if (currentFilter === 'meu') {
-        if (!isOwn) return false;
-      } else if (currentFilter !== 'all') {
+      if (currentFilter === 'meu') { if (!isOwn) return false; }
+      else if (currentFilter !== 'all') {
         const inMuscles = (ex.muscles || []).some(m => m.group === currentFilter);
-        const inGroup   = ex.muscleGroup === currentFilter;
-        if (!inMuscles && !inGroup) return false;
+        if (!inMuscles && ex.muscleGroup !== currentFilter) return false;
       }
-
       const matchSearch = !search
         || (ex.name || '').toLowerCase().includes(search)
         || (ex.muscleGroup || '').toLowerCase().includes(search)
@@ -409,12 +440,8 @@
       const card = document.createElement('div');
       card.className = 'exercise-card';
 
-      // Montar badges dos músculos com %
       const musclesBadges = (ex.muscles && ex.muscles.length > 0)
-        ? ex.muscles.map(m => `
-            <span class="muscle-badge" style="background:${groupColors[m.group]||'#F4F4F4'};color:${groupTextColors[m.group]||'#374151'};">
-              ${m.group} ${m.percentage}%
-            </span>`).join('')
+        ? ex.muscles.map(m => `<span class="muscle-badge" style="background:${groupColors[m.group]||'#F4F4F4'};color:${groupTextColors[m.group]||'#374151'};">${m.group} ${m.percentage}%</span>`).join('')
         : `<span class="muscle-badge" style="background:${bg};color:${tc};">${ex.muscleGroup || '—'}</span>`;
 
       card.innerHTML = `
@@ -438,7 +465,7 @@
     });
   }
 
-  // ── Carregar exercícios ───────────────────────────────────────
+  // ── Carregar ──────────────────────────────────────────────────
   async function loadExercises() {
     const grid = document.getElementById('exercisesGrid');
     grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:64px 20px;"><div class="spinner" style="margin:0 auto 16px;"></div><p style="color:#9CA3AF;font-size:0.875rem;margin:0;">Carregando...</p></div>`;
@@ -446,7 +473,7 @@
       allExercises = await dbManager.getExercises() || [];
       renderExercises();
     } catch(e) {
-      console.error('Erro ao carregar exercícios:', e);
+      console.error(e);
       grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:48px;"><p style="color:#BE123C;">Erro ao carregar exercícios.</p></div>`;
     }
   }

@@ -4,9 +4,20 @@
 
   <style>
     * { box-sizing: border-box; }
-    .cw-nav-btn { color: rgba(255,255,255,0.75); font-weight: 500; font-size: 0.85rem; padding: 7px 14px; border-radius: 8px; border: 1px solid transparent; cursor: pointer; background: transparent; display: flex; align-items: center; gap: 6px; transition: all 0.2s; text-decoration: none; white-space: nowrap; }
+
+    .cw-nav-btn { color: rgba(255,255,255,0.75); font-weight: 500; font-size: 0.85rem; padding: 7px 14px; border-radius: 8px; border: 1px solid transparent; cursor: pointer; background: transparent; display: flex; align-items: center; gap: 6px; transition: all 0.2s; text-decoration: none; white-space: nowrap; font-family: inherit; }
     .cw-nav-btn:hover { color: #fff; background: rgba(255,255,255,0.09); border-color: rgba(255,255,255,0.15); }
-    .kanban-board { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 10px; padding: 16px 20px 40px; min-height: calc(100vh - 150px); align-items: start; }
+
+    /* ── Kanban board ── */
+    .kanban-board {
+      display: grid;
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+      gap: 10px;
+      padding: 16px 20px 40px;
+      min-height: calc(100vh - 150px);
+      align-items: start;
+    }
+
     .day-column { background: #fff; border: 1.5px solid #E5E7EB; border-radius: 14px; display: flex; flex-direction: column; min-height: 380px; transition: border-color 0.2s; }
     .day-column.drag-over { border-color: #00E676; background: rgba(0,230,118,0.02); }
     .day-header { padding: 11px 10px 9px; border-bottom: 1px solid #EBEBEB; }
@@ -14,32 +25,9 @@
     .day-label-full { font-size: 0.85rem; font-weight: 700; color: #111827; }
     .day-ex-count { font-size: 0.62rem; color: #9CA3AF; margin-top: 2px; }
 
-    /* ── Botão copiar/colar dia ── */
-    .copy-day-btn {
-      width: 100%;
-      margin-top: 7px;
-      padding: 5px 6px;
-      border: 1.5px dashed #D1D5DB;
-      border-radius: 7px;
-      background: transparent;
-      font-size: 0.65rem;
-      font-weight: 700;
-      color: #6B7280;          /* texto sempre visível */
-      cursor: pointer;
-      transition: all 0.2s;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 4px;
-      font-family: inherit;
-    }
+    .copy-day-btn { width: 100%; margin-top: 7px; padding: 5px 6px; border: 1.5px dashed #D1D5DB; border-radius: 7px; background: transparent; font-size: 0.65rem; font-weight: 700; color: #6B7280; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 4px; font-family: inherit; }
     .copy-day-btn:hover { border-color: #6366F1; color: #6366F1; background: rgba(99,102,241,0.04); }
-    .copy-day-btn.has-clipboard {
-      border-color: #00C853;
-      color: #00A843;          /* verde escuro — visível no fundo branco */
-      background: rgba(0,200,83,0.05);
-      border-style: solid;
-    }
+    .copy-day-btn.has-clipboard { border-color: #00C853; color: #00A843; background: rgba(0,200,83,0.05); border-style: solid; }
     .copy-day-btn.has-clipboard:hover { background: rgba(0,200,83,0.1); }
 
     .drop-zone { flex: 1; padding: 8px; display: flex; flex-direction: column; gap: 6px; min-height: 60px; }
@@ -47,6 +35,7 @@
     .drop-placeholder:hover { border-color: #00E676; background: rgba(0,230,118,0.04); }
     .drop-placeholder span { font-size: 0.7rem; color: #CBD5E1; font-weight: 500; }
     .drop-placeholder:hover span { color: #00C853; }
+
     .ex-card { background: #F8F9FA; border: 1.5px solid #E5E7EB; border-radius: 10px; padding: 9px 10px; cursor: grab; user-select: none; transition: all 0.18s; position: relative; }
     .ex-card:hover { border-color: #A5B4FC; background: #fff; box-shadow: 0 2px 10px rgba(0,0,0,0.07); }
     .ex-card.dragging { opacity: 0.4; cursor: grabbing; }
@@ -54,25 +43,7 @@
     .ex-card-meta { display: flex; gap: 3px; flex-wrap: wrap; }
     .ex-badge { font-size: 0.6rem; font-weight: 700; padding: 2px 6px; border-radius: 4px; }
 
-    /* ── Botão remover exercício ── */
-    .ex-delete-btn {
-      width: 100%;
-      margin-top: 7px;
-      padding: 4px 8px;
-      border: 1px solid #FECACA;
-      border-radius: 6px;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 4px;
-      background: #FEF2F2;
-      color: #DC2626;
-      font-size: 0.62rem;
-      font-weight: 700;
-      font-family: inherit;
-      transition: all 0.2s;
-    }
+    .ex-delete-btn { width: 100%; margin-top: 7px; padding: 4px 8px; border: 1px solid #FECACA; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px; background: #FEF2F2; color: #DC2626; font-size: 0.62rem; font-weight: 700; font-family: inherit; transition: all 0.2s; }
     .ex-delete-btn:hover { background: #DC2626; color: #fff; border-color: #DC2626; }
 
     .add-ex-btn { width: 100%; padding: 7px; border: 1.5px dashed #D1D5DB; border-radius: 8px; background: transparent; font-size: 0.7rem; font-weight: 600; color: #9CA3AF; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 4px; font-family: inherit; }
@@ -91,23 +62,11 @@
     .toolbar-btn-secondary:hover { background: #EBEBEB; }
     .toolbar-btn-danger { background: #FEF2F2; color: #DC2626; }
     .toolbar-btn-danger:hover { background: #FECACA; }
-    .toolbar-divider { width: 1px; height: 30px; background: #E5E7EB; }
+    .toolbar-divider { width: 1px; height: 30px; background: #E5E7EB; flex-shrink: 0; }
     .tl-field { display: flex; flex-direction: column; gap: 3px; }
     .tl-label { font-size: 0.62rem; font-weight: 700; color: #9CA3AF; text-transform: uppercase; letter-spacing: 0.06em; }
 
-    /* ── Paste badge ── */
-    .paste-badge {
-      background: rgba(0,230,118,0.12);
-      border: 1px solid rgba(0,230,118,0.3);
-      border-radius: 8px;
-      padding: 5px 11px;
-      font-size: 0.73rem;
-      font-weight: 700;
-      color: #007A32;        /* verde escuro — visível */
-      display: none;
-      align-items: center;
-      gap: 5px;
-    }
+    .paste-badge { background: rgba(0,230,118,0.12); border: 1px solid rgba(0,230,118,0.3); border-radius: 8px; padding: 5px 11px; font-size: 0.73rem; font-weight: 700; color: #007A32; display: none; align-items: center; gap: 5px; }
     .paste-badge.visible { display: flex; }
 
     /* ── Modal ── */
@@ -116,10 +75,9 @@
     .modal-box { background: #fff; border-radius: 20px; padding: 26px; width: 92%; max-width: 500px; max-height: 88vh; overflow-y: auto; box-shadow: 0 24px 60px rgba(0,0,0,0.18); }
     .modal-title { font-size: 1.05rem; font-weight: 800; color: #0A0A0A; margin: 0 0 4px; letter-spacing: -0.02em; }
     .modal-sub { font-size: 0.78rem; color: #9CA3AF; margin: 0 0 18px; }
-    .modal-input { width: 100%; padding: 10px 12px; border: 2px solid #EBEBEB; border-radius: 10px; font-size: 0.875rem; font-family: inherit; outline: none; transition: border-color 0.2s; background: #FAFAFA; color: #111827; }
+    .modal-input { width: 100%; padding: 10px 12px; border: 2px solid #EBEBEB; border-radius: 10px; font-size: 0.875rem; font-family: inherit; outline: none; transition: border-color 0.2s; background: #FAFAFA; color: #111827; box-sizing: border-box; }
     .modal-input:focus { border-color: #0A0A0A; background: #fff; }
     .modal-label { display: block; font-size: 0.72rem; font-weight: 700; color: #374151; margin-bottom: 5px; }
-    .modal-field { margin-bottom: 12px; }
     .ex-search-list { max-height: 240px; overflow-y: auto; border: 1px solid #EBEBEB; border-radius: 10px; margin-top: 6px; }
     .ex-search-item { padding: 9px 13px; cursor: pointer; border-bottom: 1px solid #F4F4F4; transition: background 0.15s; }
     .ex-search-item:last-child { border-bottom: none; }
@@ -144,9 +102,55 @@
     .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px); background: #111827; color: #fff; padding: 10px 18px; border-radius: 10px; font-size: 0.8rem; font-weight: 600; z-index: 999; transition: transform 0.3s ease; white-space: nowrap; }
     .toast.show { transform: translateX(-50%) translateY(0); }
 
-    /* ── Spinner ── */
     .spinner { width: 18px; height: 18px; border: 2.5px solid rgba(0,0,0,0.12); border-top-color: #0A0A0A; border-radius: 50%; animation: spin 0.8s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Header badge ── */
+    .header-badge { background: rgba(0,230,118,0.15); color: #00E676; font-size: 0.65rem; font-weight: 700; padding: 2px 8px; border-radius: 20px; letter-spacing: 0.04em; text-transform: uppercase; border: 1px solid rgba(0,230,118,0.25); }
+
+    /* ── MOBILE ── */
+    @media (max-width: 768px) {
+      /* Header: badge some, nav comprime */
+      .header-badge { display: none !important; }
+      .cw-nav-label { display: none !important; }
+      .cw-nav-btn { padding: 7px 8px !important; min-width: 36px; justify-content: center; gap: 0 !important; }
+
+      /* Toolbar empilha em coluna */
+      .cw-toolbar {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 8px !important;
+        padding: 12px 16px !important;
+        top: 56px !important;
+      }
+      .toolbar-divider { display: none !important; }
+      .tl-field { width: 100%; }
+      .toolbar-select, .toolbar-input { width: 100%; }
+      .toolbar-row { display: flex; gap: 8px; }
+      .toolbar-row .toolbar-select { flex: 1; }
+
+      /* Kanban: 2 colunas */
+      .kanban-board {
+        grid-template-columns: repeat(2, 1fr) !important;
+        padding: 12px 16px 40px !important;
+        gap: 8px !important;
+      }
+
+      /* Salvar btn no header: só ícone */
+      .save-label { display: none !important; }
+      #saveWorkoutBtn { padding: 7px 10px !important; gap: 0 !important; font-size: 0 !important; }
+      #saveWorkoutBtn svg { display: block !important; }
+
+      /* Paste badge menor */
+      .paste-badge { font-size: 0.67rem !important; padding: 4px 8px !important; }
+    }
+
+    @media (max-width: 480px) {
+      /* 1 coluna */
+      .kanban-board {
+        grid-template-columns: 1fr !important;
+      }
+    }
   </style>
 
   <!-- HEADER -->
@@ -158,52 +162,57 @@
         </button>
         <div style="width:1px;height:22px;background:rgba(255,255,255,0.1);"></div>
         <img src="assets/branca_larga.png" alt="Featym" style="height:20px;object-fit:contain;" onerror="this.style.display='none'">
-        <span style="color:rgba(255,255,255,0.45);font-size:0.72rem;font-weight:500;margin-left:4px;">/ Criar Rotina</span>
+        <span class="header-badge" style="margin-left:2px;">Personal</span>
+        <span style="color:rgba(255,255,255,0.35);font-size:0.72rem;font-weight:500;">/ Criar Rotina</span>
       </div>
       <div style="display:flex;gap:8px;align-items:center;">
         <button id="saveWorkoutBtn" class="toolbar-btn toolbar-btn-primary" style="font-size:0.82rem;">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
-          Salvar Rotina
+          <span class="save-label">Salvar Rotina</span>
         </button>
-        <button id="logoutBtn" class="cw-nav-btn" style="border-color:rgba(255,255,255,0.14);">Sair</button>
+        <button id="logoutBtn" class="cw-nav-btn" style="border-color:rgba(255,255,255,0.14);"><span class="cw-nav-label">Sair</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none;"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></button>
       </div>
     </div>
   </header>
 
   <!-- TOOLBAR -->
   <div class="cw-toolbar">
-    <div class="tl-field">
-      <span class="tl-label">Aluno</span>
-      <select id="studentSelect" class="toolbar-select"><option value="">Selecione o aluno...</option></select>
-    </div>
-    <div class="tl-field">
-      <span class="tl-label">Nome da Rotina</span>
-      <input type="text" id="workoutName" class="toolbar-input" placeholder="Ex: Treino A – Hipertrofia">
-    </div>
-    <div class="toolbar-divider"></div>
-    <div class="tl-field">
-      <span class="tl-label">Preset</span>
-      <div style="display:flex;gap:6px;">
-        <select id="presetSelect" class="toolbar-select">
-          <option value="">Carregar preset...</option>
-          <option value="abc">ABC – 3 dias</option>
-          <option value="abcd">ABCD – 4 dias</option>
-          <option value="upper_lower">Upper/Lower – 4 dias</option>
-          <option value="fullbody">Full Body – 3 dias</option>
-          <option value="ppl">Push/Pull/Legs – 6 dias</option>
-        </select>
-        <button id="loadPresetBtn" class="toolbar-btn toolbar-btn-secondary">Aplicar</button>
+    <!-- Row 1: aluno + nome -->
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;">
+      <div class="tl-field" style="flex:1;min-width:140px;">
+        <span class="tl-label">Aluno</span>
+        <select id="studentSelect" class="toolbar-select"><option value="">Selecione o aluno...</option></select>
+      </div>
+      <div class="tl-field" style="flex:2;min-width:180px;">
+        <span class="tl-label">Nome da Rotina</span>
+        <input type="text" id="workoutName" class="toolbar-input" placeholder="Ex: Treino A – Hipertrofia">
       </div>
     </div>
-    <div class="toolbar-divider"></div>
-    <div id="pasteBadge" class="paste-badge">
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-      <span id="pasteBadgeText">Copiado</span>
+    <!-- Row 2: preset + limpar -->
+    <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;">
+      <div class="tl-field" style="flex:1;min-width:140px;">
+        <span class="tl-label">Preset</span>
+        <div style="display:flex;gap:6px;">
+          <select id="presetSelect" class="toolbar-select" style="flex:1;">
+            <option value="">Carregar preset...</option>
+            <option value="abc">ABC – 3 dias</option>
+            <option value="abcd">ABCD – 4 dias</option>
+            <option value="upper_lower">Upper/Lower – 4 dias</option>
+            <option value="fullbody">Full Body – 3 dias</option>
+            <option value="ppl">Push/Pull/Legs – 6 dias</option>
+          </select>
+          <button id="loadPresetBtn" class="toolbar-btn toolbar-btn-secondary">Aplicar</button>
+        </div>
+      </div>
+      <div id="pasteBadge" class="paste-badge">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+        <span id="pasteBadgeText">Copiado</span>
+      </div>
+      <button id="clearBoardBtn" class="toolbar-btn toolbar-btn-danger" style="margin-left:auto;">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+        Limpar
+      </button>
     </div>
-    <button id="clearBoardBtn" class="toolbar-btn toolbar-btn-danger" style="margin-left:auto;">
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
-      Limpar tudo
-    </button>
   </div>
 
   <!-- KANBAN -->
@@ -227,7 +236,6 @@
       </div>
       <div style="height:1px;background:#EBEBEB;margin-bottom:16px;"></div>
 
-      <!-- Search tab -->
       <div id="contentSearch">
         <input type="text" id="exSearchInput" class="modal-input" placeholder="Buscar exercício..." style="margin-bottom:6px;">
         <div id="exSearchList" class="ex-search-list"><div style="padding:16px;text-align:center;color:#9CA3AF;font-size:0.8rem;">Carregando...</div></div>
@@ -241,11 +249,10 @@
         </div>
       </div>
 
-      <!-- Manual tab -->
       <div id="contentManual" style="display:none;">
-        <div class="modal-field"><label class="modal-label">Nome *</label><input type="text" id="manualName" class="modal-input" placeholder="Ex: Supino Reto com Halteres"></div>
+        <div style="margin-bottom:12px;"><label class="modal-label">Nome *</label><input type="text" id="manualName" class="modal-input" placeholder="Ex: Supino Reto com Halteres"></div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-          <div class="modal-field">
+          <div style="margin-bottom:12px;">
             <label class="modal-label">Grupo muscular</label>
             <select id="manualMuscle" class="modal-input">
               <option value="">Selecione...</option>
@@ -254,13 +261,13 @@
               <option>Glúteos</option><option>Abdômen</option><option>Cardio</option><option>Full Body</option>
             </select>
           </div>
-          <div class="modal-field"><label class="modal-label">Séries</label><input type="number" id="manualSets" class="modal-input" value="3"></div>
+          <div style="margin-bottom:12px;"><label class="modal-label">Séries</label><input type="number" id="manualSets" class="modal-input" value="3"></div>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-          <div class="modal-field"><label class="modal-label">Reps/Tempo</label><input type="text" id="manualReps" class="modal-input" value="12"></div>
-          <div class="modal-field"><label class="modal-label">Descanso</label><input type="text" id="manualRest" class="modal-input" value="60s"></div>
+          <div style="margin-bottom:12px;"><label class="modal-label">Reps/Tempo</label><input type="text" id="manualReps" class="modal-input" value="12"></div>
+          <div style="margin-bottom:12px;"><label class="modal-label">Descanso</label><input type="text" id="manualRest" class="modal-input" value="60s"></div>
         </div>
-        <div class="modal-field"><label class="modal-label">Obs (opcional)</label><input type="text" id="manualObs" class="modal-input" placeholder="Ex: Foco na excêntrica"></div>
+        <div style="margin-bottom:12px;"><label class="modal-label">Obs (opcional)</label><input type="text" id="manualObs" class="modal-input" placeholder="Ex: Foco na excêntrica"></div>
       </div>
 
       <div style="display:flex;gap:8px;margin-top:18px;">
@@ -307,11 +314,8 @@
 
 <script>
 (async function() {
-  // ── Aguardar DOM ──────────────────────────────────────────────
   await new Promise(r => document.readyState === 'loading'
-    ? document.addEventListener('DOMContentLoaded', r)
-    : r()
-  );
+    ? document.addEventListener('DOMContentLoaded', r) : r());
   await new Promise(r => setTimeout(r, 120));
 
   const DAYS = [
@@ -391,13 +395,24 @@
   let currentTab = 'search';
   let editingId = null;
 
-  // ── Logout ────────────────────────────────────────────────────
   document.getElementById('logoutBtn').onclick = async () => {
     await authManager.logout();
     router.goToLogin();
   };
 
-  // ── Carregar alunos ───────────────────────────────────────────
+  // Fix logout icon visibility on mobile
+  const logoutSvg = document.querySelector('#logoutBtn svg');
+  if (logoutSvg) {
+    window.addEventListener('resize', () => {
+      const isMobile = window.innerWidth <= 768;
+      logoutSvg.style.display = isMobile ? 'block' : 'none';
+      document.querySelector('#logoutBtn .cw-nav-label').style.display = isMobile ? 'none' : 'block';
+    });
+    // Init
+    const isMobile = window.innerWidth <= 768;
+    logoutSvg.style.display = isMobile ? 'block' : 'none';
+  }
+
   try {
     const students = await dbManager.getMyStudents();
     const sel = document.getElementById('studentSelect');
@@ -407,20 +422,16 @@
       o.textContent = s.name;
       sel.appendChild(o);
     });
-
     const preSelected = sessionStorage.getItem('preSelectedStudent');
     if (preSelected) { sel.value = preSelected; sessionStorage.removeItem('preSelectedStudent'); }
-
     const editId = sessionStorage.getItem('editWorkoutId');
     if (editId) { sessionStorage.removeItem('editWorkoutId'); await loadWorkout(editId); }
   } catch(e) { console.warn('Alunos:', e); }
 
-  // ── Carregar biblioteca de exercícios ─────────────────────────
   try {
     allExercises = await dbManager.getPersonalExercises() || [];
-  } catch(e) { allExercises = []; console.warn('Exercícios:', e); }
+  } catch(e) { allExercises = []; }
 
-  // ── Carregar treino existente (edição) ────────────────────────
   async function loadWorkout(id) {
     try {
       const w = await dbManager.getWorkout(id);
@@ -430,15 +441,7 @@
       document.getElementById('studentSelect').value = w.studentId || '';
       DAYS.forEach(d => {
         board[d.key] = (w.days && w.days[d.key])
-          ? w.days[d.key].map(e => ({
-              id: uid(),
-              name: e.exerciseName || e.name || '',
-              muscle: e.muscleGroup || e.muscle || '',
-              sets: String(e.sets || 3),
-              reps: String(e.reps || 12),
-              rest: String(e.rest || '60s'),
-              obs: e.obs || ''
-            }))
+          ? w.days[d.key].map(e => ({ id: uid(), name: e.exerciseName || e.name || '', muscle: e.muscleGroup || e.muscle || '', sets: String(e.sets || 3), reps: String(e.reps || 12), rest: String(e.rest || '60s'), obs: e.obs || '' }))
           : [];
       });
       renderBoard();
@@ -446,7 +449,6 @@
     } catch(e) { console.warn(e); }
   }
 
-  // ── RENDER BOARD ──────────────────────────────────────────────
   function renderBoard() {
     const b = document.getElementById('kanbanBoard');
     if (!b) return;
@@ -455,30 +457,22 @@
       const col = document.createElement('div');
       col.className = 'day-column';
       col.dataset.day = d.key;
-
       const hasClip = !!(clipboard && clipboard.data && clipboard.data.length > 0);
       const exHtml = board[d.key].map((e, i) => cardHtml(e, d.key, i)).join('');
-
       col.innerHTML = `
         <div class="day-header">
           <div class="day-label-short">${d.short}</div>
           <div class="day-label-full">${d.full}</div>
           <div class="day-ex-count">${board[d.key].length} exerc.</div>
-          <button
-            class="copy-day-btn${hasClip ? ' has-clipboard' : ''}"
-            onclick="copyDayHandler(event,'${d.key}')"
-            title="${hasClip ? 'Colar dia copiado' : 'Copiar este dia'}"
-          >
+          <button class="copy-day-btn${hasClip ? ' has-clipboard' : ''}" onclick="copyDayHandler(event,'${d.key}')" title="${hasClip ? 'Colar dia copiado' : 'Copiar este dia'}">
             ${hasClip
-              ? `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/></svg> Colar dia`
-              : `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copiar dia`
+              ? `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/></svg> Colar`
+              : `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copiar`
             }
           </button>
         </div>
         <div class="drop-zone" id="zone-${d.key}" data-day="${d.key}">
-          ${board[d.key].length === 0
-            ? `<div class="drop-placeholder" onclick="openModal('${d.key}')"><span>+ Adicionar</span></div>`
-            : ''}
+          ${board[d.key].length === 0 ? `<div class="drop-placeholder" onclick="openModal('${d.key}')"><span>+ Adicionar</span></div>` : ''}
           ${exHtml}
           <button class="add-ex-btn" onclick="openModal('${d.key}')">
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -491,7 +485,6 @@
     bindDrop();
   }
 
-  // ── Copiar / Colar dia ────────────────────────────────────────
   window.copyDayHandler = function(e, day) {
     e.stopPropagation();
     if (clipboard && clipboard.data && clipboard.data.length > 0) {
@@ -507,14 +500,12 @@
       clipboard = { type: 'day', data: board[day].map(ex => ({ ...ex })) };
       renderBoard();
       showPaste(`${board[day].length} exerc. de ${DAYS.find(d => d.key === day)?.full} copiados`);
-      toast(`✓ ${board[day].length} exerc. copiados — clique "Colar dia" em outro dia`);
+      toast(`✓ ${board[day].length} exerc. copiados — clique "Colar" em outro dia`);
     }
   };
 
-  // ── Card HTML ─────────────────────────────────────────────────
   function cardHtml(e, day, idx) {
-    return `<div class="ex-card" draggable="true" data-day="${day}" data-idx="${idx}"
-      oncontextmenu="ctxShow(event,'${day}',${idx})">
+    return `<div class="ex-card" draggable="true" data-day="${day}" data-idx="${idx}" oncontextmenu="ctxShow(event,'${day}',${idx})">
       <div class="ex-card-name">${e.name}</div>
       <div class="ex-card-meta">
         <span class="ex-badge" style="background:#111827;color:#fff;">${e.sets}×${e.reps}</span>
@@ -522,17 +513,13 @@
         ${e.rest ? `<span class="ex-badge" style="background:#F3F4F6;color:#6B7280;">⏱${e.rest}</span>` : ''}
       </div>
       ${e.obs ? `<div style="font-size:0.62rem;color:#9CA3AF;margin-top:3px;font-style:italic;">${e.obs}</div>` : ''}
-      <button
-        class="ex-delete-btn"
-        onclick="event.stopPropagation(); removeCard('${day}',${idx})"
-      >
+      <button class="ex-delete-btn" onclick="event.stopPropagation(); removeCard('${day}',${idx})">
         <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
         Remover
       </button>
     </div>`;
   }
 
-  // ── Drag & Drop ───────────────────────────────────────────────
   function bindDrag() {
     document.querySelectorAll('.ex-card').forEach(c => {
       c.addEventListener('dragstart', e => {
@@ -583,7 +570,6 @@
     b.classList.add('visible');
   }
 
-  // ── Modal de exercício ────────────────────────────────────────
   window.openModal = function(day) {
     targetDay = day;
     selectedEx = null;
@@ -606,14 +592,10 @@
 
   window.switchTab = function(tab) {
     currentTab = tab;
-    const cs = document.getElementById('contentSearch');
-    const cm = document.getElementById('contentManual');
-    const ts = document.getElementById('tabSearch');
-    const tm = document.getElementById('tabManual');
-    if (cs) cs.style.display = tab === 'search' ? 'block' : 'none';
-    if (cm) cm.style.display = tab === 'manual' ? 'block' : 'none';
-    if (ts) ts.className = 'tab-btn' + (tab === 'search' ? ' active' : '');
-    if (tm) tm.className = 'tab-btn' + (tab === 'manual' ? ' active' : '');
+    document.getElementById('contentSearch').style.display = tab === 'search' ? 'block' : 'none';
+    document.getElementById('contentManual').style.display = tab === 'manual' ? 'block' : 'none';
+    document.getElementById('tabSearch').className = 'tab-btn' + (tab === 'search' ? ' active' : '');
+    document.getElementById('tabManual').className = 'tab-btn' + (tab === 'manual' ? ' active' : '');
   };
 
   function renderExList(q) {
@@ -646,195 +628,125 @@
   const exSearchInput = document.getElementById('exSearchInput');
   if (exSearchInput) exSearchInput.addEventListener('input', e => renderExList(e.target.value));
 
-  const closeExModal = document.getElementById('closeExModal');
-  const cancelExModal = document.getElementById('cancelExModal');
-  const exModal = document.getElementById('exModal');
+  document.getElementById('closeExModal').onclick = () => document.getElementById('exModal')?.classList.remove('open');
+  document.getElementById('cancelExModal').onclick = () => document.getElementById('exModal')?.classList.remove('open');
+  document.getElementById('exModal').addEventListener('click', e => { if (e.target === document.getElementById('exModal')) document.getElementById('exModal').classList.remove('open'); });
 
-  if (closeExModal) closeExModal.onclick = () => exModal?.classList.remove('open');
-  if (cancelExModal) cancelExModal.onclick = () => exModal?.classList.remove('open');
-  if (exModal) exModal.addEventListener('click', e => { if (e.target === exModal) exModal.classList.remove('open'); });
+  document.getElementById('confirmAddEx').onclick = () => {
+    const exModal = document.getElementById('exModal');
+    if (currentTab === 'search') {
+      if (!selectedEx) return toast('⚠ Selecione um exercício');
+      board[targetDay].push({ id: uid(), name: selectedEx.name, muscle: selectedEx.muscle, sets: document.getElementById('exSets')?.value || '3', reps: document.getElementById('exReps')?.value || '12', rest: document.getElementById('exRest')?.value || '60s', obs: '' });
+    } else {
+      const name = document.getElementById('manualName')?.value.trim();
+      if (!name) return toast('⚠ Insira o nome');
+      board[targetDay].push({ id: uid(), name, muscle: document.getElementById('manualMuscle')?.value || '', sets: document.getElementById('manualSets')?.value || '3', reps: document.getElementById('manualReps')?.value || '12', rest: document.getElementById('manualRest')?.value || '60s', obs: document.getElementById('manualObs')?.value || '' });
+      const mn = document.getElementById('manualName');
+      const mo = document.getElementById('manualObs');
+      if (mn) mn.value = '';
+      if (mo) mo.value = '';
+    }
+    exModal?.classList.remove('open');
+    renderBoard();
+    toast(`✓ Adicionado em ${DAYS.find(d => d.key === targetDay)?.full}`);
+  };
 
-  const confirmAddEx = document.getElementById('confirmAddEx');
-  if (confirmAddEx) {
-    confirmAddEx.onclick = () => {
-      if (currentTab === 'search') {
-        if (!selectedEx) return toast('⚠ Selecione um exercício');
-        board[targetDay].push({
-          id: uid(), name: selectedEx.name, muscle: selectedEx.muscle,
-          sets: document.getElementById('exSets')?.value || '3',
-          reps: document.getElementById('exReps')?.value || '12',
-          rest: document.getElementById('exRest')?.value || '60s',
-          obs: ''
-        });
-      } else {
-        const name = document.getElementById('manualName')?.value.trim();
-        if (!name) return toast('⚠ Insira o nome');
-        board[targetDay].push({
-          id: uid(), name,
-          muscle: document.getElementById('manualMuscle')?.value || '',
-          sets: document.getElementById('manualSets')?.value || '3',
-          reps: document.getElementById('manualReps')?.value || '12',
-          rest: document.getElementById('manualRest')?.value || '60s',
-          obs: document.getElementById('manualObs')?.value || ''
-        });
-        const mn = document.getElementById('manualName');
-        const mo = document.getElementById('manualObs');
-        if (mn) mn.value = '';
-        if (mo) mo.value = '';
-      }
-      exModal?.classList.remove('open');
-      renderBoard();
-      toast(`✓ Adicionado em ${DAYS.find(d => d.key === targetDay)?.full}`);
-    };
-  }
+  document.getElementById('loadPresetBtn').onclick = () => {
+    const v = document.getElementById('presetSelect')?.value;
+    if (!v) return toast('Selecione um preset');
+    DAYS.forEach(d => board[d.key] = []);
+    Object.entries(PRESETS[v]).forEach(([day, list]) => { board[day] = list.map(e => ({ ...e, id: uid() })); });
+    renderBoard();
+    toast('✓ Preset carregado!');
+    document.getElementById('presetSelect').value = '';
+  };
 
-  // ── Preset ────────────────────────────────────────────────────
-  const loadPresetBtn = document.getElementById('loadPresetBtn');
-  if (loadPresetBtn) {
-    loadPresetBtn.onclick = () => {
-      const v = document.getElementById('presetSelect')?.value;
-      if (!v) return toast('Selecione um preset');
-      DAYS.forEach(d => board[d.key] = []);
-      Object.entries(PRESETS[v]).forEach(([day, list]) => {
-        board[day] = list.map(e => ({ ...e, id: uid() }));
-      });
-      renderBoard();
-      toast('✓ Preset carregado!');
-      const ps = document.getElementById('presetSelect');
-      if (ps) ps.value = '';
-    };
-  }
+  document.getElementById('clearBoardBtn').onclick = () => document.getElementById('confirmClearModal')?.classList.add('open');
+  document.getElementById('cancelClear').onclick = () => document.getElementById('confirmClearModal')?.classList.remove('open');
+  document.getElementById('confirmClear').onclick = () => {
+    DAYS.forEach(d => board[d.key] = []);
+    clipboard = null;
+    renderBoard();
+    document.getElementById('confirmClearModal')?.classList.remove('open');
+    toast('Quadro limpo');
+  };
 
-  // ── Limpar tudo ───────────────────────────────────────────────
-  const clearBoardBtn = document.getElementById('clearBoardBtn');
-  const confirmClearModal = document.getElementById('confirmClearModal');
-  const cancelClear = document.getElementById('cancelClear');
-  const confirmClear = document.getElementById('confirmClear');
-
-  if (clearBoardBtn) clearBoardBtn.onclick = () => confirmClearModal?.classList.add('open');
-  if (cancelClear) cancelClear.onclick = () => confirmClearModal?.classList.remove('open');
-  if (confirmClear) {
-    confirmClear.onclick = () => {
-      DAYS.forEach(d => board[d.key] = []);
-      clipboard = null;
-      renderBoard();
-      confirmClearModal?.classList.remove('open');
-      toast('Quadro limpo');
-    };
-  }
-
-  // ── Context Menu ──────────────────────────────────────────────
   window.ctxShow = function(e, day, idx) {
-    e.preventDefault();
-    e.stopPropagation();
+    e.preventDefault(); e.stopPropagation();
     ctxTarget = { day, idx };
     const menu = document.getElementById('ctxMenu');
     const hasCb = !!(clipboard && clipboard.data && clipboard.data.length > 0);
-    const ctxPaste = document.getElementById('ctxPaste');
-    if (ctxPaste) {
-      ctxPaste.style.opacity = hasCb ? '1' : '0.4';
-      ctxPaste.style.pointerEvents = hasCb ? 'auto' : 'none';
-    }
-    if (menu) {
-      menu.style.left = Math.min(e.clientX, window.innerWidth - 180) + 'px';
-      menu.style.top = Math.min(e.clientY, window.innerHeight - 140) + 'px';
-      menu.classList.add('open');
-    }
+    const ctxPasteEl = document.getElementById('ctxPaste');
+    if (ctxPasteEl) { ctxPasteEl.style.opacity = hasCb ? '1' : '0.4'; ctxPasteEl.style.pointerEvents = hasCb ? 'auto' : 'none'; }
+    if (menu) { menu.style.left = Math.min(e.clientX, window.innerWidth - 180) + 'px'; menu.style.top = Math.min(e.clientY, window.innerHeight - 140) + 'px'; menu.classList.add('open'); }
   };
 
   document.addEventListener('click', () => document.getElementById('ctxMenu')?.classList.remove('open'));
 
-  const ctxEdit = document.getElementById('ctxEdit');
-  if (ctxEdit) {
-    ctxEdit.onclick = () => {
-      if (!ctxTarget) return;
-      const ex = board[ctxTarget.day][ctxTarget.idx];
-      const s = prompt('Séries:', ex.sets); if (s === null) return;
-      const r = prompt('Reps/Tempo:', ex.reps); if (r === null) return;
-      const rs = prompt('Descanso:', ex.rest); if (rs === null) return;
-      const o = prompt('Observações:', ex.obs);
-      board[ctxTarget.day][ctxTarget.idx] = { ...ex, sets: s, reps: r, rest: rs, obs: o || '' };
-      renderBoard();
-      toast('✓ Atualizado');
-    };
-  }
+  document.getElementById('ctxEdit').onclick = () => {
+    if (!ctxTarget) return;
+    const ex = board[ctxTarget.day][ctxTarget.idx];
+    const s = prompt('Séries:', ex.sets); if (s === null) return;
+    const r = prompt('Reps/Tempo:', ex.reps); if (r === null) return;
+    const rs = prompt('Descanso:', ex.rest); if (rs === null) return;
+    const o = prompt('Observações:', ex.obs);
+    board[ctxTarget.day][ctxTarget.idx] = { ...ex, sets: s, reps: r, rest: rs, obs: o || '' };
+    renderBoard();
+    toast('✓ Atualizado');
+  };
 
-  const ctxPaste = document.getElementById('ctxPaste');
-  if (ctxPaste) {
-    ctxPaste.onclick = () => {
-      if (!ctxTarget || !clipboard) return;
-      const count = clipboard.data.length;
-      const dayName = DAYS.find(d => d.key === ctxTarget.day)?.full;
-      clipboard.data.forEach(ex => board[ctxTarget.day].push({ ...ex, id: uid() }));
-      clipboard = null;
-      const pb = document.getElementById('pasteBadge');
-      if (pb) pb.classList.remove('visible');
-      renderBoard();
-      toast(`✓ ${count} exerc. colados em ${dayName}`);
-    };
-  }
+  document.getElementById('ctxPaste').onclick = () => {
+    if (!ctxTarget || !clipboard) return;
+    const count = clipboard.data.length;
+    const dayName = DAYS.find(d => d.key === ctxTarget.day)?.full;
+    clipboard.data.forEach(ex => board[ctxTarget.day].push({ ...ex, id: uid() }));
+    clipboard = null;
+    document.getElementById('pasteBadge')?.classList.remove('visible');
+    renderBoard();
+    toast(`✓ ${count} exerc. colados em ${dayName}`);
+  };
 
-  const ctxDelete = document.getElementById('ctxDelete');
-  if (ctxDelete) {
-    ctxDelete.onclick = () => {
-      if (ctxTarget) { removeCard(ctxTarget.day, ctxTarget.idx); toast('Exercício removido'); }
-    };
-  }
+  document.getElementById('ctxDelete').onclick = () => {
+    if (ctxTarget) { removeCard(ctxTarget.day, ctxTarget.idx); toast('Exercício removido'); }
+  };
 
-  // ── Salvar ────────────────────────────────────────────────────
-  const saveWorkoutBtn = document.getElementById('saveWorkoutBtn');
-  if (saveWorkoutBtn) {
-    saveWorkoutBtn.onclick = async () => {
-      const studentId = document.getElementById('studentSelect')?.value;
-      const name = document.getElementById('workoutName')?.value.trim();
-      if (!studentId) return toast('⚠ Selecione um aluno');
-      if (!name) return toast('⚠ Insira o nome da rotina');
-      const total = DAYS.reduce((a, d) => a + board[d.key].length, 0);
-      if (total === 0) return toast('⚠ Adicione pelo menos um exercício');
+  document.getElementById('saveWorkoutBtn').onclick = async () => {
+    const studentId = document.getElementById('studentSelect')?.value;
+    const name = document.getElementById('workoutName')?.value.trim();
+    if (!studentId) return toast('⚠ Selecione um aluno');
+    if (!name) return toast('⚠ Insira o nome da rotina');
+    const total = DAYS.reduce((a, d) => a + board[d.key].length, 0);
+    if (total === 0) return toast('⚠ Adicione pelo menos um exercício');
 
-      const orig = saveWorkoutBtn.innerHTML;
-      saveWorkoutBtn.innerHTML = '<div class="spinner" style="border-top-color:#0A0A0A;"></div> Salvando...';
-      saveWorkoutBtn.disabled = true;
+    const orig = document.getElementById('saveWorkoutBtn').innerHTML;
+    document.getElementById('saveWorkoutBtn').innerHTML = '<div class="spinner" style="border-top-color:#0A0A0A;"></div>';
+    document.getElementById('saveWorkoutBtn').disabled = true;
 
-      const daysData = {};
-      DAYS.forEach(d => {
-        if (board[d.key].length > 0) {
-          daysData[d.key] = board[d.key].map(e => ({
-            exerciseName: e.name || '',
-            muscleGroup: e.muscle || '',
-            sets: parseInt(e.sets) || 3,
-            reps: e.reps || '12',
-            rest: e.rest || '60s',
-            obs: e.obs || ''
-          }));
-        }
-      });
-
-      try {
-        let result;
-        if (editingId) {
-          // updateWorkout só manda os campos necessários — sem description undefined
-          result = await dbManager.updateWorkout(editingId, { name, studentId, days: daysData });
-        } else {
-          result = await dbManager.createWorkout({ name, studentId, description: '', days: daysData });
-        }
-        if (result && result.success !== false) {
-          toast(`✓ Rotina "${name}" salva!`, 3000);
-          setTimeout(() => router.goToPersonalDashboard(), 1800);
-        } else {
-          toast('Erro: ' + (result?.error || 'Tente novamente'));
-        }
-      } catch(err) {
-        console.error(err);
-        toast('Erro ao salvar. Veja o console.');
-      } finally {
-        saveWorkoutBtn.innerHTML = orig;
-        saveWorkoutBtn.disabled = false;
+    const daysData = {};
+    DAYS.forEach(d => {
+      if (board[d.key].length > 0) {
+        daysData[d.key] = board[d.key].map(e => ({ exerciseName: e.name || '', muscleGroup: e.muscle || '', sets: parseInt(e.sets) || 3, reps: e.reps || '12', rest: e.rest || '60s', obs: e.obs || '' }));
       }
-    };
-  }
+    });
 
-  // ── Keyboard shortcuts ────────────────────────────────────────
+    try {
+      let result;
+      if (editingId) result = await dbManager.updateWorkout(editingId, { name, studentId, days: daysData });
+      else result = await dbManager.createWorkout({ name, studentId, description: '', days: daysData });
+      if (result && result.success !== false) {
+        toast(`✓ Rotina "${name}" salva!`, 3000);
+        setTimeout(() => router.goToPersonalDashboard(), 1800);
+      } else {
+        toast('Erro: ' + (result?.error || 'Tente novamente'));
+      }
+    } catch(err) {
+      toast('Erro ao salvar. Veja o console.');
+    } finally {
+      document.getElementById('saveWorkoutBtn').innerHTML = orig;
+      document.getElementById('saveWorkoutBtn').disabled = false;
+    }
+  };
+
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape') {
       document.getElementById('exModal')?.classList.remove('open');
@@ -843,7 +755,6 @@
     }
   });
 
-  // ── Init ──────────────────────────────────────────────────────
   renderBoard();
   renderExList('');
 })();

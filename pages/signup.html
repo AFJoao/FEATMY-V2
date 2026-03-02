@@ -1,7 +1,6 @@
 <div class="signup-page" style="font-family: 'DM Sans', system-ui, sans-serif; background: #FFFFFF; min-height: 100vh; display: flex;">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/mobile-responsive-fixes.css">
 
   <style>
     .su-input {
@@ -20,114 +19,163 @@
     .su-btn:disabled { opacity: 0.55; cursor: not-allowed; transform: none; box-shadow: none; }
     .spinner { width: 22px; height: 22px; border: 3px solid rgba(0,0,0,0.08); border-top-color: #00E676; border-radius: 50%; animation: spin 0.8s linear infinite; display: inline-block; vertical-align: middle; }
     @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Left Panel ── */
+    .su-left {
+      width: 44%;
+      background: #0A0A0A;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 48px;
+      position: relative;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+
+    /* ── Right Panel ── */
+    .su-right {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 48px 56px;
+      overflow-y: auto;
+    }
+
+    /* ── Mobile logo bar ── */
+    .mobile-logo-bar {
+      display: none;
+      width: 100%;
+      background: #0A0A0A;
+      padding: 20px 24px;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    @media (max-width: 768px) {
+      .signup-page {
+        flex-direction: column !important;
+      }
+      .su-left {
+        display: none !important;
+      }
+      .mobile-logo-bar {
+        display: flex !important;
+      }
+      .su-right {
+        padding: 32px 24px 48px !important;
+        align-items: flex-start !important;
+      }
+      /* Grid de senha vira coluna única */
+      .su-password-grid {
+        grid-template-columns: 1fr !important;
+      }
+    }
   </style>
 
-  <!-- LEFT PANEL -->
-  <div class="su-left" style="width: 44%; background: #0A0A0A; display: flex; flex-direction: column; justify-content: space-between; padding: 48px; position: relative; overflow: hidden; flex-shrink: 0;">
-    <div style="position: absolute; inset: 0; background: radial-gradient(ellipse at 25% 75%, rgba(0,230,118,0.08) 0%, transparent 55%); pointer-events: none;"></div>
+  <!-- Mobile Logo Bar -->
+  <div class="mobile-logo-bar">
+    <img src="assets/branca_larga.png" alt="Featym" style="height:28px;object-fit:contain;" onerror="this.style.display='none'">
+  </div>
 
-    <div style="position: relative; flex: 1; display: flex; align-items: center; justify-content: center;">
-      <img src="assets/branca_larga.png" alt="Featym" style="width: 72%; max-width: 320px; object-fit: contain; filter: drop-shadow(0 0 40px rgba(0,230,118,0.12));" onerror="this.style.display='none'">
+  <!-- Left Panel (desktop only) -->
+  <div class="su-left">
+    <div style="position:absolute;inset:0;background:radial-gradient(ellipse at 25% 75%,rgba(0,230,118,0.08) 0%,transparent 55%);pointer-events:none;"></div>
+
+    <div style="position:relative;flex:1;display:flex;align-items:center;justify-content:center;">
+      <img src="assets/branca_larga.png" alt="Featym" style="width:72%;max-width:320px;object-fit:contain;filter:drop-shadow(0 0 40px rgba(0,230,118,0.12));" onerror="this.style.display='none'">
     </div>
 
-    <div style="position: relative;">
-      <p style="color: rgba(0,230,118,0.75); font-size: 0.72rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; margin: 0 0 14px;">Exclusivo para Personal Trainers</p>
-      <h2 style="color: #fff; font-size: 2rem; font-weight: 800; margin: 0 0 16px; line-height: 1.2; letter-spacing: -0.03em;">Gerencie seus<br>alunos com<br>inteligência.</h2>
-      <p style="color: rgba(255,255,255,0.4); font-size: 0.85rem; line-height: 1.7; margin: 0 0 28px; max-width: 300px;">Crie treinos, acompanhe a evolução e receba feedback dos seus alunos em tempo real.</p>
+    <div style="position:relative;">
+      <p style="color:rgba(0,230,118,0.75);font-size:0.72rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;margin:0 0 14px;">Exclusivo para Personal Trainers</p>
+      <h2 style="color:#fff;font-size:2rem;font-weight:800;margin:0 0 16px;line-height:1.2;letter-spacing:-0.03em;">Gerencie seus<br>alunos com<br>inteligência.</h2>
+      <p style="color:rgba(255,255,255,0.4);font-size:0.85rem;line-height:1.7;margin:0 0 28px;max-width:300px;">Crie treinos, acompanhe a evolução e receba feedback dos seus alunos em tempo real.</p>
 
-      <div style="display: flex; flex-direction: column; gap: 10px;">
-        <div style="display: flex; align-items: center; gap: 12px;">
-          <div style="width: 28px; height: 28px; background: rgba(0,230,118,0.15); border-radius: 8px; display: flex; align-items: center; justify-content: center; border: 1px solid rgba(0,230,118,0.2); flex-shrink: 0;">
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <div style="width:28px;height:28px;background:rgba(0,230,118,0.15);border-radius:8px;display:flex;align-items:center;justify-content:center;border:1px solid rgba(0,230,118,0.2);flex-shrink:0;">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#00E676" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
           </div>
-          <span style="color: rgba(255,255,255,0.55); font-size: 0.82rem;">Cadastre alunos diretamente pelo painel</span>
+          <span style="color:rgba(255,255,255,0.55);font-size:0.82rem;">Cadastre alunos diretamente pelo painel</span>
         </div>
-        <div style="display: flex; align-items: center; gap: 12px;">
-          <div style="width: 28px; height: 28px; background: rgba(0,230,118,0.15); border-radius: 8px; display: flex; align-items: center; justify-content: center; border: 1px solid rgba(0,230,118,0.2); flex-shrink: 0;">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <div style="width:28px;height:28px;background:rgba(0,230,118,0.15);border-radius:8px;display:flex;align-items:center;justify-content:center;border:1px solid rgba(0,230,118,0.2);flex-shrink:0;">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#00E676" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
           </div>
-          <span style="color: rgba(255,255,255,0.55); font-size: 0.82rem;">Treinos organizados por dia da semana</span>
+          <span style="color:rgba(255,255,255,0.55);font-size:0.82rem;">Treinos organizados por dia da semana</span>
         </div>
-        <div style="display: flex; align-items: center; gap: 12px;">
-          <div style="width: 28px; height: 28px; background: rgba(0,230,118,0.15); border-radius: 8px; display: flex; align-items: center; justify-content: center; border: 1px solid rgba(0,230,118,0.2); flex-shrink: 0;">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <div style="width:28px;height:28px;background:rgba(0,230,118,0.15);border-radius:8px;display:flex;align-items:center;justify-content:center;border:1px solid rgba(0,230,118,0.2);flex-shrink:0;">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#00E676" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
           </div>
-          <span style="color: rgba(255,255,255,0.55); font-size: 0.82rem;">Feedback em tempo real dos seus alunos</span>
+          <span style="color:rgba(255,255,255,0.55);font-size:0.82rem;">Feedback em tempo real dos seus alunos</span>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- RIGHT PANEL -->
-  <div style="flex: 1; display: flex; align-items: center; justify-content: center; padding: 48px 56px; overflow-y: auto;">
-    <div style="width: 100%; max-width: 400px;">
+  <!-- Right Panel -->
+  <div class="su-right">
+    <div style="width:100%;max-width:400px;">
 
-      <!-- Badge de aviso: só personal -->
-      <div style="display: inline-flex; align-items: center; gap: 7px; background: rgba(0,230,118,0.1); border: 1px solid rgba(0,230,118,0.3); border-radius: 20px; padding: 5px 13px; margin-bottom: 18px;">
+      <!-- Badge -->
+      <div style="display:inline-flex;align-items:center;gap:7px;background:rgba(0,230,118,0.1);border:1px solid rgba(0,230,118,0.3);border-radius:20px;padding:5px 13px;margin-bottom:18px;">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#00A843" stroke-width="2.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-        <span style="font-size: 0.75rem; font-weight: 700; color: #00A843; letter-spacing: 0.02em;">Cadastro exclusivo para Personal Trainers</span>
+        <span style="font-size:0.75rem;font-weight:700;color:#00A843;letter-spacing:0.02em;">Cadastro exclusivo para Personal Trainers</span>
       </div>
 
-      <div style="margin-bottom: 24px;">
-        <h1 style="font-size: 1.7rem; font-weight: 800; color: #0A0A0A; margin: 0 0 6px; letter-spacing: -0.03em;">Criar conta de Personal</h1>
-        <p style="color: #6B7280; font-size: 0.875rem; margin: 0;">Preencha os dados abaixo para começar</p>
+      <div style="margin-bottom:24px;">
+        <h1 style="font-size:1.7rem;font-weight:800;color:#0A0A0A;margin:0 0 6px;letter-spacing:-0.03em;">Criar conta de Personal</h1>
+        <p style="color:#6B7280;font-size:0.875rem;margin:0;">Preencha os dados abaixo para começar</p>
       </div>
 
-      <div id="signupError"   style="display: none; background: #FFF1F2; border: 1px solid #FECDD3; border-radius: 10px; padding: 11px 14px; margin-bottom: 16px; font-size: 0.83rem; color: #BE123C; font-weight: 500;"></div>
-      <div id="signupSuccess" style="display: none; background: #ECFDF5; border: 1px solid #A7F3D0; border-radius: 10px; padding: 11px 14px; margin-bottom: 16px; font-size: 0.83rem; color: #047857; font-weight: 500;"></div>
+      <div id="signupError"   style="display:none;background:#FFF1F2;border:1px solid #FECDD3;border-radius:10px;padding:11px 14px;margin-bottom:16px;font-size:0.83rem;color:#BE123C;font-weight:500;"></div>
+      <div id="signupSuccess" style="display:none;background:#ECFDF5;border:1px solid #A7F3D0;border-radius:10px;padding:11px 14px;margin-bottom:16px;font-size:0.83rem;color:#047857;font-weight:500;"></div>
 
-      <form id="signupForm" style="display: flex; flex-direction: column; gap: 16px;">
+      <form id="signupForm" style="display:flex;flex-direction:column;gap:16px;">
         <div>
-          <label style="display: block; font-size: 0.78rem; font-weight: 700; color: #374151; margin-bottom: 7px;">Nome completo</label>
+          <label style="display:block;font-size:0.78rem;font-weight:700;color:#374151;margin-bottom:7px;">Nome completo</label>
           <input type="text" id="signupName" class="su-input" placeholder="Seu nome" required autocomplete="name">
         </div>
         <div>
-          <label style="display: block; font-size: 0.78rem; font-weight: 700; color: #374151; margin-bottom: 7px;">Email</label>
+          <label style="display:block;font-size:0.78rem;font-weight:700;color:#374151;margin-bottom:7px;">Email</label>
           <input type="email" id="signupEmail" class="su-input" placeholder="seu@email.com" required autocomplete="email">
         </div>
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+        <div class="su-password-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
           <div>
-            <label style="display: block; font-size: 0.78rem; font-weight: 700; color: #374151; margin-bottom: 7px;">Senha</label>
+            <label style="display:block;font-size:0.78rem;font-weight:700;color:#374151;margin-bottom:7px;">Senha</label>
             <input type="password" id="signupPassword" class="su-input" placeholder="Mín. 6 caracteres" required minlength="6" autocomplete="new-password">
           </div>
           <div>
-            <label style="display: block; font-size: 0.78rem; font-weight: 700; color: #374151; margin-bottom: 7px;">Confirmar</label>
+            <label style="display:block;font-size:0.78rem;font-weight:700;color:#374151;margin-bottom:7px;">Confirmar</label>
             <input type="password" id="signupPasswordConfirm" class="su-input" placeholder="Repita" required minlength="6" autocomplete="new-password">
           </div>
         </div>
-        <button type="submit" id="signupSubmitBtn" class="su-btn" style="margin-top: 4px;">Criar minha conta</button>
+        <button type="submit" id="signupSubmitBtn" class="su-btn" style="margin-top:4px;">Criar minha conta</button>
       </form>
 
-      <!-- Navegação -->
-      <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 20px;">
-
-        <p style="text-align: center; font-size: 0.875rem; color: #6B7280; margin: 0;">
-          Já tem conta? <a href="#/login" style="color: #0A0A0A; font-weight: 700; text-decoration: none;">Fazer login →</a>
+      <div style="display:flex;flex-direction:column;gap:10px;margin-top:20px;">
+        <p style="text-align:center;font-size:0.875rem;color:#6B7280;margin:0;">
+          Já tem conta? <a href="#/login" style="color:#0A0A0A;font-weight:700;text-decoration:none;">Fazer login →</a>
         </p>
 
-        <hr style="border: none; border-top: 1px solid #F4F4F4; margin: 0;">
+        <hr style="border:none;border-top:1px solid #F4F4F4;margin:0;">
 
-        <!-- Destaque para alunos -->
-        <div style="background: #FFFBEB; border: 1px solid #FDE68A; border-radius: 10px; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px;">
+        <div style="background:#FFFBEB;border:1px solid #FDE68A;border-radius:10px;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;">
           <div>
-            <p style="font-size: 0.78rem; font-weight: 700; color: #92400E; margin: 0 0 2px;">É aluno?</p>
-            <p style="font-size: 0.75rem; color: #B45309; margin: 0;">Seu personal já criou sua conta?</p>
+            <p style="font-size:0.78rem;font-weight:700;color:#92400E;margin:0 0 2px;">É aluno?</p>
+            <p style="font-size:0.75rem;color:#B45309;margin:0;">Seu personal já criou sua conta?</p>
           </div>
-          <a href="#/primeiro-acesso" style="background: #F59E0B; color: #fff; font-size: 0.78rem; font-weight: 700; padding: 8px 14px; border-radius: 8px; text-decoration: none; white-space: nowrap; transition: background 0.2s;" onmouseover="this.style.background='#D97706'" onmouseout="this.style.background='#F59E0B'">
+          <a href="#/primeiro-acesso" style="background:#F59E0B;color:#fff;font-size:0.78rem;font-weight:700;padding:8px 14px;border-radius:8px;text-decoration:none;white-space:nowrap;transition:background 0.2s;" onmouseover="this.style.background='#D97706'" onmouseout="this.style.background='#F59E0B'">
             Primeiro acesso →
           </a>
         </div>
-
       </div>
     </div>
   </div>
 </div>
-
-<style>
-@media (max-width: 768px) {
-  .su-left { display: none !important; }
-}
-</style>
 
 <script>
 (function() {

@@ -44,79 +44,131 @@
     .login-btn:active { transform: translateY(0); }
     .login-link { color: #0A0A0A; font-weight: 700; text-decoration: none; }
     .login-link:hover { text-decoration: underline; }
+
+    /* ── Left Panel ── */
+    .login-left {
+      width: 45%;
+      background: #0A0A0A;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 48px;
+      position: relative;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+
+    /* ── Right Panel ── */
+    .login-right {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 48px;
+    }
+
+    /* ── Mobile: esconde painel esquerdo, mostra logo no topo ── */
+    .mobile-logo-bar {
+      display: none;
+      width: 100%;
+      background: #0A0A0A;
+      padding: 20px 24px;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    @media (max-width: 768px) {
+      .login-container {
+        flex-direction: column !important;
+      }
+      .login-left {
+        display: none !important;
+      }
+      .mobile-logo-bar {
+        display: flex !important;
+      }
+      .login-right {
+        padding: 32px 24px 40px !important;
+        align-items: flex-start !important;
+      }
+    }
   </style>
 
-  <!-- Left Panel - Branding -->
-  <div style="width: 45%; background: #0A0A0A; display: flex; flex-direction: column; justify-content: space-between; padding: 48px; position: relative; overflow: hidden;">
-    <div style="position: absolute; inset: 0; background: radial-gradient(ellipse at 20% 80%, rgba(0,230,118,0.08) 0%, transparent 60%), radial-gradient(ellipse at 80% 20%, rgba(255,255,255,0.03) 0%, transparent 60%); pointer-events: none;"></div>
+  <!-- Mobile Logo Bar (visível apenas em mobile) -->
+  <div class="mobile-logo-bar">
+    <img src="assets/branca_larga.png" alt="Featym" style="height:28px;object-fit:contain;" onerror="this.style.display='none'">
+  </div>
 
-    <div style="position: relative; flex: 1; display: flex; align-items: center; justify-content: center;">
-      <img src="assets/branca_larga.png" alt="Featym" style="width: 72%; max-width: 320px; object-fit: contain; filter: drop-shadow(0 0 40px rgba(0,230,118,0.12));" onerror="this.style.display='none'">
+  <!-- Left Panel - Branding (visível apenas em desktop) -->
+  <div class="login-left">
+    <div style="position:absolute;inset:0;background:radial-gradient(ellipse at 20% 80%,rgba(0,230,118,0.08) 0%,transparent 60%),radial-gradient(ellipse at 80% 20%,rgba(255,255,255,0.03) 0%,transparent 60%);pointer-events:none;"></div>
+
+    <div style="position:relative;flex:1;display:flex;align-items:center;justify-content:center;">
+      <img src="assets/branca_larga.png" alt="Featym" style="width:72%;max-width:320px;object-fit:contain;filter:drop-shadow(0 0 40px rgba(0,230,118,0.12));" onerror="this.style.display='none'">
     </div>
 
-    <div style="position: relative;">
-      <p style="color: rgba(0,230,118,0.7); font-size: 0.75rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; margin: 0 0 16px;">Personal Training Platform</p>
-      <h2 style="color: #fff; font-size: 2.2rem; font-weight: 800; margin: 0 0 16px; line-height: 1.2; letter-spacing: -0.03em;">Transforme resultados em experiência.</h2>
-      <p style="color: rgba(255,255,255,0.45); font-size: 0.9rem; line-height: 1.7; margin: 0 0 32px; max-width: 340px;">Conecte personal trainers e alunos com uma plataforma inteligente de gerenciamento de treinos.</p>
-      <div style="display: flex; gap: 24px;">
+    <div style="position:relative;">
+      <p style="color:rgba(0,230,118,0.7);font-size:0.75rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;margin:0 0 16px;">Personal Training Platform</p>
+      <h2 style="color:#fff;font-size:2.2rem;font-weight:800;margin:0 0 16px;line-height:1.2;letter-spacing:-0.03em;">Transforme resultados em experiência.</h2>
+      <p style="color:rgba(255,255,255,0.45);font-size:0.9rem;line-height:1.7;margin:0 0 32px;max-width:340px;">Conecte personal trainers e alunos com uma plataforma inteligente de gerenciamento de treinos.</p>
+      <div style="display:flex;gap:24px;">
         <div>
-          <p style="color: #00E676; font-size: 1.5rem; font-weight: 800; margin: 0; letter-spacing: -0.03em;">100%</p>
-          <p style="color: rgba(255,255,255,0.4); font-size: 0.72rem; margin: 3px 0 0; font-weight: 500;">Digital</p>
+          <p style="color:#00E676;font-size:1.5rem;font-weight:800;margin:0;letter-spacing:-0.03em;">100%</p>
+          <p style="color:rgba(255,255,255,0.4);font-size:0.72rem;margin:3px 0 0;font-weight:500;">Digital</p>
         </div>
-        <div style="width: 1px; background: rgba(255,255,255,0.08);"></div>
+        <div style="width:1px;background:rgba(255,255,255,0.08);"></div>
         <div>
-          <p style="color: #00E676; font-size: 1.5rem; font-weight: 800; margin: 0; letter-spacing: -0.03em;">Real-time</p>
-          <p style="color: rgba(255,255,255,0.4); font-size: 0.72rem; margin: 3px 0 0; font-weight: 500;">Feedback</p>
+          <p style="color:#00E676;font-size:1.5rem;font-weight:800;margin:0;letter-spacing:-0.03em;">Real-time</p>
+          <p style="color:rgba(255,255,255,0.4);font-size:0.72rem;margin:3px 0 0;font-weight:500;">Feedback</p>
         </div>
-        <div style="width: 1px; background: rgba(255,255,255,0.08);"></div>
+        <div style="width:1px;background:rgba(255,255,255,0.08);"></div>
         <div>
-          <p style="color: #00E676; font-size: 1.5rem; font-weight: 800; margin: 0; letter-spacing: -0.03em;">Kanban</p>
-          <p style="color: rgba(255,255,255,0.4); font-size: 0.72rem; margin: 3px 0 0; font-weight: 500;">Treinos</p>
+          <p style="color:#00E676;font-size:1.5rem;font-weight:800;margin:0;letter-spacing:-0.03em;">Kanban</p>
+          <p style="color:rgba(255,255,255,0.4);font-size:0.72rem;margin:3px 0 0;font-weight:500;">Treinos</p>
         </div>
       </div>
     </div>
   </div>
 
   <!-- Right Panel - Form -->
-  <div style="flex: 1; display: flex; align-items: center; justify-content: center; padding: 48px;">
-    <div style="width: 100%; max-width: 400px;">
-      
-      <div style="margin-bottom: 36px;">
-        <h1 style="font-size: 1.8rem; font-weight: 800; color: #0A0A0A; margin: 0 0 8px; letter-spacing: -0.03em;">Bem-vindo de volta</h1>
-        <p style="color: #6B7280; font-size: 0.9rem; margin: 0;">Entre na sua conta para continuar</p>
+  <div class="login-right">
+    <div style="width:100%;max-width:400px;">
+
+      <div style="margin-bottom:32px;">
+        <h1 style="font-size:1.8rem;font-weight:800;color:#0A0A0A;margin:0 0 8px;letter-spacing:-0.03em;">Bem-vindo de volta</h1>
+        <p style="color:#6B7280;font-size:0.9rem;margin:0;">Entre na sua conta para continuar</p>
       </div>
 
-      <div id="loginError" style="display: none; background: #FFF1F2; border: 1px solid #FECDD3; border-radius: 10px; padding: 12px 16px; margin-bottom: 20px; font-size: 0.85rem; color: #BE123C; font-weight: 500;"></div>
+      <div id="loginError" style="display:none;background:#FFF1F2;border:1px solid #FECDD3;border-radius:10px;padding:12px 16px;margin-bottom:20px;font-size:0.85rem;color:#BE123C;font-weight:500;"></div>
 
       <form id="loginForm">
-        <div style="margin-bottom: 18px;">
-          <label style="display: block; font-size: 0.8rem; font-weight: 700; color: #374151; margin-bottom: 8px; letter-spacing: 0.01em;">Email</label>
+        <div style="margin-bottom:18px;">
+          <label style="display:block;font-size:0.8rem;font-weight:700;color:#374151;margin-bottom:8px;letter-spacing:0.01em;">Email</label>
           <input type="email" id="loginEmail" class="login-input" placeholder="seu@email.com" required>
         </div>
 
-        <div style="margin-bottom: 28px;">
-          <label style="display: block; font-size: 0.8rem; font-weight: 700; color: #374151; margin-bottom: 8px; letter-spacing: 0.01em;">Senha</label>
+        <div style="margin-bottom:28px;">
+          <label style="display:block;font-size:0.8rem;font-weight:700;color:#374151;margin-bottom:8px;letter-spacing:0.01em;">Senha</label>
           <input type="password" id="loginPassword" class="login-input" placeholder="••••••••" required>
         </div>
 
         <button type="submit" class="login-btn">Entrar</button>
       </form>
 
-      <!-- ── Links de acesso ── -->
-      <p style="text-align: center; margin-top: 20px; font-size: 0.875rem; color: #6B7280;">
+      <p style="text-align:center;margin-top:20px;font-size:0.875rem;color:#6B7280;">
         Personal Trainer? <a href="#/signup" class="login-link">Cadastre-se aqui →</a>
       </p>
 
-      <div style="border-top: 1px solid #F4F4F4; margin: 16px 0;"></div>
+      <div style="border-top:1px solid #F4F4F4;margin:16px 0;"></div>
 
-      <!-- Card destacado: primeiro acesso aluno -->
-      <div style="background: #FFFBEB; border: 1px solid #FDE68A; border-radius: 12px; padding: 14px 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px;">
+      <div style="background:#FFFBEB;border:1px solid #FDE68A;border-radius:12px;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;">
         <div>
-          <p style="font-size: 0.8rem; font-weight: 700; color: #92400E; margin: 0 0 2px;">É aluno?</p>
-          <p style="font-size: 0.75rem; color: #B45309; margin: 0;">Acesse pela primeira vez aqui</p>
+          <p style="font-size:0.8rem;font-weight:700;color:#92400E;margin:0 0 2px;">É aluno?</p>
+          <p style="font-size:0.75rem;color:#B45309;margin:0;">Acesse pela primeira vez aqui</p>
         </div>
         <a href="#/primeiro-acesso"
-           style="background: #F59E0B; color: #fff; font-size: 0.78rem; font-weight: 700; padding: 9px 14px; border-radius: 8px; text-decoration: none; white-space: nowrap; flex-shrink: 0;"
+           style="background:#F59E0B;color:#fff;font-size:0.78rem;font-weight:700;padding:9px 14px;border-radius:8px;text-decoration:none;white-space:nowrap;flex-shrink:0;"
            onmouseover="this.style.background='#D97706'"
            onmouseout="this.style.background='#F59E0B'">
           Primeiro acesso →
@@ -127,30 +179,23 @@
   </div>
 </div>
 
-<style>
-@media (max-width: 768px) {
-  .login-container > div:first-child { display: none !important; }
-  .login-container > div:last-child { width: 100% !important; padding: 32px 24px !important; }
-}
-</style>
-
 <script>
   const loginForm = document.getElementById('loginForm');
-  
+
   if (loginForm) {
     loginForm.addEventListener('submit', async (e) => {
       e.preventDefault();
-      
+
       const email = document.getElementById('loginEmail').value;
       const password = document.getElementById('loginPassword').value;
       const errorDiv = document.getElementById('loginError');
       const submitBtn = loginForm.querySelector('button[type="submit"]');
       const originalText = submitBtn.textContent;
-      
+
       submitBtn.textContent = 'Entrando...';
       submitBtn.disabled = true;
       submitBtn.style.opacity = '0.75';
-      
+
       try {
         const result = await authManager.login(email, password);
         if (result.success) {

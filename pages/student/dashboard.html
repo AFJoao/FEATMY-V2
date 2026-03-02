@@ -1,622 +1,603 @@
-<div class="student-dashboard" style="font-family: 'DM Sans', system-ui, sans-serif; background: #FFFFFF; min-height: 100vh;">
+<div class="student-dashboard" style="font-family: 'DM Sans', system-ui, sans-serif; background: #F8F9FA; min-height: 100vh;">
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/mobile-responsive-fixes.css">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 
   <style>
-    .day-col {
-      background: #fff;
-      border: 1px solid #EBEBEB;
-      border-radius: 16px;
-      overflow: hidden;
-      transition: all 0.25s cubic-bezier(0.4,0,0.2,1);
+    * { box-sizing: border-box; }
+
+    /* ── Nav ── */
+    .s-nav-btn { color: rgba(255,255,255,0.75); font-size: 0.875rem; font-weight: 500; padding: 8px 14px; border-radius: 8px; border: 1px solid transparent; background: transparent; cursor: pointer; display: flex; align-items: center; gap: 7px; font-family: inherit; transition: all 0.2s; white-space: nowrap; }
+    .s-nav-btn:hover { color: #fff; background: rgba(255,255,255,0.09); border-color: rgba(255,255,255,0.15); }
+    .s-nav-btn.active { color: #fff; background: rgba(255,255,255,0.1); }
+
+    /* ── Day selector tabs ── */
+    .day-tabs {
       display: flex;
-      flex-direction: column;
-    }
-    .day-col-today {
-      background: #0A0A0A;
-      border-color: #0A0A0A;
-      box-shadow: 0 8px 32px rgba(10,10,10,0.15);
-    }
-    .exercise-pill {
-      border-radius: 10px;
-      padding: 11px 13px;
-      transition: all 0.2s ease;
-    }
-    .exercise-pill:hover {
-      transform: translateX(2px);
-    }
-    .feedback-btn {
-      width: 100%;
-      padding: 9px;
-      border: none;
-      border-radius: 8px;
-      font-size: 0.75rem;
-      font-weight: 700;
-      cursor: pointer;
-      transition: all 0.2s cubic-bezier(0.4,0,0.2,1);
-      display: flex;
-      align-items: center;
-      justify-content: center;
       gap: 6px;
-      letter-spacing: 0.01em;
+      overflow-x: auto;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+      padding: 0 0 2px;
     }
-    .feedback-btn-dark {
-      background: #00E676;
-      color: #0A0A0A;
-    }
-    .feedback-btn-dark:hover {
-      background: #00C853;
-      box-shadow: 0 4px 14px rgba(0,230,118,0.35);
-    }
-    .feedback-btn-light {
-      background: #0A0A0A;
-      color: #fff;
-    }
-    .feedback-btn-light:hover {
-      background: #1a1a1a;
-      box-shadow: 0 4px 14px rgba(0,0,0,0.2);
-    }
-    .logout-nav-btn {
-      color: rgba(255,255,255,0.7);
-      background: transparent;
-      border: 1px solid rgba(255,255,255,0.14);
-      padding: 8px 16px;
-      border-radius: 8px;
-      font-size: 0.875rem;
-      font-weight: 500;
+    .day-tabs::-webkit-scrollbar { display: none; }
+    .day-tab {
+      flex-shrink: 0;
+      padding: 8px 14px;
+      border-radius: 10px;
+      border: 1.5px solid #E5E7EB;
+      background: #fff;
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: #6B7280;
       cursor: pointer;
+      font-family: inherit;
       transition: all 0.2s;
-      display: flex;
-      align-items: center;
-      gap: 7px;
+      white-space: nowrap;
     }
-    .logout-nav-btn:hover {
-      background: rgba(255,255,255,0.09);
-      border-color: rgba(255,255,255,0.3);
-      color: #fff;
+    .day-tab:hover { border-color: #D1D5DB; color: #374151; }
+    .day-tab.active { background: #0A0A0A; border-color: #0A0A0A; color: #fff; }
+    .day-tab.has-workout { border-color: #00E676; }
+    .day-tab.has-workout.active { background: #0A0A0A; border-color: #0A0A0A; }
+    .day-tab-dot { width: 5px; height: 5px; background: #00E676; border-radius: 50%; display: inline-block; margin-left: 4px; }
+    .day-tab.active .day-tab-dot { background: #00E676; }
+
+    /* ── Exercise cards ── */
+    .ex-card {
+      background: #fff;
+      border: 1.5px solid #EBEBEB;
+      border-radius: 14px;
+      padding: 16px;
+      transition: all 0.2s;
     }
-    .spinner {
-      border: 3px solid rgba(0,0,0,0.06);
-      border-top-color: #00E676;
-      border-radius: 50%;
-      animation: spin 0.8s linear infinite;
-    }
+    .ex-card:hover { border-color: #D1D5DB; box-shadow: 0 4px 16px rgba(0,0,0,0.05); }
+    .ex-card.done { border-color: #00E676; background: rgba(0,230,118,0.03); }
+    .ex-card-name { font-size: 0.95rem; font-weight: 700; color: #0A0A0A; margin: 0 0 8px; line-height: 1.3; }
+    .ex-meta-pill { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 8px; font-size: 0.75rem; font-weight: 700; }
+    .check-btn { width: 28px; height: 28px; border-radius: 8px; border: 2px solid #E5E7EB; background: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; flex-shrink: 0; }
+    .check-btn:hover { border-color: #00E676; background: rgba(0,230,118,0.08); }
+    .check-btn.checked { background: #00E676; border-color: #00C853; }
+
+    /* ── Progress bar ── */
+    .progress-bar-bg { background: #EBEBEB; border-radius: 999px; height: 6px; overflow: hidden; }
+    .progress-bar-fill { height: 100%; background: linear-gradient(90deg, #00E676, #00C853); border-radius: 999px; transition: width 0.4s ease; }
+
+    /* ── Feedback modal ── */
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); z-index: 100; align-items: flex-end; justify-content: center; padding: 0; }
+    .modal-overlay.open { display: flex; }
+    .modal-box { background: #fff; border-radius: 24px 24px 0 0; padding: 28px 24px 40px; width: 100%; max-width: 560px; max-height: 92vh; overflow-y: auto; }
+    .modal-input { width: 100%; padding: 11px 14px; border: 2px solid #EBEBEB; border-radius: 10px; font-size: 0.9rem; font-family: inherit; outline: none; transition: border-color 0.2s; background: #FAFAFA; box-sizing: border-box; }
+    .modal-input:focus { border-color: #0A0A0A; background: #fff; }
+    .modal-label { display: block; font-size: 0.75rem; font-weight: 700; color: #374151; margin-bottom: 6px; }
+
+    /* ── Sensation selector ── */
+    .sensation-opt { flex: 1; padding: 10px 6px; border: 2px solid #E5E7EB; border-radius: 10px; font-size: 0.75rem; font-weight: 700; text-align: center; cursor: pointer; background: #fff; font-family: inherit; transition: all 0.2s; }
+    .sensation-opt:hover { border-color: #D1D5DB; }
+    .sensation-opt.selected-leve { border-color: #059669; background: #ECFDF5; color: #059669; }
+    .sensation-opt.selected-ideal { border-color: #2563EB; background: #EFF6FF; color: #2563EB; }
+    .sensation-opt.selected-pesado { border-color: #DC2626; background: #FEF2F2; color: #DC2626; }
+
+    /* ── Effort slider ── */
+    .effort-slider { width: 100%; accent-color: #0A0A0A; }
+
+    /* ── Toast ── */
+    .toast { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%) translateY(60px); background: #111827; color: #fff; padding: 10px 18px; border-radius: 10px; font-size: 0.8rem; font-weight: 600; z-index: 999; transition: transform 0.3s; white-space: nowrap; }
+    .toast.show { transform: translateX(-50%) translateY(0); }
+
+    /* ── Workout selector ── */
+    .workout-pill { padding: 8px 14px; border: 1.5px solid #EBEBEB; border-radius: 20px; background: #fff; font-size: 0.8rem; font-weight: 600; color: #374151; cursor: pointer; font-family: inherit; transition: all 0.2s; white-space: nowrap; flex-shrink: 0; }
+    .workout-pill:hover { border-color: #D1D5DB; }
+    .workout-pill.active { background: #0A0A0A; border-color: #0A0A0A; color: #fff; }
+
+    /* ── Badge ── */
+    .header-badge { background: rgba(0,230,118,0.15); color: #00E676; font-size: 0.65rem; font-weight: 700; padding: 2px 8px; border-radius: 20px; letter-spacing: 0.04em; text-transform: uppercase; border: 1px solid rgba(0,230,118,0.25); }
+
+    .spinner { width: 28px; height: 28px; border: 3px solid rgba(0,0,0,0.06); border-top-color: #00E676; border-radius: 50%; animation: spin 0.8s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* Modal */
-    .modal-overlay {
-      display: none;
-      position: fixed;
-      inset: 0;
-      background: rgba(10,10,10,0.65);
-      backdrop-filter: blur(4px);
-      z-index: 1000;
-      align-items: center;
-      justify-content: center;
-    }
-    .modal-card {
-      background: #fff;
-      border-radius: 20px;
-      padding: 32px;
-      max-width: 480px;
-      width: 92%;
-      max-height: 88vh;
-      overflow-y: auto;
-      box-shadow: 0 24px 64px rgba(0,0,0,0.2);
-    }
-    .sensation-label {
-      flex: 1;
-      min-width: 100px;
-      padding: 12px;
-      border: 2px solid #EBEBEB;
-      border-radius: 10px;
-      cursor: pointer;
-      text-align: center;
-      transition: all 0.2s ease;
-    }
-    .sensation-label:hover { border-color: #0A0A0A; }
-    .sensation-label.selected { border-color: #00E676; background: rgba(0,230,118,0.06); }
-    .pain-label {
-      flex: 1;
-      padding: 12px;
-      border: 2px solid #EBEBEB;
-      border-radius: 10px;
-      cursor: pointer;
-      text-align: center;
-      transition: all 0.2s ease;
-    }
-    .pain-label:hover { border-color: #0A0A0A; }
-    .pain-label.selected { border-color: #0A0A0A; background: #F4F4F4; }
+    /* ── MOBILE ── */
+    @media (max-width: 768px) {
+      .header-badge { display: none !important; }
+      .nav-label { display: none !important; }
+      .s-nav-btn { padding: 8px 9px !important; min-width: 38px; justify-content: center; gap: 0 !important; }
 
-    /* FIX: slider verde progressivo */
-    .range-input {
-      -webkit-appearance: none;
-      height: 6px;
-      border-radius: 3px;
-      background: linear-gradient(to right, #00E676 44.4%, #EBEBEB 44.4%); /* valor inicial 5 de 10 */
-      outline: none;
-      flex: 1;
-      transition: background 0.1s;
+      .s-main { padding: 20px 16px 80px !important; }
+      .s-page-title { font-size: 1.4rem !important; }
+
+      /* Workout selector: scroll horizontal */
+      .workout-selector-wrap { overflow-x: auto; scrollbar-width: none; -ms-overflow-style: none; display: flex; gap: 8px; padding-bottom: 2px; }
+      .workout-selector-wrap::-webkit-scrollbar { display: none; }
+
+      /* Exercise cards: padding menor */
+      .ex-card { padding: 14px !important; }
     }
-    .range-input::-webkit-slider-thumb {
-      -webkit-appearance: none;
-      width: 20px;
-      height: 20px;
-      border-radius: 50%;
-      background: #00E676;
-      cursor: pointer;
-      box-shadow: 0 2px 8px rgba(0,230,118,0.4);
-    }
-    .range-input::-moz-range-thumb {
-      width: 20px;
-      height: 20px;
-      border-radius: 50%;
-      background: #00E676;
-      cursor: pointer;
-      border: none;
-      box-shadow: 0 2px 8px rgba(0,230,118,0.4);
-    }
-    .modal-input {
-      width: 100%;
-      padding: 12px 14px;
-      border: 2px solid #EBEBEB;
-      border-radius: 10px;
-      font-size: 0.9rem;
-      outline: none;
-      transition: border-color 0.2s;
-      box-sizing: border-box;
-      font-family: inherit;
-    }
-    .modal-input:focus { border-color: #0A0A0A; }
   </style>
 
   <!-- HEADER -->
-  <header style="background: #0A0A0A; position: sticky; top: 0; z-index: 50; border-bottom: 1px solid rgba(255,255,255,0.06);">
-    <div style="max-width: 1400px; margin: 0 auto; padding: 0 32px; height: 64px; display: flex; justify-content: space-between; align-items: center;">
-      <div style="display: flex; align-items: center; gap: 12px;">
-        <img src="assets/branca_larga.png" style="height: 28px; object-fit: contain;" onerror="this.style.display='none'">
-        <span style="background: rgba(0,230,118,0.12); color: #00E676; font-size: 0.65rem; font-weight: 700; padding: 2px 8px; border-radius: 20px; letter-spacing: 0.04em; text-transform: uppercase; border: 1px solid rgba(0,230,118,0.2);">Aluno</span>
+  <header style="background:#0A0A0A;position:sticky;top:0;z-index:50;border-bottom:1px solid rgba(255,255,255,0.06);">
+    <div style="max-width:1200px;margin:0 auto;padding:0 20px;height:64px;display:flex;justify-content:space-between;align-items:center;">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <img src="assets/branca_larga.png" alt="Featym" style="height:24px;object-fit:contain;" onerror="this.style.display='none'">
+        <span class="header-badge">Aluno</span>
       </div>
-      <button id="logoutBtn" class="logout-nav-btn">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
-        </svg>
-        Sair
-      </button>
+      <nav style="display:flex;gap:6px;align-items:center;">
+        <button class="s-nav-btn active" id="tabWorkout" onclick="showTab('workout')">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 4v6a6 6 0 0 0 12 0V4"/><line x1="4" y1="20" x2="20" y2="20"/></svg>
+          <span class="nav-label">Treinos</span>
+        </button>
+        <button class="s-nav-btn" id="tabHistory" onclick="showTab('history')">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          <span class="nav-label">Histórico</span>
+        </button>
+        <button id="logoutBtn" class="s-nav-btn" style="border:1px solid rgba(255,255,255,0.14);margin-left:4px;">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          <span class="nav-label">Sair</span>
+        </button>
+      </nav>
     </div>
   </header>
 
-  <!-- MAIN -->
-  <main style="max-width: 1400px; margin: 0 auto; padding: 36px 32px 60px;">
+  <!-- TAB: WORKOUT -->
+  <main id="mainWorkout" class="s-main" style="max-width:1200px;margin:0 auto;padding:28px 20px 60px;">
 
-    <!-- Welcome -->
-    <div style="margin-bottom: 32px;">
-      <p style="color: #9CA3AF; font-size: 0.8rem; font-weight: 600; margin: 0 0 6px; letter-spacing: 0.06em; text-transform: uppercase;">Seus Treinos</p>
-      <h1 style="font-size: 1.9rem; font-weight: 800; color: #0A0A0A; margin: 0; letter-spacing: -0.03em;">Olá, <span id="studentName">...</span>! 👋</h1>
-      <p style="color: #6B7280; font-size: 0.9rem; margin: 8px 0 0;">Confira sua programação semanal</p>
+    <div style="margin-bottom:24px;">
+      <p style="color:#9CA3AF;font-size:0.72rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;margin:0 0 5px;">SEU PLANO DE TREINO</p>
+      <h1 class="s-page-title" style="font-size:1.75rem;font-weight:800;color:#0A0A0A;margin:0;letter-spacing:-0.03em;" id="pageTitle">Carregando...</h1>
     </div>
 
-    <!-- Weekly grid -->
-    <div id="weeklyWorkouts" style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 12px;">
-      <div style="grid-column:1/-1; text-align:center; padding:60px 20px;">
-        <div class="spinner" style="width:28px;height:28px;margin:0 auto 16px;"></div>
-        <p style="color:#9CA3AF;font-size:0.875rem;margin:0;">Carregando semana...</p>
+    <!-- Workout selector (if multiple workouts) -->
+    <div id="workoutSelector" style="margin-bottom:20px;display:none;">
+      <p style="font-size:0.72rem;font-weight:700;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.06em;margin:0 0 8px;">Rotinas</p>
+      <div class="workout-selector-wrap" id="workoutPills"></div>
+    </div>
+
+    <!-- Progress summary -->
+    <div id="progressCard" style="background:#fff;border:1px solid #EBEBEB;border-radius:16px;padding:16px 20px;margin-bottom:20px;display:none;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <span style="font-size:0.8rem;font-weight:700;color:#374151;">Progresso de hoje</span>
+        <span id="progressText" style="font-size:0.8rem;font-weight:700;color:#00C853;">0/0 exercícios</span>
+      </div>
+      <div class="progress-bar-bg"><div id="progressFill" class="progress-bar-fill" style="width:0%"></div></div>
+    </div>
+
+    <!-- Day tabs -->
+    <div style="margin-bottom:16px;">
+      <div class="day-tabs" id="dayTabs"></div>
+    </div>
+
+    <!-- Exercises list for selected day -->
+    <div id="exercisesList">
+      <div style="text-align:center;padding:60px 20px;">
+        <div class="spinner" style="margin:0 auto 16px;"></div>
+        <p style="color:#9CA3AF;font-size:0.875rem;margin:0;">Carregando treino...</p>
+      </div>
+    </div>
+
+    <!-- Send feedback button (fixed at bottom on mobile) -->
+    <div id="feedbackBtnWrap" style="display:none;margin-top:24px;">
+      <button id="openFeedbackBtn" style="width:100%;padding:14px;background:#0A0A0A;color:#fff;border:none;border-radius:12px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;transition:all 0.2s;">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        Enviar Feedback do Treino
+      </button>
+    </div>
+  </main>
+
+  <!-- TAB: HISTORY -->
+  <main id="mainHistory" class="s-main" style="max-width:1200px;margin:0 auto;padding:28px 20px 60px;display:none;">
+    <div style="margin-bottom:24px;">
+      <p style="color:#9CA3AF;font-size:0.72rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;margin:0 0 5px;">ACOMPANHAMENTO</p>
+      <h1 style="font-size:1.75rem;font-weight:800;color:#0A0A0A;margin:0;letter-spacing:-0.03em;">Histórico</h1>
+    </div>
+    <div id="historyList">
+      <div style="text-align:center;padding:60px 20px;">
+        <div class="spinner" style="margin:0 auto 16px;"></div>
+        <p style="color:#9CA3AF;font-size:0.875rem;margin:0;">Carregando histórico...</p>
       </div>
     </div>
   </main>
 
   <!-- FEEDBACK MODAL -->
   <div id="feedbackModal" class="modal-overlay">
-    <div class="modal-card">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;">
+    <div class="modal-box">
+      <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:20px;">
         <div>
-          <p style="color:#9CA3AF;font-size:0.7rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;margin:0 0 4px;">AVALIAÇÃO DO TREINO</p>
-          <h3 style="font-size:1.3rem;font-weight:800;color:#0A0A0A;margin:0;letter-spacing:-0.02em;">Enviar Feedback</h3>
+          <h3 style="font-size:1.1rem;font-weight:800;color:#0A0A0A;margin:0 0 3px;letter-spacing:-0.02em;">Feedback do Treino</h3>
+          <p id="feedbackModalSub" style="font-size:0.78rem;color:#9CA3AF;margin:0;"></p>
         </div>
-        <!-- FIX: cor explícita no stroke do SVG para garantir visibilidade -->
-        <button 
-  id="closeFeedbackModal"
-  type="button"
-  style="
-    background:#F4F4F4;
-    border:none;
-    width:36px;
-    height:36px;
-    border-radius:10px;
-    cursor:pointer;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    font-size:1.2rem;
-    font-weight:700;
-    color:#374151;
-    transition:background 0.2s;
-  "
-  onmouseover="this.style.background='#EBEBEB'"
-  onmouseout="this.style.background='#F4F4F4'"
->
-  ✕
-</button>
+        <button id="closeFeedbackModal" style="background:#F4F4F4;border:none;width:30px;height:30px;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#374151" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
       </div>
 
-      <form id="feedbackForm">
-        <input type="hidden" id="feedbackWorkoutId">
-        <input type="hidden" id="feedbackDayOfWeek">
-
-        <!-- Effort Level -->
-        <div style="margin-bottom:22px;">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-            <label style="font-size:0.85rem;font-weight:700;color:#0A0A0A;">Nível de Esforço</label>
-            <div style="background:#0A0A0A;color:#00E676;border-radius:8px;padding:4px 12px;display:flex;align-items:center;gap:4px;">
-              <span id="effortLevelValue" style="font-size:1.1rem;font-weight:800;">5</span>
-              <span style="font-size:0.75rem;color:rgba(0,230,118,0.6);">/10</span>
-            </div>
-          </div>
-          <input type="range" id="effortLevel" class="range-input" min="1" max="10" value="5" style="width:100%;">
-          <div style="display:flex;justify-content:space-between;margin-top:6px;">
-            <span style="font-size:0.72rem;color:#9CA3AF;">Muito leve</span>
-            <span style="font-size:0.72rem;color:#9CA3AF;">Máximo</span>
-          </div>
+      <!-- Sensation -->
+      <div style="margin-bottom:16px;">
+        <label class="modal-label">Como foi a intensidade?</label>
+        <div style="display:flex;gap:8px;">
+          <button class="sensation-opt" data-val="leve" onclick="selSensation('leve')">😌 Leve</button>
+          <button class="sensation-opt" data-val="ideal" onclick="selSensation('ideal')">🎯 Ideal</button>
+          <button class="sensation-opt" data-val="pesado" onclick="selSensation('pesado')">🔥 Pesado</button>
         </div>
+      </div>
 
-        <!-- Sensação -->
-        <div style="margin-bottom:22px;">
-          <label style="display:block;font-size:0.85rem;font-weight:700;color:#0A0A0A;margin-bottom:10px;">Sensação Geral</label>
-          <div style="display:flex;gap:8px;">
-            <label class="sensation-label" id="sensationLeve">
-              <input type="radio" name="sensation" value="leve" style="display:none;">
-              <div style="font-size:1.2rem;margin-bottom:4px;">😌</div>
-              <span style="font-size:0.8rem;font-weight:600;color:#374151;">Leve</span>
-            </label>
-            <label class="sensation-label selected" id="sensationIdeal">
-              <input type="radio" name="sensation" value="ideal" checked style="display:none;">
-              <div style="font-size:1.2rem;margin-bottom:4px;">🎯</div>
-              <span style="font-size:0.8rem;font-weight:600;color:#374151;">Ideal</span>
-            </label>
-            <label class="sensation-label" id="sensationPesado">
-              <input type="radio" name="sensation" value="pesado" style="display:none;">
-              <div style="font-size:1.2rem;margin-bottom:4px;">🔥</div>
-              <span style="font-size:0.8rem;font-weight:600;color:#374151;">Pesado</span>
-            </label>
-          </div>
+      <!-- Effort -->
+      <div style="margin-bottom:16px;">
+        <label class="modal-label">Nível de esforço: <span id="effortDisplay" style="color:#0A0A0A;font-size:1rem;">7</span>/10</label>
+        <input type="range" id="effortSlider" class="effort-slider" min="1" max="10" value="7" oninput="document.getElementById('effortDisplay').textContent=this.value">
+        <div style="display:flex;justify-content:space-between;margin-top:4px;">
+          <span style="font-size:0.65rem;color:#9CA3AF;">Muito fácil</span>
+          <span style="font-size:0.65rem;color:#9CA3AF;">Exaustivo</span>
         </div>
+      </div>
 
-        <!-- Dor -->
-        <div style="margin-bottom:22px;">
-          <label style="display:block;font-size:0.85rem;font-weight:700;color:#0A0A0A;margin-bottom:10px;">Sentiu Dor ou Desconforto?</label>
-          <div style="display:flex;gap:8px;">
-            <label class="pain-label" id="hasPainSim">
-              <input type="radio" name="hasPain" value="true" style="display:none;">
-              <span style="font-size:0.85rem;font-weight:600;color:#374151;">Sim</span>
-            </label>
-            <label class="pain-label selected" id="hasPainNao">
-              <input type="radio" name="hasPain" value="false" checked style="display:none;">
-              <span style="font-size:0.85rem;font-weight:600;color:#374151;">Não</span>
-            </label>
-          </div>
+      <!-- Pain -->
+      <div style="margin-bottom:16px;">
+        <label class="modal-label">Sentiu alguma dor ou desconforto?</label>
+        <div style="display:flex;gap:8px;">
+          <button class="sensation-opt" id="painNo" onclick="selPain(false)" style="flex:1;">✓ Não</button>
+          <button class="sensation-opt" id="painYes" onclick="selPain(true)" style="flex:1;">⚠ Sim</button>
         </div>
+      </div>
+      <div id="painLocationWrap" style="display:none;margin-bottom:16px;">
+        <label class="modal-label">Onde sentiu dor?</label>
+        <input type="text" id="painLocation" class="modal-input" placeholder="Ex: Joelho direito, ombro esquerdo...">
+      </div>
 
-        <div id="painLocationContainer" style="margin-bottom:22px;display:none;">
-          <label style="display:block;font-size:0.85rem;font-weight:700;color:#0A0A0A;margin-bottom:8px;">Local da Dor</label>
-          <input type="text" id="painLocation" class="modal-input" placeholder="Ex: Ombro direito, joelho esquerdo...">
-        </div>
+      <!-- Comment -->
+      <div style="margin-bottom:20px;">
+        <label class="modal-label">Observações <span style="color:#9CA3AF;font-weight:400;">(opcional)</span></label>
+        <textarea id="feedbackComment" class="modal-input" rows="3" placeholder="Como você se sentiu? Algo que queira compartilhar com seu personal..." style="resize:vertical;"></textarea>
+      </div>
 
-        <div style="margin-bottom:24px;">
-          <label style="display:block;font-size:0.85rem;font-weight:700;color:#0A0A0A;margin-bottom:8px;">Comentário <span style="font-weight:400;color:#9CA3AF;">(opcional)</span></label>
-          <textarea id="feedbackComment" class="modal-input" rows="3" placeholder="Como foi o treino hoje?"></textarea>
-        </div>
-
-        <div style="display:flex;gap:10px;">
-          <button type="button" id="cancelFeedbackBtn" style="flex:1;padding:13px;border:2px solid #EBEBEB;border-radius:10px;background:#fff;color:#6B7280;font-size:0.875rem;font-weight:600;cursor:pointer;transition:all 0.2s;" onmouseover="this.style.borderColor='#0A0A0A';this.style.color='#0A0A0A'" onmouseout="this.style.borderColor='#EBEBEB';this.style.color='#6B7280'">Cancelar</button>
-          <button type="submit" style="flex:2;padding:13px;border:none;border-radius:10px;background:#00E676;color:#0A0A0A;font-size:0.875rem;font-weight:800;cursor:pointer;transition:all 0.25s;" onmouseover="this.style.background='#00C853';this.style.boxShadow='0 6px 20px rgba(0,230,118,0.35)'" onmouseout="this.style.background='#00E676';this.style.boxShadow='none'">
-            Enviar Feedback
-          </button>
-        </div>
-      </form>
+      <div style="display:flex;gap:8px;">
+        <button id="cancelFeedback" class="sensation-opt" style="flex:1;padding:12px;">Cancelar</button>
+        <button id="submitFeedback" style="flex:2;padding:12px;background:#0A0A0A;color:#fff;border:none;border-radius:10px;font-size:0.875rem;font-weight:700;cursor:pointer;font-family:inherit;transition:all 0.2s;">Enviar Feedback</button>
+      </div>
     </div>
   </div>
-</div>
+
+  <div id="toast" class="toast"></div>
 
 <script>
-if (typeof window.feedbackModel === 'undefined') {
-  window.feedbackModel = {
-    getCurrentWeekIdentifier: function() {
-      const now = new Date();
-      const startOfYear = new Date(now.getFullYear(), 0, 1);
-      const pastDaysOfYear = (now - startOfYear) / 86400000;
-      const weekNumber = Math.ceil((pastDaysOfYear + startOfYear.getDay() + 1) / 7);
-      return `${now.getFullYear()}-${weekNumber}`;
-    },
-    getFeedbackKey: function(studentId, workoutId, weekIdentifier, dayOfWeek) {
-      return `${studentId}_${workoutId}_${weekIdentifier}_${dayOfWeek}`;
-    },
-    validateFeedbackData: function(data) {
-      const errors = [];
-      if (!data.studentId || typeof data.studentId !== 'string') errors.push('studentId é obrigatório');
-      if (!data.workoutId || typeof data.workoutId !== 'string') errors.push('workoutId é obrigatório');
-      if (!data.weekIdentifier || typeof data.weekIdentifier !== 'string') errors.push('weekIdentifier é obrigatório');
-      if (!data.dayOfWeek || !['monday','tuesday','wednesday','thursday','friday','saturday','sunday'].includes(data.dayOfWeek)) errors.push('dayOfWeek inválido');
-      if (typeof data.effortLevel !== 'number' || data.effortLevel < 1 || data.effortLevel > 10) errors.push('effortLevel deve ser um número entre 1 e 10');
-      if (!['leve','ideal','pesado'].includes(data.sensation)) errors.push('sensation inválido');
-      if (typeof data.hasPain !== 'boolean') errors.push('hasPain deve ser boolean');
-      if (data.hasPain && (!data.painLocation || data.painLocation.trim() === '')) errors.push('painLocation obrigatório');
-      return { isValid: errors.length === 0, errors };
-    }
-  };
-}
-
 (async function() {
-  const daysMap = {
-    monday:    { name: 'Segunda', short: 'SEG' },
-    tuesday:   { name: 'Terça',   short: 'TER' },
-    wednesday: { name: 'Quarta',  short: 'QUA' },
-    thursday:  { name: 'Quinta',  short: 'QUI' },
-    friday:    { name: 'Sexta',   short: 'SEX' },
-    saturday:  { name: 'Sábado',  short: 'SÁB' },
-    sunday:    { name: 'Domingo', short: 'DOM' }
+  await new Promise(r => document.readyState === 'loading'
+    ? document.addEventListener('DOMContentLoaded', r) : r());
+  await new Promise(r => setTimeout(r, 100));
+
+  const DAYS = [
+    { key:'monday',    short:'Seg', full:'Segunda-feira' },
+    { key:'tuesday',   short:'Ter', full:'Terça-feira'   },
+    { key:'wednesday', short:'Qua', full:'Quarta-feira'  },
+    { key:'thursday',  short:'Qui', full:'Quinta-feira'  },
+    { key:'friday',    short:'Sex', full:'Sexta-feira'   },
+    { key:'saturday',  short:'Sáb', full:'Sábado'        },
+    { key:'sunday',    short:'Dom', full:'Domingo'       },
+  ];
+
+  const MC = {
+    Peito:'#EFF6FF|#2563EB', Costas:'#ECFDF5|#059669', Pernas:'#FEF3C7|#D97706',
+    Ombros:'#F5F3FF|#7C3AED', Bíceps:'#FFF7ED|#EA580C', Tríceps:'#FDF2F8|#BE185D',
+    Abdômen:'#ECFEFF|#0891B2', Glúteos:'#F0FDF4|#16A34A', Cardio:'#FEF2F2|#DC2626',
+    'Full Body':'#F3F4F6|#6B7280'
   };
-  const daysOrder = ['monday','tuesday','wednesday','thursday','friday','saturday','sunday'];
+  function mStyle(m) {
+    const p = (MC[m] || '#F3F4F6|#6B7280').split('|');
+    return `background:${p[0]};color:${p[1]};`;
+  }
 
-  const jsToKey = { 0:'sunday', 1:'monday', 2:'tuesday', 3:'wednesday', 4:'thursday', 5:'friday', 6:'saturday' };
-  const todayKey = jsToKey[new Date().getDay()];
+  function toast(msg, ms=2400) {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.classList.add('show');
+    setTimeout(() => el.classList.remove('show'), ms);
+  }
 
-  await new Promise(resolve => document.readyState === 'loading' ? document.addEventListener('DOMContentLoaded', resolve) : resolve());
-  await new Promise(resolve => setTimeout(resolve, 100));
+  let allWorkouts = [];
+  let currentWorkout = null;
+  let currentDay = null;
+  let doneExercises = new Set();
+  let sensation = null;
+  let hasPain = false;
+  let currentTab = 'workout';
 
-  const logoutBtn = document.getElementById('logoutBtn');
-  if (logoutBtn) {
-    logoutBtn.addEventListener('click', async () => {
-      await authManager.logout();
-      router.goToLogin();
+  const todayKey = DAYS[new Date().getDay() === 0 ? 6 : new Date().getDay() - 1].key;
+
+  // ── Logout ──
+  document.getElementById('logoutBtn').onclick = async () => {
+    await authManager.logout();
+    router.goToLogin();
+  };
+
+  // ── Tabs ──
+  window.showTab = function(tab) {
+    currentTab = tab;
+    document.getElementById('mainWorkout').style.display = tab === 'workout' ? 'block' : 'none';
+    document.getElementById('mainHistory').style.display = tab === 'history' ? 'block' : 'none';
+    document.getElementById('tabWorkout').classList.toggle('active', tab === 'workout');
+    document.getElementById('tabHistory').classList.toggle('active', tab === 'history');
+    if (tab === 'history') loadHistory();
+  };
+
+  // ── Load workouts ──
+  try {
+    allWorkouts = await dbManager.getStudentWorkouts() || [];
+  } catch(e) { allWorkouts = []; }
+
+  if (allWorkouts.length === 0) {
+    document.getElementById('pageTitle').textContent = 'Sem rotina';
+    document.getElementById('exercisesList').innerHTML = `
+      <div style="text-align:center;padding:60px 20px;background:#fff;border-radius:16px;border:2px dashed #E5E7EB;">
+        <div style="width:52px;height:52px;background:#F4F4F4;border-radius:14px;margin:0 auto 16px;display:flex;align-items:center;justify-content:center;">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" stroke-width="2"><path d="M6 4v6a6 6 0 0 0 12 0V4"/><line x1="4" y1="20" x2="20" y2="20"/></svg>
+        </div>
+        <p style="font-size:1rem;font-weight:700;color:#374151;margin:0 0 6px;">Nenhuma rotina atribuída</p>
+        <p style="font-size:0.85rem;color:#9CA3AF;margin:0;">Seu personal ainda não criou uma rotina para você</p>
+      </div>`;
+    return;
+  }
+
+  // Multiple workouts selector
+  if (allWorkouts.length > 1) {
+    const sel = document.getElementById('workoutSelector');
+    const pills = document.getElementById('workoutPills');
+    sel.style.display = 'block';
+    allWorkouts.forEach((w, i) => {
+      const btn = document.createElement('button');
+      btn.className = 'workout-pill' + (i === 0 ? ' active' : '');
+      btn.textContent = w.name || `Rotina ${i+1}`;
+      btn.onclick = () => {
+        document.querySelectorAll('.workout-pill').forEach(p => p.classList.remove('active'));
+        btn.classList.add('active');
+        selectWorkout(w);
+      };
+      pills.appendChild(btn);
     });
   }
 
-  window.viewWorkoutFunc = function(workoutId, dayKey) {
-    sessionStorage.setItem('viewWorkoutId', workoutId);
-    if (dayKey) sessionStorage.setItem('viewWorkoutDay', dayKey);
-    router.goToViewWorkout();
-  };
+  selectWorkout(allWorkouts[0]);
 
-  async function loadStudentData() {
-    const userData = await dbManager.getCurrentUserData();
-    const el = document.getElementById('studentName');
-    if (el && userData) el.textContent = userData.name || 'Aluno';
+  function selectWorkout(w) {
+    currentWorkout = w;
+    doneExercises.clear();
+    document.getElementById('pageTitle').textContent = w.name || 'Meu Treino';
+    renderDayTabs();
+    // Select today if has exercises, else first day with exercises
+    const todayHas = w.days && w.days[todayKey] && w.days[todayKey].length > 0;
+    const firstDay = DAYS.find(d => w.days && w.days[d.key] && w.days[d.key].length > 0);
+    selectDay(todayHas ? todayKey : (firstDay ? firstDay.key : DAYS[0].key));
   }
 
-  async function loadWorkouts() {
-    const workouts = await dbManager.getStudentWorkouts();
-    const weeklyContainer = document.getElementById('weeklyWorkouts');
+  function renderDayTabs() {
+    const tabs = document.getElementById('dayTabs');
+    tabs.innerHTML = '';
+    DAYS.forEach(d => {
+      const hasEx = currentWorkout.days && currentWorkout.days[d.key] && currentWorkout.days[d.key].length > 0;
+      const btn = document.createElement('button');
+      btn.className = 'day-tab' + (d.key === currentDay ? ' active' : '') + (hasEx ? ' has-workout' : '');
+      btn.innerHTML = d.short + (hasEx ? '<span class="day-tab-dot"></span>' : '');
+      btn.onclick = () => selectDay(d.key);
+      if (!hasEx) btn.style.opacity = '0.45';
+      tabs.appendChild(btn);
+    });
+  }
 
-    if (!workouts || workouts.length === 0) {
-      weeklyContainer.innerHTML = `
-        <div style="grid-column:1/-1;text-align:center;padding:60px 20px;background:#FAFAFA;border-radius:16px;border:2px dashed #E5E7EB;">
-          <div style="width:56px;height:56px;background:#F4F4F4;border-radius:16px;margin:0 auto 16px;display:flex;align-items:center;justify-content:center;">
-            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-          </div>
-          <p style="color:#374151;font-size:1rem;font-weight:700;margin:0 0 6px;">Nenhum treino atribuído</p>
-          <p style="color:#9CA3AF;font-size:0.85rem;margin:0;">Aguarde seu personal trainer configurar seus treinos</p>
-        </div>
-      `;
+  function selectDay(dayKey) {
+    currentDay = dayKey;
+    doneExercises.clear();
+    renderDayTabs();
+    renderExercises();
+    updateProgress();
+  }
+
+  function renderExercises() {
+    const list = document.getElementById('exercisesList');
+    const exs = (currentWorkout.days && currentWorkout.days[currentDay]) || [];
+    const dayName = DAYS.find(d => d.key === currentDay)?.full || '';
+    const feedbackWrap = document.getElementById('feedbackBtnWrap');
+    const progressCard = document.getElementById('progressCard');
+
+    if (exs.length === 0) {
+      list.innerHTML = `
+        <div style="text-align:center;padding:48px 20px;background:#fff;border-radius:16px;border:2px dashed #E5E7EB;">
+          <p style="font-size:1rem;font-weight:700;color:#374151;margin:0 0 6px;">Dia de descanso 😴</p>
+          <p style="font-size:0.85rem;color:#9CA3AF;margin:0;">Nenhum treino para ${dayName}</p>
+        </div>`;
+      feedbackWrap.style.display = 'none';
+      progressCard.style.display = 'none';
       return;
     }
 
-    const weeklyWorkouts = {};
-    daysOrder.forEach(day => { weeklyWorkouts[day] = []; });
-    workouts.forEach(workout => {
-      if (workout.days) {
-        Object.keys(workout.days).forEach(day => {
-          if (workout.days[day] && workout.days[day].length > 0) {
-            weeklyWorkouts[day].push(workout);
-          }
-        });
-      }
+    progressCard.style.display = 'block';
+    feedbackWrap.style.display = 'block';
+
+    list.innerHTML = '';
+    const frag = document.createDocumentFragment();
+
+    // Day header
+    const header = document.createElement('div');
+    header.style.cssText = 'margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;';
+    header.innerHTML = `
+      <div>
+        <p style="font-size:0.72rem;font-weight:700;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.07em;margin:0 0 2px;">TREINO DO DIA</p>
+        <h2 style="font-size:1.1rem;font-weight:800;color:#0A0A0A;margin:0;">${dayName}</h2>
+      </div>
+      <span style="background:#F4F4F4;border-radius:8px;padding:4px 10px;font-size:0.75rem;font-weight:700;color:#374151;">${exs.length} exerc.</span>`;
+    frag.appendChild(header);
+
+    // Exercise cards
+    const grid = document.createElement('div');
+    grid.style.cssText = 'display:flex;flex-direction:column;gap:10px;';
+
+    exs.forEach((ex, idx) => {
+      const card = document.createElement('div');
+      card.className = 'ex-card';
+      card.id = `ex-${idx}`;
+      card.innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:start;gap:10px;">
+          <div style="flex:1;min-width:0;">
+            <p class="ex-card-name">${ex.exerciseName || ex.name || '?'}</p>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;">
+              <span class="ex-meta-pill" style="background:#111827;color:#fff;">${ex.sets || 3}×${ex.reps || 12}</span>
+              ${ex.muscleGroup ? `<span class="ex-meta-pill" style="${mStyle(ex.muscleGroup)}">${ex.muscleGroup}</span>` : ''}
+              ${ex.rest ? `<span class="ex-meta-pill" style="background:#F3F4F6;color:#6B7280;">⏱ ${ex.rest}</span>` : ''}
+            </div>
+            ${ex.obs ? `<p style="font-size:0.78rem;color:#6B7280;margin:8px 0 0;font-style:italic;">${ex.obs}</p>` : ''}
+          </div>
+          <button class="check-btn" id="check-${idx}" onclick="toggleDone(${idx})">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" style="display:none;" id="check-icon-${idx}"><polyline points="20 6 9 17 4 12"/></svg>
+          </button>
+        </div>`;
+      grid.appendChild(card);
     });
 
-    weeklyContainer.innerHTML = daysOrder.map(day => {
-      const isToday = day === todayKey;
-      return `
-        <div class="day-col ${isToday ? 'day-col-today' : ''}">
-          <div style="padding:14px 14px 10px;${isToday ? 'border-bottom:1px solid rgba(255,255,255,0.1);' : 'border-bottom:1px solid #EBEBEB;'}">
-            <div style="font-size:0.65rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:${isToday ? 'rgba(0,230,118,0.7)' : '#9CA3AF'};margin-bottom:3px;">${daysMap[day].short}</div>
-            <div style="font-size:0.95rem;font-weight:700;color:${isToday ? '#fff' : '#0A0A0A'};">${daysMap[day].name}</div>
-            ${isToday ? '<div style="width:24px;height:2px;background:#00E676;border-radius:2px;margin-top:6px;"></div>' : ''}
-          </div>
-          <div id="day-${day}-workouts" style="flex:1;padding:10px;display:flex;flex-direction:column;gap:6px;">
-            <div style="display:flex;align-items:center;justify-content:center;padding:20px 8px;flex:1;">
-              <div class="spinner" style="width:18px;height:18px;border-width:2px;${isToday ? 'border-color:rgba(255,255,255,0.15);border-top-color:#00E676;' : ''}"></div>
-            </div>
-          </div>
-        </div>
-      `;
-    }).join('');
-
-    for (const day of daysOrder) {
-      const dayWorkouts = weeklyWorkouts[day];
-      const dayContainer = document.getElementById(`day-${day}-workouts`);
-      const isToday = day === todayKey;
-
-      if (dayWorkouts.length === 0) {
-        dayContainer.innerHTML = `
-          <div style="flex:1;display:flex;align-items:center;justify-content:center;padding:20px 8px;">
-            <div style="text-align:center;">
-              <div style="width:28px;height:28px;border-radius:8px;background:${isToday ? 'rgba(255,255,255,0.08)' : '#F4F4F4'};margin:0 auto 8px;display:flex;align-items:center;justify-content:center;">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="${isToday ? 'rgba(255,255,255,0.3)' : '#CBD5E1'}" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
-              </div>
-              <p style="font-size:0.7rem;color:${isToday ? 'rgba(255,255,255,0.3)' : '#CBD5E1'};margin:0;font-weight:500;">Descanso</p>
-            </div>
-          </div>
-        `;
-        continue;
-      }
-
-      let dayHTML = '';
-
-      for (const w of dayWorkouts) {
-        const exercises = w.days[day] || [];
-
-        let hasFeedback = false;
-        try {
-          const weekIdentifier = window.feedbackModel.getCurrentWeekIdentifier();
-          if (typeof dbManager.hasFeedbackForDay === 'function') {
-            hasFeedback = await dbManager.hasFeedbackForDay(w.id, day, weekIdentifier);
-          }
-        } catch (e) {
-          hasFeedback = false;
-        }
-
-        for (const exercise of exercises) {
-          const exerciseName = exercise.exerciseName || exercise.name || 'Exercício';
-          const sets = exercise.sets || '-';
-          const reps = exercise.reps || '-';
-          const weight = exercise.weight || '';
-
-          dayHTML += `
-            <div class="exercise-pill"
-              style="background:${isToday ? 'rgba(255,255,255,0.07)' : '#F8F9FA'};border:1px solid ${isToday ? 'rgba(255,255,255,0.1)' : '#EBEBEB'};cursor:pointer;"
-              onclick="viewWorkoutFunc('${w.id}', '${day}')">
-              <p style="font-weight:700;font-size:0.78rem;color:${isToday ? '#fff' : '#0A0A0A'};margin:0 0 6px;line-height:1.3;">${exerciseName}</p>
-              <div style="display:flex;gap:5px;flex-wrap:wrap;">
-                <span style="background:${isToday ? 'rgba(0,230,118,0.2)' : '#0A0A0A'};color:${isToday ? '#00E676' : '#fff'};padding:2px 8px;border-radius:5px;font-size:0.68rem;font-weight:700;">${sets}×${reps}</span>
-                ${weight ? `<span style="background:${isToday ? 'rgba(255,255,255,0.12)' : '#F4F4F4'};color:${isToday ? 'rgba(255,255,255,0.7)' : '#6B7280'};padding:2px 8px;border-radius:5px;font-size:0.68rem;font-weight:600;">${weight}</span>` : ''}
-              </div>
-            </div>
-          `;
-        }
-
-        if (exercises.length > 0) {
-          dayHTML += hasFeedback
-            ? `<div style="display:flex;align-items:center;justify-content:center;gap:5px;padding:7px;border-radius:8px;background:${isToday ? 'rgba(0,230,118,0.1)' : '#F0FFF4'};border:1px solid ${isToday ? 'rgba(0,230,118,0.2)' : '#D1FAE5'};">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="${isToday ? '#00E676' : '#059669'}" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
-                <span style="font-size:0.72rem;font-weight:700;color:${isToday ? '#00E676' : '#059669'};">Feedback enviado</span>
-              </div>`
-            : `<button
-                onclick="event.stopPropagation(); openFeedbackModal('${w.id}', '${day}')"
-                class="feedback-btn ${isToday ? 'feedback-btn-dark' : 'feedback-btn-light'}">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-                Feedback
-              </button>`;
-        }
-      }
-
-      dayContainer.innerHTML = dayHTML;
-    }
+    frag.appendChild(grid);
+    list.appendChild(frag);
   }
 
-  window.openFeedbackModal = function(workoutId, dayOfWeek) {
-    const modal = document.getElementById('feedbackModal');
-    document.getElementById('feedbackWorkoutId').value = workoutId;
-    document.getElementById('feedbackDayOfWeek').value = dayOfWeek;
-    // Reset slider
-    const slider = document.getElementById('effortLevel');
-    slider.value = 5;
-    document.getElementById('effortLevelValue').textContent = '5';
-    updateSliderGradient(slider);
-    if (modal) modal.style.display = 'flex';
+  window.toggleDone = function(idx) {
+    if (doneExercises.has(idx)) {
+      doneExercises.delete(idx);
+      document.getElementById(`ex-${idx}`)?.classList.remove('done');
+      const btn = document.getElementById(`check-${idx}`);
+      if (btn) btn.classList.remove('checked');
+      const icon = document.getElementById(`check-icon-${idx}`);
+      if (icon) icon.style.display = 'none';
+    } else {
+      doneExercises.add(idx);
+      document.getElementById(`ex-${idx}`)?.classList.add('done');
+      const btn = document.getElementById(`check-${idx}`);
+      if (btn) btn.classList.add('checked');
+      const icon = document.getElementById(`check-icon-${idx}`);
+      if (icon) icon.style.display = 'block';
+    }
+    updateProgress();
   };
 
-  function closeModal() {
-    const modal = document.getElementById('feedbackModal');
-    if (modal) modal.style.display = 'none';
+  function updateProgress() {
+    const exs = (currentWorkout.days && currentWorkout.days[currentDay]) || [];
+    const total = exs.length;
+    const done = doneExercises.size;
+    const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+    document.getElementById('progressText').textContent = `${done}/${total} exercícios`;
+    document.getElementById('progressFill').style.width = `${pct}%`;
   }
 
-  document.getElementById('closeFeedbackModal')?.addEventListener('click', closeModal);
-  document.getElementById('cancelFeedbackBtn')?.addEventListener('click', closeModal);
-  document.getElementById('feedbackModal')?.addEventListener('click', e => {
-    if (e.target === e.currentTarget) closeModal();
+  // ── Feedback modal ──
+  window.selSensation = function(val) {
+    sensation = val;
+    document.querySelectorAll('.sensation-opt[data-val]').forEach(b => {
+      b.className = 'sensation-opt';
+      if (b.dataset.val === val) b.className = `sensation-opt selected-${val}`;
+    });
+  };
+
+  window.selPain = function(val) {
+    hasPain = val;
+    const no = document.getElementById('painNo');
+    const yes = document.getElementById('painYes');
+    const wrap = document.getElementById('painLocationWrap');
+    no.className = !val ? 'sensation-opt selected-ideal' : 'sensation-opt';
+    yes.className = val ? 'sensation-opt selected-pesado' : 'sensation-opt';
+    wrap.style.display = val ? 'block' : 'none';
+  };
+
+  document.getElementById('openFeedbackBtn').onclick = () => {
+    sensation = null;
+    hasPain = false;
+    document.getElementById('feedbackComment').value = '';
+    document.getElementById('painLocation').value = '';
+    document.getElementById('effortSlider').value = 7;
+    document.getElementById('effortDisplay').textContent = '7';
+    document.getElementById('painLocationWrap').style.display = 'none';
+    document.querySelectorAll('.sensation-opt').forEach(b => b.className = 'sensation-opt');
+    const dayName = DAYS.find(d => d.key === currentDay)?.full || '';
+    document.getElementById('feedbackModalSub').textContent = `${currentWorkout.name} · ${dayName}`;
+    document.getElementById('feedbackModal').classList.add('open');
+  };
+
+  document.getElementById('closeFeedbackModal').onclick = () => document.getElementById('feedbackModal').classList.remove('open');
+  document.getElementById('cancelFeedback').onclick = () => document.getElementById('feedbackModal').classList.remove('open');
+  document.getElementById('feedbackModal').addEventListener('click', e => {
+    if (e.target === document.getElementById('feedbackModal')) document.getElementById('feedbackModal').classList.remove('open');
   });
 
-  // FIX: função para atualizar gradiente do slider
-  function updateSliderGradient(input) {
-    const pct = (input.value - input.min) / (input.max - input.min) * 100;
-    input.style.background = `linear-gradient(to right, #00E676 ${pct}%, #EBEBEB ${pct}%)`;
-  }
+  document.getElementById('submitFeedback').onclick = async () => {
+    if (!sensation) return toast('⚠ Selecione a sensação do treino');
+    const effort = parseInt(document.getElementById('effortSlider').value);
+    const comment = document.getElementById('feedbackComment').value.trim();
+    const painLocation = hasPain ? document.getElementById('painLocation').value.trim() : '';
 
-  const effortLevel = document.getElementById('effortLevel');
-  const effortLevelValue = document.getElementById('effortLevelValue');
-  if (effortLevel && effortLevelValue) {
-    // Inicializar gradiente
-    updateSliderGradient(effortLevel);
-    effortLevel.addEventListener('input', e => {
-      effortLevelValue.textContent = e.target.value;
-      updateSliderGradient(e.target);
-    });
-  }
+    const btn = document.getElementById('submitFeedback');
+    btn.textContent = 'Enviando...';
+    btn.disabled = true;
 
-  const hasPainInputs = document.querySelectorAll('input[name="hasPain"]');
-  const painLocationContainer = document.getElementById('painLocationContainer');
-  hasPainInputs.forEach(input => {
-    input.addEventListener('change', e => {
-      painLocationContainer.style.display = e.target.value === 'true' ? 'block' : 'none';
-      document.querySelectorAll('.pain-label').forEach(l => l.classList.remove('selected'));
-      e.target.closest('.pain-label').classList.add('selected');
-    });
-  });
+    try {
+      const now = new Date();
+      const weekNum = Math.ceil((((now - new Date(now.getFullYear(), 0, 1)) / 86400000) + new Date(now.getFullYear(), 0, 1).getDay() + 1) / 7);
+      const weekIdentifier = `${now.getFullYear()}-${weekNum.toString().padStart(2, '0')}`;
 
-  document.querySelectorAll('.sensation-label').forEach(label => {
-    const radio = label.querySelector('input[type="radio"]');
-    if (radio) {
-      radio.addEventListener('change', () => {
-        document.querySelectorAll('.sensation-label').forEach(l => l.classList.remove('selected'));
-        label.classList.add('selected');
+      await dbManager.submitFeedback({
+        workoutId: currentWorkout.id,
+        studentId: authManager.getCurrentUser()?.uid,
+        dayOfWeek: currentDay,
+        weekIdentifier,
+        sensation,
+        effortLevel: effort,
+        hasPain,
+        painLocation,
+        comment
       });
+
+      document.getElementById('feedbackModal').classList.remove('open');
+      toast('✓ Feedback enviado!', 2800);
+    } catch(e) {
+      toast('Erro ao enviar. Tente novamente.');
     }
-  });
 
-  document.querySelectorAll('.pain-label').forEach(label => {
-    const radio = label.querySelector('input[type="radio"]');
-    if (radio && radio.checked) label.classList.add('selected');
-    label.addEventListener('click', () => {
-      document.querySelectorAll('.pain-label').forEach(l => l.classList.remove('selected'));
-      label.classList.add('selected');
-    });
-  });
+    btn.textContent = 'Enviar Feedback';
+    btn.disabled = false;
+  };
 
-  const feedbackForm = document.getElementById('feedbackForm');
-  if (feedbackForm) {
-    feedbackForm.addEventListener('submit', async e => {
-      e.preventDefault();
-      const workoutId = document.getElementById('feedbackWorkoutId').value;
-      const dayOfWeek = document.getElementById('feedbackDayOfWeek').value;
-      const effortLevelVal = parseInt(document.getElementById('effortLevel').value);
-      const sensation = document.querySelector('input[name="sensation"]:checked')?.value;
-      const hasPain = document.querySelector('input[name="hasPain"]:checked')?.value === 'true';
-      const painLocation = document.getElementById('painLocation').value;
-      const comment = document.getElementById('feedbackComment').value;
-      const weekIdentifier = window.feedbackModel?.getCurrentWeekIdentifier();
-
-      const result = await dbManager.createFeedback({
-        workoutId, dayOfWeek, effortLevel: effortLevelVal, sensation, hasPain,
-        painLocation: hasPain ? painLocation : '',
-        comment: comment || '', weekIdentifier
-      });
-
-      if (result.success) {
-        alert('Feedback enviado com sucesso!');
-        closeModal();
-        feedbackForm.reset();
-        const sl = document.getElementById('effortLevel');
-        sl.value = 5;
-        document.getElementById('effortLevelValue').textContent = '5';
-        updateSliderGradient(sl);
-        painLocationContainer.style.display = 'none';
-        await loadWorkouts();
-      } else {
-        alert('Erro ao enviar feedback: ' + result.error);
+  // ── History ──
+  async function loadHistory() {
+    const list = document.getElementById('historyList');
+    list.innerHTML = `<div style="text-align:center;padding:48px;"><div class="spinner" style="margin:0 auto 16px;"></div><p style="color:#9CA3AF;">Carregando...</p></div>`;
+    try {
+      const feedbacks = await dbManager.getStudentFeedbacks() || [];
+      if (feedbacks.length === 0) {
+        list.innerHTML = `<div style="text-align:center;padding:48px;background:#fff;border-radius:16px;border:2px dashed #E5E7EB;"><p style="font-size:1rem;font-weight:700;color:#374151;margin:0 0 6px;">Sem histórico ainda</p><p style="font-size:0.85rem;color:#9CA3AF;margin:0;">Seus feedbacks aparecerão aqui</p></div>`;
+        return;
       }
-    });
+
+      const sensationLabels = { leve:'😌 Leve', ideal:'🎯 Ideal', pesado:'🔥 Pesado' };
+      list.innerHTML = feedbacks.map(f => {
+        let dateStr = '';
+        if (f.createdAt) {
+          const d = f.createdAt.toDate ? f.createdAt.toDate() : new Date(f.createdAt.seconds * 1000);
+          dateStr = d.toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric' });
+        }
+        const dayName = DAYS.find(d => d.key === f.dayOfWeek)?.full || f.dayOfWeek;
+        return `<div class="ex-card" style="margin-bottom:10px;">
+          <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:10px;">
+            <div>
+              <p style="font-size:0.9rem;font-weight:700;color:#0A0A0A;margin:0 0 3px;">${dayName}</p>
+              <p style="font-size:0.75rem;color:#9CA3AF;margin:0;">${dateStr} · Semana ${f.weekIdentifier}</p>
+            </div>
+            <span style="font-size:0.78rem;font-weight:700;background:#F4F4F4;padding:4px 10px;border-radius:8px;">${sensationLabels[f.sensation] || f.sensation}</span>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <span class="ex-meta-pill" style="background:#111827;color:#fff;">Esforço ${f.effortLevel}/10</span>
+            ${f.hasPain ? `<span class="ex-meta-pill" style="background:#FEF2F2;color:#DC2626;">⚠ Dor</span>` : '<span class="ex-meta-pill" style="background:#ECFDF5;color:#059669;">✓ Sem dor</span>'}
+          </div>
+          ${f.comment ? `<p style="font-size:0.82rem;color:#6B7280;margin:8px 0 0;line-height:1.5;font-style:italic;">"${f.comment}"</p>` : ''}
+        </div>`;
+      }).join('');
+    } catch(e) {
+      list.innerHTML = `<p style="color:#DC2626;">Erro ao carregar histórico.</p>`;
+    }
   }
 
-  await loadStudentData();
-  await loadWorkouts();
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') document.getElementById('feedbackModal')?.classList.remove('open');
+  });
 })();
 </script>
-
-<style>
-@media (max-width: 1024px) {
-  #weeklyWorkouts { grid-template-columns: repeat(4, 1fr) !important; }
-}
-@media (max-width: 640px) {
-  #weeklyWorkouts { grid-template-columns: repeat(2, 1fr) !important; }
-}
-</style>
+</div>

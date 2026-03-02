@@ -1,23 +1,121 @@
 <div class="personal-feedbacks" style="font-family: 'DM Sans', system-ui, sans-serif; background: #FFFFFF; min-height: 100vh;">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/mobile-responsive-fixes.css">
 
   <style>
-    .nav-link-fb { color: rgba(255,255,255,0.75); font-weight: 500; font-size: 0.875rem; padding: 8px 14px; border-radius: 8px; border: 1px solid transparent; transition: all 0.2s; display: flex; align-items: center; gap: 7px; text-decoration: none; cursor: pointer; background: transparent; }
+    .nav-link-fb { color: rgba(255,255,255,0.75); font-weight: 500; font-size: 0.875rem; padding: 8px 14px; border-radius: 8px; border: 1px solid transparent; transition: all 0.2s; display: flex; align-items: center; gap: 7px; text-decoration: none; cursor: pointer; background: transparent; font-family: inherit; }
     .nav-link-fb:hover { color: #fff; background: rgba(255,255,255,0.09); border-color: rgba(255,255,255,0.15); }
+
     .filter-select { width: 100%; padding: 10px 14px; border: 2px solid #EBEBEB; border-radius: 10px; font-size: 0.85rem; outline: none; font-family: inherit; transition: border-color 0.2s; appearance: none; background: #FAFAFA url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239CA3AF' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") no-repeat right 12px center; padding-right: 36px; }
     .filter-select:focus { border-color: #0A0A0A; background-color: #fff; }
     .filter-input { width: 100%; padding: 10px 14px; border: 2px solid #EBEBEB; border-radius: 10px; font-size: 0.85rem; outline: none; font-family: inherit; transition: border-color 0.2s; background: #FAFAFA; box-sizing: border-box; }
     .filter-input:focus { border-color: #0A0A0A; background: #fff; }
+
     .feedback-card { background: #fff; border: 1px solid #EBEBEB; border-radius: 16px; padding: 24px; transition: all 0.2s ease; }
     .feedback-card:hover { box-shadow: 0 4px 24px rgba(0,0,0,0.06); border-color: #D1D5DB; }
+
     .stat-pill { padding: 14px 18px; background: #F8F9FA; border-radius: 12px; }
     .spinner { width: 28px; height: 28px; border: 3px solid rgba(0,0,0,0.06); border-top-color: #00E676; border-radius: 50%; animation: spin 0.8s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
     .badge-pill { display: inline-flex; align-items: center; padding: 4px 10px; border-radius: 20px; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.02em; }
+
+    /* ── Header badge ── */
+    .header-badge { background: rgba(0,230,118,0.15); color: #00E676; font-size: 0.65rem; font-weight: 700; padding: 2px 8px; border-radius: 20px; letter-spacing: 0.04em; text-transform: uppercase; border: 1px solid rgba(0,230,118,0.25); }
+
+    /* ── Filter panel ── */
+    .filter-panel { background: #FAFAFA; border: 1px solid #EBEBEB; border-radius: 16px; padding: 20px 24px; margin-bottom: 28px; }
+    .filter-panel-inner { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+
+    /* ── Filter toggle btn (mobile only) ── */
+    .filter-toggle-btn {
+      display: none;
+      width: 100%;
+      padding: 11px 16px;
+      background: #FAFAFA;
+      border: 1.5px solid #EBEBEB;
+      border-radius: 12px;
+      font-size: 0.875rem;
+      font-weight: 700;
+      color: #374151;
+      cursor: pointer;
+      font-family: inherit;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+      transition: all 0.2s;
+    }
+    .filter-toggle-btn:hover { border-color: #D1D5DB; }
+    .filter-toggle-chevron { transition: transform 0.25s ease; }
+    .filter-toggle-btn.open .filter-toggle-chevron { transform: rotate(180deg); }
+
+    /* Active filter dot */
+    .filter-active-dot {
+      display: none;
+      width: 7px;
+      height: 7px;
+      background: #00E676;
+      border-radius: 50%;
+      margin-left: 6px;
+    }
+    .filter-active-dot.visible { display: inline-block; }
+
+    /* ── MOBILE ── */
+    @media (max-width: 768px) {
+      /* Header: badge some, back btn mais compacto */
+      .header-badge { display: none !important; }
+      .nav-label { display: none !important; }
+      .nav-link-fb { padding: 8px 10px !important; min-width: 38px; justify-content: center; gap: 0 !important; }
+      /* Logout text some mas ícone aparece */
+      .logout-label { display: none !important; }
+
+      /* Main padding */
+      .fb-main { padding: 24px 16px 48px !important; }
+
+      /* Page title menor */
+      .fb-title { font-size: 1.5rem !important; }
+
+      /* Filter toggle aparece */
+      .filter-toggle-btn { display: flex !important; }
+
+      /* Filter panel collapsa */
+      .filter-panel {
+        padding: 0 !important;
+        background: transparent !important;
+        border: none !important;
+        margin-bottom: 0 !important;
+      }
+      .filter-panel-collapsible {
+        overflow: hidden;
+        max-height: 0;
+        transition: max-height 0.3s ease;
+      }
+      .filter-panel-collapsible.open {
+        max-height: 600px;
+      }
+      .filter-panel-inner-wrap {
+        background: #FAFAFA;
+        border: 1.5px solid #EBEBEB;
+        border-radius: 12px;
+        padding: 16px;
+        margin-bottom: 16px;
+      }
+      .filter-panel-inner { grid-template-columns: 1fr 1fr !important; gap: 10px !important; }
+
+      /* Feedback cards */
+      .feedback-card { padding: 16px !important; }
+      .stat-grid { grid-template-columns: 1fr 1fr !important; }
+
+      /* Badges no topo do card: wrap */
+      .fb-header-badges { flex-wrap: wrap; }
+    }
+
+    @media (max-width: 420px) {
+      .filter-panel-inner { grid-template-columns: 1fr !important; }
+      .stat-grid { grid-template-columns: 1fr !important; }
+    }
   </style>
 
+  <!-- HEADER -->
   <header style="background: #0A0A0A; position: sticky; top: 0; z-index: 50; border-bottom: 1px solid rgba(255,255,255,0.06);">
     <div style="max-width: 1400px; margin: 0 auto; padding: 0 32px; height: 64px; display: flex; justify-content: space-between; align-items: center;">
       <div style="display: flex; align-items: center; gap: 14px;">
@@ -27,67 +125,88 @@
         <div style="width: 1px; height: 24px; background: rgba(255,255,255,0.1);"></div>
         <div style="display: flex; align-items: center; gap: 10px;">
           <img src="assets/branca_larga.png" style="height: 28px; object-fit: contain;" onerror="this.style.display='none'">
-          <span style="color: rgba(255,255,255,0.35); font-size: 0.85rem;">·</span>
-          <span style="color: rgba(255,255,255,0.7); font-size: 0.9rem; font-weight: 600; letter-spacing: -0.01em;">Feedbacks dos Alunos</span>
+          <span class="header-badge">Personal</span>
+          <span style="color: rgba(255,255,255,0.35); font-size: 0.85rem;" class="nav-label">·</span>
+          <span style="color: rgba(255,255,255,0.7); font-size: 0.9rem; font-weight: 600; letter-spacing: -0.01em;" class="nav-label">Feedbacks dos Alunos</span>
         </div>
       </div>
       <button id="logoutBtn" class="nav-link-fb" style="border: 1px solid rgba(255,255,255,0.14);">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-        Sair
+        <span class="logout-label">Sair</span>
       </button>
     </div>
   </header>
 
-  <main style="max-width: 1200px; margin: 0 auto; padding: 36px 32px 60px;">
+  <!-- MAIN -->
+  <main class="fb-main" style="max-width: 1200px; margin: 0 auto; padding: 36px 32px 60px;">
 
-    <div style="margin-bottom: 32px;">
+    <div style="margin-bottom: 28px;">
       <p style="color: #9CA3AF; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; margin: 0 0 6px;">ANÁLISE E ACOMPANHAMENTO</p>
-      <h1 style="font-size: 1.9rem; font-weight: 800; color: #0A0A0A; margin: 0; letter-spacing: -0.03em;">Feedbacks</h1>
+      <h1 class="fb-title" style="font-size: 1.9rem; font-weight: 800; color: #0A0A0A; margin: 0; letter-spacing: -0.03em;">Feedbacks</h1>
     </div>
+
+    <!-- Filter toggle (mobile) -->
+    <button class="filter-toggle-btn" id="filterToggleBtn" onclick="toggleFilters()">
+      <span style="display:flex;align-items:center;gap:8px;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+        Filtros
+        <span class="filter-active-dot" id="filterActiveDot"></span>
+      </span>
+      <svg class="filter-toggle-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+    </button>
 
     <!-- Filters -->
-    <div style="background: #FAFAFA; border: 1px solid #EBEBEB; border-radius: 16px; padding: 20px 24px; margin-bottom: 28px;">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-        <p style="font-size: 0.8rem; font-weight: 700; color: #374151; margin: 0; text-transform: uppercase; letter-spacing: 0.06em;">Filtros</p>
-        <button id="clearFilters" style="background: transparent; border: none; color: #6B7280; font-size: 0.78rem; font-weight: 600; cursor: pointer; padding: 4px 8px; border-radius: 6px; transition: all 0.2s; font-family: inherit;" onmouseover="this.style.background='#EBEBEB'" onmouseout="this.style.background='transparent'">Limpar</button>
-      </div>
-      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px;">
-        <div>
-          <label style="display: block; font-size: 0.72rem; font-weight: 700; color: #9CA3AF; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.05em;">Aluno</label>
-          <select id="filterStudent" class="filter-select">
-            <option value="">Todos os alunos</option>
-          </select>
-        </div>
-        <div>
-          <label style="display: block; font-size: 0.72rem; font-weight: 700; color: #9CA3AF; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.05em;">Semana</label>
-          <input type="text" id="filterWeek" class="filter-input" placeholder="Ex: 2024-15">
-        </div>
-        <div>
-          <label style="display: block; font-size: 0.72rem; font-weight: 700; color: #9CA3AF; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.05em;">Dia</label>
-          <select id="filterDay" class="filter-select">
-            <option value="">Todos os dias</option>
-            <option value="monday">Segunda-feira</option>
-            <option value="tuesday">Terça-feira</option>
-            <option value="wednesday">Quarta-feira</option>
-            <option value="thursday">Quinta-feira</option>
-            <option value="friday">Sexta-feira</option>
-            <option value="saturday">Sábado</option>
-            <option value="sunday">Domingo</option>
-          </select>
-        </div>
-        <div>
-          <label style="display: block; font-size: 0.72rem; font-weight: 700; color: #9CA3AF; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.05em;">Sensação</label>
-          <select id="filterSensation" class="filter-select">
-            <option value="">Todas</option>
-            <option value="leve">Leve</option>
-            <option value="ideal">Ideal</option>
-            <option value="pesado">Pesado</option>
-          </select>
+    <div class="filter-panel">
+      <div class="filter-panel-collapsible" id="filterCollapsible">
+        <div class="filter-panel-inner-wrap">
+          <!-- desktop: header row inside panel -->
+          <div class="filter-panel-desktop-header" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+            <p style="font-size: 0.8rem; font-weight: 700; color: #374151; margin: 0; text-transform: uppercase; letter-spacing: 0.06em;">Filtros</p>
+            <button id="clearFilters" style="background: transparent; border: none; color: #6B7280; font-size: 0.78rem; font-weight: 600; cursor: pointer; padding: 4px 8px; border-radius: 6px; transition: all 0.2s; font-family: inherit;" onmouseover="this.style.background='#EBEBEB'" onmouseout="this.style.background='transparent'">Limpar</button>
+          </div>
+          <div class="filter-panel-inner">
+            <div>
+              <label style="display: block; font-size: 0.72rem; font-weight: 700; color: #9CA3AF; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.05em;">Aluno</label>
+              <select id="filterStudent" class="filter-select">
+                <option value="">Todos os alunos</option>
+              </select>
+            </div>
+            <div>
+              <label style="display: block; font-size: 0.72rem; font-weight: 700; color: #9CA3AF; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.05em;">Semana</label>
+              <input type="text" id="filterWeek" class="filter-input" placeholder="Ex: 2024-15">
+            </div>
+            <div>
+              <label style="display: block; font-size: 0.72rem; font-weight: 700; color: #9CA3AF; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.05em;">Dia</label>
+              <select id="filterDay" class="filter-select">
+                <option value="">Todos os dias</option>
+                <option value="monday">Segunda-feira</option>
+                <option value="tuesday">Terça-feira</option>
+                <option value="wednesday">Quarta-feira</option>
+                <option value="thursday">Quinta-feira</option>
+                <option value="friday">Sexta-feira</option>
+                <option value="saturday">Sábado</option>
+                <option value="sunday">Domingo</option>
+              </select>
+            </div>
+            <div>
+              <label style="display: block; font-size: 0.72rem; font-weight: 700; color: #9CA3AF; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.05em;">Sensação</label>
+              <select id="filterSensation" class="filter-select">
+                <option value="">Todas</option>
+                <option value="leve">Leve</option>
+                <option value="ideal">Ideal</option>
+                <option value="pesado">Pesado</option>
+              </select>
+            </div>
+          </div>
+          <!-- mobile: limpar dentro do panel -->
+          <div style="display:none;" class="filter-clear-mobile">
+            <button id="clearFiltersMobile" style="margin-top:12px;width:100%;padding:10px;background:#F4F4F4;border:none;border-radius:8px;font-size:0.82rem;font-weight:600;color:#374151;cursor:pointer;font-family:inherit;">Limpar filtros</button>
+          </div>
         </div>
       </div>
     </div>
 
-    <div id="feedbacksList" style="display: flex; flex-direction: column; gap: 14px;">
+    <div id="feedbacksList" style="display: flex; flex-direction: column; gap: 14px; margin-top: 4px;">
       <div style="text-align: center; padding: 60px 20px;">
         <div class="spinner" style="margin: 0 auto 16px;"></div>
         <p style="color: #9CA3AF; font-size: 0.875rem; margin: 0;">Carregando feedbacks...</p>
@@ -99,13 +218,58 @@
 <script>
 (async function() {
   const daysMap = { monday:'Segunda-feira', tuesday:'Terça-feira', wednesday:'Quarta-feira', thursday:'Quinta-feira', friday:'Sexta-feira', saturday:'Sábado', sunday:'Domingo' };
-  const sensationMap = { leve:'Leve', ideal:'Ideal', pesado:'Pesado' };
 
   await new Promise(resolve => document.readyState === 'loading' ? document.addEventListener('DOMContentLoaded', resolve) : resolve());
   await new Promise(resolve => setTimeout(resolve, 100));
 
   let allFeedbacks = [], allStudents = [], allWorkouts = {};
 
+  // ── Filter toggle (mobile) ─────────────────────────────────────
+  let filtersOpen = false;
+  window.toggleFilters = function() {
+    filtersOpen = !filtersOpen;
+    const collapsible = document.getElementById('filterCollapsible');
+    const btn = document.getElementById('filterToggleBtn');
+    collapsible.classList.toggle('open', filtersOpen);
+    btn.classList.toggle('open', filtersOpen);
+  };
+
+  // On desktop, always show filters
+  function applyDesktopLayout() {
+    const isMobile = window.innerWidth <= 768;
+    const collapsible = document.getElementById('filterCollapsible');
+    const desktopHeader = document.querySelector('.filter-panel-desktop-header');
+    const mobileBtn = document.querySelector('.filter-clear-mobile');
+
+    if (!isMobile) {
+      collapsible.classList.add('open');
+      collapsible.style.maxHeight = 'none';
+      collapsible.style.overflow = 'visible';
+      if (desktopHeader) desktopHeader.style.display = 'flex';
+      if (mobileBtn) mobileBtn.style.display = 'none';
+    } else {
+      collapsible.style.maxHeight = '';
+      collapsible.style.overflow = '';
+      if (desktopHeader) desktopHeader.style.display = 'none';
+      if (mobileBtn) mobileBtn.style.display = 'block';
+      if (!filtersOpen) collapsible.classList.remove('open');
+    }
+  }
+  applyDesktopLayout();
+  window.addEventListener('resize', applyDesktopLayout);
+
+  // ── Active filter dot ──────────────────────────────────────────
+  function updateFilterDot() {
+    const hasActive = !!(
+      document.getElementById('filterStudent')?.value ||
+      document.getElementById('filterWeek')?.value ||
+      document.getElementById('filterDay')?.value ||
+      document.getElementById('filterSensation')?.value
+    );
+    document.getElementById('filterActiveDot')?.classList.toggle('visible', hasActive);
+  }
+
+  // ── Logout ─────────────────────────────────────────────────────
   document.getElementById('logoutBtn')?.addEventListener('click', async () => {
     await authManager.logout();
     router.goToLogin();
@@ -150,6 +314,8 @@
     if (fd) filtered = filtered.filter(f => f.dayOfWeek === fd);
     if (fse) filtered = filtered.filter(f => f.sensation === fse);
 
+    updateFilterDot();
+
     if (filtered.length === 0) {
       container.innerHTML = `
         <div style="text-align:center;padding:60px 20px;background:#FAFAFA;border-radius:16px;border:2px dashed #E5E7EB;">
@@ -158,8 +324,7 @@
           </div>
           <p style="color:#374151;font-size:1rem;font-weight:700;margin:0 0 6px;">Nenhum feedback encontrado</p>
           <p style="color:#9CA3AF;font-size:0.85rem;margin:0;">Os feedbacks dos alunos aparecerão aqui</p>
-        </div>
-      `;
+        </div>`;
       return;
     }
 
@@ -188,23 +353,23 @@
 
       return `
         <div class="feedback-card">
-          <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:18px;gap:16px;flex-wrap:wrap;">
-            <div style="display:flex;align-items:center;gap:12px;flex:1;min-width:200px;">
+          <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:16px;gap:12px;flex-wrap:wrap;">
+            <div style="display:flex;align-items:center;gap:12px;flex:1;min-width:180px;">
               <div style="width:42px;height:42px;background:#0A0A0A;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
                 <span style="color:#00E676;font-size:0.85rem;font-weight:800;">${initials}</span>
               </div>
-              <div>
-                <p style="font-size:1rem;font-weight:700;color:#0A0A0A;margin:0 0 3px;">${studentName}</p>
-                <p style="font-size:0.78rem;color:#9CA3AF;margin:0;">${workoutName} · ${dateStr}</p>
+              <div style="min-width:0;">
+                <p style="font-size:1rem;font-weight:700;color:#0A0A0A;margin:0 0 3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${studentName}</p>
+                <p style="font-size:0.78rem;color:#9CA3AF;margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${workoutName} · ${dateStr}</p>
               </div>
             </div>
-            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+            <div class="fb-header-badges" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
               <span class="badge-pill" style="background:#F4F4F4;color:#374151;">📅 ${feedback.weekIdentifier}</span>
               <span class="badge-pill" style="background:#F4F4F4;color:#374151;">${daysMap[feedback.dayOfWeek] || feedback.dayOfWeek}</span>
             </div>
           </div>
 
-          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:${(feedback.hasPain && feedback.painLocation) || feedback.comment ? '16px' : '0'};">
+          <div class="stat-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:${(feedback.hasPain && feedback.painLocation) || feedback.comment ? '14px' : '0'};">
             <div class="stat-pill">
               <p style="font-size:0.68rem;font-weight:700;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.06em;margin:0 0 5px;">Esforço</p>
               <div style="display:flex;align-items:baseline;gap:4px;">
@@ -223,14 +388,14 @@
           </div>
 
           ${feedback.hasPain && feedback.painLocation ? `
-            <div style="background:#FFF1F2;border:1px solid #FECDD3;border-radius:10px;padding:12px 14px;margin-bottom:10px;display:flex;align-items:start;gap:8px;">
+            <div style="background:#FFF1F2;border:1px solid #FECDD3;border-radius:10px;padding:11px 13px;margin-bottom:10px;display:flex;align-items:start;gap:8px;">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#BE123C" stroke-width="2" style="flex-shrink:0;margin-top:1px;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
               <p style="font-size:0.82rem;color:#BE123C;margin:0;font-weight:500;"><strong>Local da dor:</strong> ${feedback.painLocation}</p>
             </div>
           ` : ''}
 
           ${feedback.comment ? `
-            <div style="background:#F8F9FA;border-radius:10px;padding:12px 14px;display:flex;align-items:start;gap:8px;">
+            <div style="background:#F8F9FA;border-radius:10px;padding:11px 13px;display:flex;align-items:start;gap:8px;">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="2" style="flex-shrink:0;margin-top:1px;"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
               <p style="font-size:0.85rem;color:#374151;margin:0;line-height:1.6;">${feedback.comment}</p>
             </div>
@@ -240,18 +405,23 @@
     }).join('');
   }
 
-  ['filterStudent','filterWeek','filterDay','filterSensation'].forEach(id => {
+  const filterIds = ['filterStudent','filterWeek','filterDay','filterSensation'];
+  filterIds.forEach(id => {
     document.getElementById(id)?.addEventListener('change', renderFeedbacks);
     document.getElementById(id)?.addEventListener('input', renderFeedbacks);
   });
 
-  document.getElementById('clearFilters')?.addEventListener('click', () => {
-    document.getElementById('filterStudent').value = '';
-    document.getElementById('filterWeek').value = '';
-    document.getElementById('filterDay').value = '';
-    document.getElementById('filterSensation').value = '';
+  function clearAll() {
+    filterIds.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.value = '';
+    });
     renderFeedbacks();
-  });
+    updateFilterDot();
+  }
+
+  document.getElementById('clearFilters')?.addEventListener('click', clearAll);
+  document.getElementById('clearFiltersMobile')?.addEventListener('click', clearAll);
 
   await loadInitialData();
 })();

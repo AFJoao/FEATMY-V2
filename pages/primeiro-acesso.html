@@ -1,7 +1,6 @@
 <div class="primeiro-acesso-page" style="font-family: 'DM Sans', system-ui, sans-serif; background: #FFFFFF; min-height: 100vh; display: flex;">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/mobile-responsive-fixes.css">
 
   <style>
     .pa-input {
@@ -21,56 +20,110 @@
     .spinner { width: 22px; height: 22px; border: 3px solid rgba(0,0,0,0.08); border-top-color: #00E676; border-radius: 50%; animation: spin 0.8s linear infinite; display: inline-block; vertical-align: middle; }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* Step transitions */
     .step { display: none; }
     .step.active { display: block; }
+
+    /* ── Left Panel ── */
+    .pa-left {
+      width: 44%;
+      background: #0A0A0A;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 48px;
+      position: relative;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+
+    /* ── Right Panel ── */
+    .pa-right {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 48px 56px;
+      overflow-y: auto;
+    }
+
+    /* ── Mobile logo bar ── */
+    .mobile-logo-bar {
+      display: none;
+      width: 100%;
+      background: #0A0A0A;
+      padding: 20px 24px;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    @media (max-width: 768px) {
+      .primeiro-acesso-page {
+        flex-direction: column !important;
+      }
+      .pa-left {
+        display: none !important;
+      }
+      .mobile-logo-bar {
+        display: flex !important;
+      }
+      .pa-right {
+        padding: 32px 24px 48px !important;
+        align-items: flex-start !important;
+      }
+    }
   </style>
 
-  <!-- LEFT PANEL -->
-  <div class="pa-left" style="width: 44%; background: #0A0A0A; display: flex; flex-direction: column; justify-content: space-between; padding: 48px; position: relative; overflow: hidden; flex-shrink: 0;">
-    <div style="position: absolute; inset: 0; background: radial-gradient(ellipse at 25% 75%, rgba(0,230,118,0.08) 0%, transparent 55%); pointer-events: none;"></div>
+  <!-- Mobile Logo Bar -->
+  <div class="mobile-logo-bar">
+    <img src="assets/branca_larga.png" alt="Featym" style="height:28px;object-fit:contain;" onerror="this.style.display='none'">
+  </div>
 
-    <div style="position: relative; flex: 1; display: flex; align-items: center; justify-content: center;">
-      <img src="assets/branca_larga.png" alt="Featym" style="width: 72%; max-width: 320px; object-fit: contain; filter: drop-shadow(0 0 40px rgba(0,230,118,0.12));" onerror="this.style.display='none'">
+  <!-- Left Panel (desktop only) -->
+  <div class="pa-left">
+    <div style="position:absolute;inset:0;background:radial-gradient(ellipse at 25% 75%,rgba(0,230,118,0.08) 0%,transparent 55%);pointer-events:none;"></div>
+
+    <div style="position:relative;flex:1;display:flex;align-items:center;justify-content:center;">
+      <img src="assets/branca_larga.png" alt="Featym" style="width:72%;max-width:320px;object-fit:contain;filter:drop-shadow(0 0 40px rgba(0,230,118,0.12));" onerror="this.style.display='none'">
     </div>
 
-    <div style="position: relative;">
-      <p style="color: rgba(0,230,118,0.75); font-size: 0.72rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; margin: 0 0 14px;">Primeiro acesso</p>
-      <h2 style="color: #fff; font-size: 2rem; font-weight: 800; margin: 0 0 16px; line-height: 1.2; letter-spacing: -0.03em;">Bem-vindo à<br>sua jornada<br>fitness.</h2>
-      <p style="color: rgba(255,255,255,0.4); font-size: 0.85rem; line-height: 1.7; margin: 0; max-width: 300px;">Seu personal trainer já criou sua conta. Defina uma senha para começar a acessar seus treinos.</p>
+    <div style="position:relative;">
+      <p style="color:rgba(0,230,118,0.75);font-size:0.72rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;margin:0 0 14px;">Primeiro acesso</p>
+      <h2 style="color:#fff;font-size:2rem;font-weight:800;margin:0 0 16px;line-height:1.2;letter-spacing:-0.03em;">Bem-vindo à<br>sua jornada<br>fitness.</h2>
+      <p style="color:rgba(255,255,255,0.4);font-size:0.85rem;line-height:1.7;margin:0;max-width:300px;">Seu personal trainer já criou sua conta. Defina uma senha para começar a acessar seus treinos.</p>
     </div>
   </div>
 
-  <!-- RIGHT PANEL -->
-  <div style="flex: 1; display: flex; align-items: center; justify-content: center; padding: 48px 56px; overflow-y: auto;">
-    <div style="width: 100%; max-width: 380px;">
+  <!-- Right Panel -->
+  <div class="pa-right">
+    <div style="width:100%;max-width:380px;">
 
       <!-- STEP 1: verificar e-mail -->
       <div id="step1" class="step active">
-        <div style="margin-bottom: 28px;">
-          <h1 style="font-size: 1.7rem; font-weight: 800; color: #0A0A0A; margin: 0 0 6px; letter-spacing: -0.03em;">Identificação</h1>
-          <p style="color: #6B7280; font-size: 0.875rem; margin: 0;">Informe o e-mail cadastrado pelo seu personal trainer</p>
+        <div style="margin-bottom:28px;">
+          <h1 style="font-size:1.7rem;font-weight:800;color:#0A0A0A;margin:0 0 6px;letter-spacing:-0.03em;">Identificação</h1>
+          <p style="color:#6B7280;font-size:0.875rem;margin:0;">Informe o e-mail cadastrado pelo seu personal trainer</p>
         </div>
 
-        <div id="step1Error" style="display:none; background:#FFF1F2; border:1px solid #FECDD3; border-radius:10px; padding:11px 14px; margin-bottom:16px; font-size:0.83rem; color:#BE123C; font-weight:500;"></div>
+        <div id="step1Error" style="display:none;background:#FFF1F2;border:1px solid #FECDD3;border-radius:10px;padding:11px 14px;margin-bottom:16px;font-size:0.83rem;color:#BE123C;font-weight:500;"></div>
 
-        <div style="display: flex; flex-direction: column; gap: 16px;">
+        <div style="display:flex;flex-direction:column;gap:16px;">
           <div>
-            <label style="display:block; font-size:0.78rem; font-weight:700; color:#374151; margin-bottom:7px;">Seu e-mail</label>
+            <label style="display:block;font-size:0.78rem;font-weight:700;color:#374151;margin-bottom:7px;">Seu e-mail</label>
             <input type="email" id="emailInput" class="pa-input" placeholder="seu@email.com" autocomplete="email">
           </div>
           <button id="checkEmailBtn" class="pa-btn">Continuar →</button>
         </div>
 
-        <p style="text-align:center; margin-top:20px; font-size:0.875rem; color:#6B7280;">
-          Já tem senha? <a href="#/login" style="color:#0A0A0A; font-weight:700; text-decoration:none;">Fazer login →</a>
+        <p style="text-align:center;margin-top:20px;font-size:0.875rem;color:#6B7280;">
+          Já tem senha? <a href="#/login" style="color:#0A0A0A;font-weight:700;text-decoration:none;">Fazer login →</a>
         </p>
       </div>
 
       <!-- STEP 2: definir senha -->
       <div id="step2" class="step">
         <!-- Boas-vindas personalizadas -->
-        <div style="background:#ECFDF5; border:1px solid #A7F3D0; border-radius:12px; padding:14px 16px; margin-bottom:24px; display:flex; align-items:center; gap:12px;">
+        <div style="background:#ECFDF5;border:1px solid #A7F3D0;border-radius:12px;padding:14px 16px;margin-bottom:24px;display:flex;align-items:center;gap:12px;">
           <div style="width:36px;height:36px;background:#00E676;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0A0A0A" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
           </div>
@@ -85,7 +138,7 @@
           <p style="color:#6B7280;font-size:0.875rem;margin:0;">Crie uma senha para acessar sua conta</p>
         </div>
 
-        <div id="step2Error" style="display:none; background:#FFF1F2; border:1px solid #FECDD3; border-radius:10px; padding:11px 14px; margin-bottom:16px; font-size:0.83rem; color:#BE123C; font-weight:500;"></div>
+        <div id="step2Error" style="display:none;background:#FFF1F2;border:1px solid #FECDD3;border-radius:10px;padding:11px 14px;margin-bottom:16px;font-size:0.83rem;color:#BE123C;font-weight:500;"></div>
 
         <div style="display:flex;flex-direction:column;gap:16px;">
           <div>
@@ -105,21 +158,13 @@
   </div>
 </div>
 
-<style>
-@media (max-width: 768px) {
-  .pa-left { display: none !important; }
-}
-</style>
-
 <script>
 (function() {
 
-  // Estado local
   let pendingStudentDocId = null;
   let pendingEmail        = null;
-  let isActivating        = false;  // guard contra duplo clique / dupla chamada
+  let isActivating        = false;
 
-  // ── Elementos ─────────────────────────────────────────────────────
   const step1       = document.getElementById('step1');
   const step2       = document.getElementById('step2');
   const step1Error  = document.getElementById('step1Error');
@@ -139,14 +184,13 @@
     div.style.display = 'none';
   }
 
-  // ── STEP 1: verificar e-mail ──────────────────────────────────────
+  // ── STEP 1 ────────────────────────────────────────────────────
   const checkEmailBtn = document.getElementById('checkEmailBtn');
   const emailInput    = document.getElementById('emailInput');
 
   async function checkEmail() {
     hideError(step1Error);
     const email = emailInput.value.trim();
-
     if (!email) return showError(step1Error, 'Informe seu e-mail.');
 
     checkEmailBtn.innerHTML = '<span class="spinner"></span>';
@@ -177,7 +221,7 @@
   checkEmailBtn.onclick = checkEmail;
   emailInput.addEventListener('keydown', e => { if (e.key === 'Enter') checkEmail(); });
 
-  // ── STEP 2: ativar conta ──────────────────────────────────────────
+  // ── STEP 2 ────────────────────────────────────────────────────
   const activateBtn           = document.getElementById('activateBtn');
   const passwordInput         = document.getElementById('passwordInput');
   const passwordConfirmInput  = document.getElementById('passwordConfirmInput');
@@ -198,7 +242,7 @@
     const confirm  = passwordConfirmInput.value;
 
     if (password.length < 6)  return showError(step2Error, 'A senha deve ter pelo menos 6 caracteres.');
-    if (password !== confirm)  return showError(step2Error, 'As senhas nao conferem.');
+    if (password !== confirm)  return showError(step2Error, 'As senhas não conferem.');
 
     isActivating          = true;
     activateBtn.innerHTML = '<span class="spinner"></span>';

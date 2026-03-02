@@ -1,7 +1,6 @@
 <div class="personal-dashboard" style="font-family: 'DM Sans', system-ui, sans-serif; background: #FFFFFF; min-height: 100vh;">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/mobile-responsive-fixes.css">
 
   <style>
     .nav-link { color: rgba(255,255,255,0.75); font-weight: 500; font-size: 0.875rem; padding: 8px 16px; border-radius: 8px; border: 1px solid transparent; transition: all 0.2s ease; display: flex; align-items: center; gap: 7px; text-decoration: none; white-space: nowrap; cursor: pointer; background: transparent; font-family: inherit; }
@@ -36,54 +35,133 @@
     .modal-btn { width: 100%; padding: 13px; background: #00E676; color: #0A0A0A; border: none; border-radius: 10px; font-size: 0.9rem; font-weight: 800; cursor: pointer; font-family: inherit; transition: background 0.2s; }
     .modal-btn:hover { background: #00C853; }
     .modal-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    @media (max-width: 768px) {
+      .header-badge { display: none !important; }
+    }
+
+    /* ── Mobile nav: ícones apenas ── */
+    .nav-label { display: inline; }
+    .nav-icon-only { display: none; }
+
+    @media (max-width: 768px) {
+      /* Header compacto */
+      .dash-header-inner {
+        padding: 0 16px !important;
+      }
+
+      /* Nav: esconde texto, mostra só ícone */
+      .nav-label { display: none !important; }
+      .nav-icon-only { display: flex !important; }
+
+      .nav-link {
+        padding: 8px !important;
+        min-width: 38px;
+        justify-content: center;
+      }
+      .nav-link-accent {
+        padding: 8px 10px !important;
+        font-size: 0 !important; /* esconde texto */
+        min-width: 38px;
+        justify-content: center;
+        gap: 0 !important;
+      }
+      /* Mostra o ícone do botão accent no mobile */
+      .nav-link-accent svg { display: block !important; }
+
+      /* Main padding menor */
+      .dash-main {
+        padding: 24px 16px 48px !important;
+      }
+
+      /* Título menor */
+      .dash-title {
+        font-size: 1.5rem !important;
+      }
+
+      /* Barra de ações dos alunos */
+      .students-toolbar {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 10px !important;
+      }
+      .students-toolbar-right {
+        width: 100%;
+        display: flex;
+        gap: 8px;
+      }
+      .students-toolbar-right button {
+        flex: 1;
+        justify-content: center;
+      }
+
+      /* Grid de alunos: 1 coluna */
+      #studentsList {
+        grid-template-columns: 1fr !important;
+      }
+
+      /* Modal fullscreen-ish no mobile */
+      .modal-box {
+        padding: 24px !important;
+        border-radius: 16px !important;
+      }
+    }
   </style>
 
   <!-- HEADER -->
   <header style="background: #0A0A0A; position: sticky; top: 0; z-index: 50; border-bottom: 1px solid rgba(255,255,255,0.06);">
-    <div style="max-width: 1400px; margin: 0 auto; padding: 0 32px; height: 64px; display: flex; justify-content: space-between; align-items: center;">
+    <div class="dash-header-inner" style="max-width: 1400px; margin: 0 auto; padding: 0 32px; height: 64px; display: flex; justify-content: space-between; align-items: center;">
       <div style="display: flex; align-items: center; gap: 12px;">
         <img src="assets/branca_larga.png" style="height: 28px; object-fit: contain;" onerror="this.style.display='none'">
-        <span style="background: rgba(0,230,118,0.15); color: #00E676; font-size: 0.65rem; font-weight: 700; padding: 2px 8px; border-radius: 20px; letter-spacing: 0.04em; text-transform: uppercase; border: 1px solid rgba(0,230,118,0.25);">Personal</span>
+        <span class="header-badge" style="background: rgba(0,230,118,0.15); color: #00E676; font-size: 0.65rem; font-weight: 700; padding: 2px 8px; border-radius: 20px; letter-spacing: 0.04em; text-transform: uppercase; border: 1px solid rgba(0,230,118,0.25);">Personal</span>
       </div>
       <nav style="display: flex; align-items: center; gap: 6px;">
-        <a href="#/personal/exercises" class="nav-link">
+        <!-- Exercícios -->
+        <a href="#/personal/exercises" class="nav-link" title="Exercícios">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 4v16M18 4v16M6 12h12M3 4h4M17 4h4M3 20h4M17 20h4"/></svg>
-          Exercícios
+          <span class="nav-label">Exercícios</span>
         </a>
-        <a href="#/personal/create-workout" class="nav-link-accent">
+        <!-- Criar Treino -->
+        <a href="#/personal/create-workout" class="nav-link-accent" title="Criar Treino">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          Criar Treino
+          <span class="nav-label" style="margin-left:4px;">Criar Treino</span>
         </a>
-        <a href="#/personal/feedbacks" class="nav-link">
+        <!-- Feedbacks -->
+        <a href="#/personal/feedbacks" class="nav-link" title="Feedbacks">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-          Feedbacks
+          <span class="nav-label">Feedbacks</span>
         </a>
-        <button id="logoutBtn" class="nav-link" style="border: 1px solid rgba(255,255,255,0.14);">
+        <!-- Sair -->
+        <button id="logoutBtn" class="nav-link" style="border: 1px solid rgba(255,255,255,0.14);" title="Sair">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-          Sair
+          <span class="nav-label">Sair</span>
         </button>
       </nav>
     </div>
   </header>
 
   <!-- MAIN -->
-  <main style="max-width: 1200px; margin: 0 auto; padding: 40px 32px 60px;">
+  <main class="dash-main" style="max-width: 1200px; margin: 0 auto; padding: 40px 32px 60px;">
 
     <div style="margin-bottom: 36px;">
       <p style="color: #9CA3AF; font-size: 0.8rem; font-weight: 600; margin: 0 0 6px; letter-spacing: 0.05em; text-transform: uppercase;">Bem-vindo de volta</p>
-      <h1 style="font-size: 2rem; font-weight: 800; color: #0A0A0A; margin: 0; letter-spacing: -0.03em;">Olá, <span id="personalName">...</span> 👋</h1>
+      <h1 class="dash-title" style="font-size: 2rem; font-weight: 800; color: #0A0A0A; margin: 0; letter-spacing: -0.03em;">Olá, <span id="personalName">...</span> 👋</h1>
     </div>
 
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+    <!-- Toolbar alunos -->
+    <div class="students-toolbar" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
       <div style="display: flex; align-items: center; gap: 12px;">
         <h2 style="font-size: 1.2rem; font-weight: 700; color: #0A0A0A; margin: 0;">Meus Alunos</h2>
         <span id="studentsCount" style="background: #F4F4F4; color: #6B7280; font-size: 0.75rem; font-weight: 700; padding: 3px 10px; border-radius: 20px;">0</span>
       </div>
-      <div style="display: flex; gap: 8px;">
-        <button id="reloadBtn" style="background: #F4F4F4; border: none; color: #6B7280; padding: 9px 16px; border-radius: 8px; font-size: 0.8rem; font-weight: 600; cursor: pointer; font-family: inherit;" onmouseover="this.style.background='#EBEBEB'" onmouseout="this.style.background='#F4F4F4'">↻ Atualizar</button>
-        <button id="addStudentBtn" class="nav-link-accent">
+      <div class="students-toolbar-right" style="display: flex; gap: 8px;">
+        <button id="reloadBtn" style="background: #F4F4F4; border: none; color: #6B7280; padding: 9px 16px; border-radius: 8px; font-size: 0.8rem; font-weight: 600; cursor: pointer; font-family: inherit; display:flex; align-items:center; gap:6px;" onmouseover="this.style.background='#EBEBEB'" onmouseout="this.style.background='#F4F4F4'">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+          <span class="nav-label">Atualizar</span>
+        </button>
+        <button id="addStudentBtn" class="nav-link-accent" style="font-size:0.875rem; padding: 9px 18px;">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          Adicionar Aluno
+          <span class="nav-label" style="margin-left:4px;">Adicionar Aluno</span>
         </button>
       </div>
     </div>
@@ -126,18 +204,15 @@
 
   await new Promise(r => setTimeout(r, 120));
 
-  // ── Logout ────────────────────────────────────────────────────────
   document.getElementById('logoutBtn').onclick = async () => {
     await authManager.logout();
     router.goToLogin();
   };
 
-  // ── Nome do personal ──────────────────────────────────────────────
   dbManager.getCurrentUserData().then(d => {
     document.getElementById('personalName').textContent = d?.name || 'Personal';
   });
 
-  // ── Modal ─────────────────────────────────────────────────────────
   const overlay  = document.getElementById('modalOverlay');
   const modalErr = document.getElementById('modalError');
 
@@ -154,7 +229,6 @@
   document.getElementById('closeModal').onclick    = closeModal;
   overlay.addEventListener('click', e => { if (e.target === overlay) closeModal(); });
 
-  // ── Criar aluno ───────────────────────────────────────────────────
   document.getElementById('createStudentBtn').onclick = async () => {
     const name  = document.getElementById('newStudentName').value.trim();
     const email = document.getElementById('newStudentEmail').value.trim();
@@ -185,7 +259,6 @@
 
   document.getElementById('reloadBtn').onclick = loadStudents;
 
-  // ── Carregar e renderizar alunos ──────────────────────────────────
   async function loadStudents() {
     const list = document.getElementById('studentsList');
     list.innerHTML = `
@@ -245,7 +318,6 @@
         </div>
       `;
 
-      // Card body inteiro clicável para alunos ativos
       if (isActive) {
         card.querySelector('.card-body').onclick = () => router.goTo(`/personal/student/${st.uid}`);
       }
@@ -253,7 +325,6 @@
       list.appendChild(card);
     });
 
-    // Bind dos botões do footer (stopPropagation garante que não dispara o click do card-body)
     document.querySelectorAll('[data-action]').forEach(btn => {
       btn.onclick = async (e) => {
         e.stopPropagation();
