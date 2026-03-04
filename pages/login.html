@@ -145,13 +145,18 @@
       <form id="loginForm">
         <div style="margin-bottom:18px;">
           <label style="display:block;font-size:0.8rem;font-weight:700;color:#374151;margin-bottom:8px;letter-spacing:0.01em;">Email</label>
-          <input type="email" id="loginEmail" class="login-input" placeholder="seu@email.com" required>
+          <input type="email" id="loginEmail" class="login-input" placeholder="seu@email.com" autocomplete="email" required>
         </div>
 
-        <div style="margin-bottom:28px;">
-          <label style="display:block;font-size:0.8rem;font-weight:700;color:#374151;margin-bottom:8px;letter-spacing:0.01em;">Senha</label>
-          <input type="password" id="loginPassword" class="login-input" placeholder="••••••••" required>
+        <div style="margin-bottom:12px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+            <label style="font-size:0.8rem;font-weight:700;color:#374151;letter-spacing:0.01em;">Senha</label>
+            <a href="#/recuperar-senha" class="login-link" style="font-size:0.75rem;font-weight:600;color:#6B7280;">Esqueceu a senha?</a>
+          </div>
+          <input type="password" id="loginPassword" class="login-input" placeholder="••••••••" autocomplete="current-password" required>
         </div>
+
+        <div style="margin-bottom:28px;"></div>
 
         <button type="submit" class="login-btn">Entrar</button>
       </form>

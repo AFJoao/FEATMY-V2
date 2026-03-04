@@ -1,0 +1,404 @@
+<div class="recuperar-senha-page" style="font-family: 'DM Sans', system-ui, sans-serif; background: #FFFFFF; min-height: 100vh; display: flex;">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <style>
+    .rs-input {
+      width: 100%;
+      padding: 13px 16px;
+      border: 2px solid #EBEBEB;
+      border-radius: 12px;
+      font-size: 0.9rem;
+      outline: none;
+      transition: all 0.2s ease;
+      box-sizing: border-box;
+      font-family: inherit;
+      background: #FAFAFA;
+      color: #0A0A0A;
+    }
+    .rs-input:focus {
+      border-color: #0A0A0A;
+      background: #fff;
+      box-shadow: 0 0 0 4px rgba(0,0,0,0.04);
+    }
+    .rs-input::placeholder { color: #9CA3AF; }
+
+    .rs-btn {
+      width: 100%;
+      padding: 14px;
+      background: #00E676;
+      color: #0A0A0A;
+      border: none;
+      border-radius: 12px;
+      font-size: 0.95rem;
+      font-weight: 800;
+      cursor: pointer;
+      transition: all 0.25s cubic-bezier(0.4,0,0.2,1);
+      font-family: inherit;
+      letter-spacing: 0.01em;
+    }
+    .rs-btn:hover {
+      background: #00C853;
+      transform: translateY(-1px);
+      box-shadow: 0 8px 24px rgba(0,230,118,0.35);
+    }
+    .rs-btn:active { transform: translateY(0); }
+    .rs-btn:disabled { opacity: 0.55; cursor: not-allowed; transform: none; box-shadow: none; }
+
+    .rs-link { color: #0A0A0A; font-weight: 700; text-decoration: none; }
+    .rs-link:hover { text-decoration: underline; }
+
+    .spinner {
+      width: 22px;
+      height: 22px;
+      border: 3px solid rgba(0,0,0,0.1);
+      border-top-color: #0A0A0A;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      display: inline-block;
+      vertical-align: middle;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Left Panel ── */
+    .rs-left {
+      width: 45%;
+      background: #0A0A0A;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 48px;
+      position: relative;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+
+    /* ── Right Panel ── */
+    .rs-right {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 48px;
+    }
+
+    /* ── Mobile logo bar ── */
+    .mobile-logo-bar {
+      display: none;
+      width: 100%;
+      background: #0A0A0A;
+      padding: 20px 24px;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    /* ── Success state ── */
+    .success-box {
+      display: none;
+      text-align: center;
+      padding: 8px 0;
+    }
+    .success-box.visible { display: block; }
+    .form-box.hidden { display: none; }
+
+    @media (max-width: 768px) {
+      .recuperar-senha-page { flex-direction: column !important; }
+      .rs-left { display: none !important; }
+      .mobile-logo-bar { display: flex !important; }
+      .rs-right {
+        padding: 32px 24px 40px !important;
+        align-items: flex-start !important;
+      }
+    }
+  </style>
+
+  <!-- Mobile Logo Bar -->
+  <div class="mobile-logo-bar">
+    <img src="assets/branca_larga.png" alt="Featym" style="height:28px;object-fit:contain;" onerror="this.style.display='none'">
+  </div>
+
+  <!-- Left Panel (desktop only) -->
+  <div class="rs-left">
+    <div style="position:absolute;inset:0;background:radial-gradient(ellipse at 20% 80%,rgba(0,230,118,0.08) 0%,transparent 60%),radial-gradient(ellipse at 80% 20%,rgba(255,255,255,0.03) 0%,transparent 60%);pointer-events:none;"></div>
+
+    <div style="position:relative;flex:1;display:flex;align-items:center;justify-content:center;">
+      <img src="assets/branca_larga.png" alt="Featym" style="width:72%;max-width:320px;object-fit:contain;filter:drop-shadow(0 0 40px rgba(0,230,118,0.12));" onerror="this.style.display='none'">
+    </div>
+
+    <div style="position:relative;">
+      <p style="color:rgba(0,230,118,0.7);font-size:0.72rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;margin:0 0 14px;">Recuperação de acesso</p>
+      <h2 style="color:#fff;font-size:2rem;font-weight:800;margin:0 0 14px;line-height:1.2;letter-spacing:-0.03em;">Esqueceu sua senha?<br>Sem problema.</h2>
+      <p style="color:rgba(255,255,255,0.4);font-size:0.875rem;line-height:1.7;margin:0;max-width:320px;">Enviaremos um link seguro para o seu e-mail. Clique nele e crie uma nova senha em segundos.</p>
+
+      <!-- Steps -->
+      <div style="margin-top:32px;display:flex;flex-direction:column;gap:14px;">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <div style="width:28px;height:28px;border-radius:8px;background:rgba(0,230,118,0.12);border:1px solid rgba(0,230,118,0.2);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+            <span style="color:#00E676;font-size:0.7rem;font-weight:800;">1</span>
+          </div>
+          <span style="color:rgba(255,255,255,0.5);font-size:0.82rem;">Informe o e-mail cadastrado</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;">
+          <div style="width:28px;height:28px;border-radius:8px;background:rgba(0,230,118,0.12);border:1px solid rgba(0,230,118,0.2);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+            <span style="color:#00E676;font-size:0.7rem;font-weight:800;">2</span>
+          </div>
+          <span style="color:rgba(255,255,255,0.5);font-size:0.82rem;">Receba o link no seu e-mail</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;">
+          <div style="width:28px;height:28px;border-radius:8px;background:rgba(0,230,118,0.12);border:1px solid rgba(0,230,118,0.2);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+            <span style="color:#00E676;font-size:0.7rem;font-weight:800;">3</span>
+          </div>
+          <span style="color:rgba(255,255,255,0.5);font-size:0.82rem;">Crie sua nova senha e acesse</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right Panel -->
+  <div class="rs-right">
+    <div style="width:100%;max-width:400px;">
+
+      <!-- FORM STATE -->
+      <div class="form-box" id="formBox">
+
+        <div style="margin-bottom:32px;">
+          <h1 style="font-size:1.8rem;font-weight:800;color:#0A0A0A;margin:0 0 8px;letter-spacing:-0.03em;">Recuperar senha</h1>
+          <p style="color:#6B7280;font-size:0.9rem;margin:0;line-height:1.5;">Informe o e-mail da sua conta e enviaremos um link para redefinir a senha.</p>
+        </div>
+
+        <!-- Error -->
+        <div id="rsError" style="display:none;background:#FFF1F2;border:1px solid #FECDD3;border-radius:10px;padding:12px 16px;margin-bottom:20px;font-size:0.83rem;color:#BE123C;font-weight:500;line-height:1.5;"></div>
+
+        <!-- Form -->
+        <div style="display:flex;flex-direction:column;gap:16px;">
+          <div>
+            <label style="display:block;font-size:0.78rem;font-weight:700;color:#374151;margin-bottom:7px;letter-spacing:0.01em;">E-mail cadastrado</label>
+            <input type="email" id="rsEmail" class="rs-input" placeholder="seu@email.com" autocomplete="email" spellcheck="false" required>
+          </div>
+
+          <button id="rsSubmitBtn" class="rs-btn">Enviar link de recuperação</button>
+        </div>
+
+        <!-- Back to login -->
+        <p style="text-align:center;margin-top:24px;font-size:0.875rem;color:#6B7280;">
+          Lembrou a senha? <a href="#/login" class="rs-link">Voltar ao login →</a>
+        </p>
+
+        <!-- Divider -->
+        <div style="border-top:1px solid #F4F4F4;margin:20px 0;"></div>
+
+        <!-- Student hint -->
+        <div style="background:#FFFBEB;border:1px solid #FDE68A;border-radius:12px;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;">
+          <div>
+            <p style="font-size:0.78rem;font-weight:700;color:#92400E;margin:0 0 2px;">É aluno e nunca acessou?</p>
+            <p style="font-size:0.75rem;color:#B45309;margin:0;">Use o primeiro acesso</p>
+          </div>
+          <a href="#/primeiro-acesso"
+             style="background:#F59E0B;color:#fff;font-size:0.78rem;font-weight:700;padding:8px 14px;border-radius:8px;text-decoration:none;white-space:nowrap;flex-shrink:0;transition:background 0.2s;"
+             onmouseover="this.style.background='#D97706'"
+             onmouseout="this.style.background='#F59E0B'">
+            Primeiro acesso →
+          </a>
+        </div>
+
+      </div><!-- /form-box -->
+
+      <!-- SUCCESS STATE -->
+      <div class="success-box" id="successBox">
+
+        <!-- Animated checkmark -->
+        <div style="width:72px;height:72px;background:linear-gradient(135deg,#00E676,#00C853);border-radius:20px;margin:0 auto 24px;display:flex;align-items:center;justify-content:center;box-shadow:0 12px 32px rgba(0,230,118,0.35);">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#0A0A0A" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12"/>
+          </svg>
+        </div>
+
+        <h2 style="font-size:1.6rem;font-weight:800;color:#0A0A0A;margin:0 0 10px;letter-spacing:-0.03em;">E-mail enviado!</h2>
+
+        <p style="color:#6B7280;font-size:0.9rem;line-height:1.6;margin:0 0 6px;">Enviamos um link de recuperação para:</p>
+        <p id="successEmail" style="font-size:0.95rem;font-weight:700;color:#0A0A0A;margin:0 0 24px;word-break:break-all;"></p>
+
+        <div style="background:#F8F9FA;border:1px solid #EBEBEB;border-radius:12px;padding:16px 18px;text-align:left;margin-bottom:28px;">
+          <p style="font-size:0.8rem;font-weight:700;color:#374151;margin:0 0 8px;display:flex;align-items:center;gap:6px;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            Não recebeu o e-mail?
+          </p>
+          <ul style="font-size:0.78rem;color:#6B7280;margin:0;padding-left:16px;line-height:1.8;">
+            <li>Verifique a pasta de spam/lixo eletrônico</li>
+            <li>Confira se o e-mail digitado está correto</li>
+            <li>Aguarde até 2 minutos para a entrega</li>
+          </ul>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <button id="reTryBtn" class="rs-btn" style="background:#F4F4F4;color:#374151;" onmouseover="this.style.background='#EBEBEB';this.style.transform='none';this.style.boxShadow='none'" onmouseout="this.style.background='#F4F4F4'">
+            Tentar outro e-mail
+          </button>
+          <a href="#/login" style="display:block;text-align:center;padding:14px;background:#0A0A0A;color:#fff;border-radius:12px;font-size:0.9rem;font-weight:700;text-decoration:none;transition:all 0.2s;" onmouseover="this.style.background='#1a1a1a'" onmouseout="this.style.background='#0A0A0A'">
+            Voltar ao login →
+          </a>
+        </div>
+
+      </div><!-- /success-box -->
+
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+
+  // ── Debug flag — nunca expõe internals em produção ──
+  const DEBUG = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+
+  // ── Verificação de dependências ──
+  // O router executa este script via new Function() no escopo global.
+  // Se auth não estiver disponível, loga e aborta com mensagem clara.
+  if (typeof auth === 'undefined' || !auth) {
+    console.error('[recuperar-senha] ERRO: variável "auth" não encontrada. Verifique se config.js carregou antes do router.');
+    return;
+  }
+  if (DEBUG) {
+    console.log('[recuperar-senha] auth OK, sendPasswordResetEmail:', typeof auth.sendPasswordResetEmail);
+  }
+
+  const rsEmail      = document.getElementById('rsEmail');
+  const rsSubmitBtn  = document.getElementById('rsSubmitBtn');
+  const rsError      = document.getElementById('rsError');
+  const formBox      = document.getElementById('formBox');
+  const successBox   = document.getElementById('successBox');
+  const successEmail = document.getElementById('successEmail');
+  const reTryBtn     = document.getElementById('reTryBtn');
+
+  // Verificar se todos os elementos existem
+  const _missing = Object.entries({ rsEmail, rsSubmitBtn, rsError, formBox, successBox, successEmail, reTryBtn })
+    .filter(([, el]) => !el).map(([k]) => k);
+  if (_missing.length > 0) {
+    console.error('[recuperar-senha] Elementos HTML não encontrados:', _missing);
+    return;
+  }
+
+  // ── Label padrão do botão (única fonte de verdade) ──
+  const BTN_LABEL = 'Enviar link de recuperação';
+
+  function showError(msg) {
+    rsError.textContent   = msg;
+    rsError.style.display = 'block';
+  }
+  function hideError() {
+    rsError.style.display = 'none';
+  }
+  function setLoading(on) {
+    rsSubmitBtn.innerHTML = on ? '<span class="spinner"></span>' : BTN_LABEL;
+    rsSubmitBtn.disabled  = on;
+  }
+
+  function showSuccess(email) {
+    successEmail.textContent = email;
+    formBox.classList.add('hidden');
+    successBox.classList.add('visible');
+    // Garante que o botão volte ao estado normal se o usuário clicar "tentar outro e-mail"
+    setLoading(false);
+  }
+
+  function showForm() {
+    rsEmail.value = '';
+    hideError();
+    setLoading(false); // garante botão restaurado ao voltar ao form
+    formBox.classList.remove('hidden');
+    successBox.classList.remove('visible');
+    setTimeout(() => rsEmail.focus(), 80);
+  }
+
+  // ── Traduzir erros do Firebase ──
+  // Consistente com auth.js. Nunca exibe error.message do Firebase (pode conter internals).
+  // Erros que revelam existência de conta são tratados como sucesso silencioso (ver sendReset).
+  function translateResetError(code) {
+    const map = {
+      'auth/too-many-requests':      'Muitas tentativas seguidas. Aguarde alguns minutos e tente novamente.',
+      'auth/network-request-failed': 'Erro de conexão. Verifique sua internet e tente novamente.',
+      'auth/invalid-email':          'Formato de e-mail inválido.',
+      // auth/user-not-found e auth/user-disabled → sucesso silencioso (anti-enumeração)
+    };
+    return map[code] || 'Não foi possível processar a solicitação. Tente novamente.';
+  }
+
+  // ── Cooldown client-side (proteção básica contra spam de cliques) ──
+  // Complementar ao App Check / reCAPTCHA — não os substitui.
+  let lastSentAt = 0;
+  const COOLDOWN_MS = 30_000; // 30 s entre envios
+
+  // ── Enviar e-mail de recuperação ──
+  async function sendReset() {
+    hideError();
+
+    const email = rsEmail.value.trim();
+
+    if (!email) {
+      showError('Informe o seu e-mail.');
+      rsEmail.focus();
+      return;
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      showError('Formato de e-mail inválido.');
+      rsEmail.focus();
+      return;
+    }
+
+    const now = Date.now();
+    if (now - lastSentAt < COOLDOWN_MS) {
+      const remaining = Math.ceil((COOLDOWN_MS - (now - lastSentAt)) / 1000);
+      showError(`Aguarde ${remaining}s antes de solicitar outro e-mail.`);
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      // Domínio deve estar em:
+      // Firebase Console → Authentication → Settings → Authorized Domains
+      // handleCodeInApp: false → Firebase usa a tela padrão de redefinição.
+      // Mude para true somente se implementar a página de redefinição internamente.
+      // actionCodeSettings removido temporariamente para diagnóstico.
+      // Se funcionar sem ele, o problema era a url não estar nos Authorized Domains.
+      // Para reativar: adicione o domínio em Firebase Console → Authentication → Authorized Domains
+      // e passe actionCodeSettings como segundo argumento.
+      await auth.sendPasswordResetEmail(email);
+
+      lastSentAt = Date.now();
+      showSuccess(email);
+
+    } catch (error) {
+      // SEGURANÇA — anti-enumeração:
+      // user-not-found e user-disabled → sucesso silencioso.
+      // O atacante não distingue conta existente de inexistente.
+      // Cooldown aplicado mesmo aqui para equalizar tempo de resposta.
+      const silentCodes = new Set(['auth/user-not-found', 'auth/user-disabled']);
+
+      if (silentCodes.has(error.code)) {
+        lastSentAt = Date.now();
+        showSuccess(email);
+        return;
+      }
+
+      // Erros operacionais legítimos → exibir ao usuário
+      if (DEBUG) {
+        console.warn('[recuperar-senha] erro capturado:', error.code, error.message, error);
+      }
+
+      showError(translateResetError(error.code));
+      setLoading(false);
+    }
+  }
+
+  // Listeners registrados uma única vez (IIFE garante ausência de duplicatas)
+  rsSubmitBtn.addEventListener('click', sendReset);
+  rsEmail.addEventListener('keydown', (e) => { if (e.key === 'Enter') sendReset(); });
+  reTryBtn.addEventListener('click', showForm);
+
+  setTimeout(() => rsEmail.focus(), 100);
+
+})();
+</script>

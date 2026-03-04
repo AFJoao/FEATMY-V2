@@ -10,6 +10,7 @@ class Router {
       '/login': 'pages/login.html',
       '/signup': 'pages/signup.html',
       '/primeiro-acesso': 'pages/primeiro-acesso.html',
+      '/recuperar-senha': 'pages/recuperar-senha.html',
       '/personal/dashboard': 'pages/personal/dashboard.html',
       '/personal/exercises': 'pages/personal/exercises.html',
       '/personal/create-workout': 'pages/personal/create-workout.html',
@@ -33,7 +34,8 @@ class Router {
 
     // Rotas públicas — acessíveis sem login
     // /primeiro-acesso incluído: aluno não tem auth ainda nesse momento
-    this.publicRoutes = ['/login', '/signup', '/', '/primeiro-acesso'];
+    // /recuperar-senha incluído: usuário não autenticado por definição
+    this.publicRoutes = ['/login', '/signup', '/', '/primeiro-acesso', '/recuperar-senha'];
 
     this.isReady = false;
     this.authReady = false;
