@@ -19,60 +19,59 @@ service cloud.firestore {
       return isAuth() && getUserData().userType == 'personal';
     }
 
-    // Verifica se o doc é um registro de aluno cujo authUid bate com quem está logado
-    // Usado para permitir que o aluno recém-autenticado manipule seu próprio doc provisório
+    // Assinatura ativa ou em carência
+    function hasActiveSubscription(personalId) {
+      return exists(/databases/$(database)/documents/subscriptions/$(personalId)) &&
+        get(/databases/$(database)/documents/subscriptions/$(personalId)).data.status in ['active', 'grace_period'];
+    }
+
+    // Limite de alunos
+    function isWithinStudentLimit(personalId) {
+      return exists(/databases/$(database)/documents/subscriptions/$(personalId)) &&
+        (
+          (
+            exists(/databases/$(database)/documents/users/$(personalId)) &&
+            'students' in get(/databases/$(database)/documents/users/$(personalId)).data
+              ? get(/databases/$(database)/documents/users/$(personalId)).data.students.size()
+              : 0
+          )
+          <
+          get(/databases/$(database)/documents/subscriptions/$(personalId)).data.maxStudents
+        );
+    }
+
     function isOwnStudentDoc() {
       return isAuth()
         && resource.data.userType == 'student'
         && resource.data.authUid == request.auth.uid;
     }
 
-    // Verifica se o doc é um registro pendente vinculado ao personal logado
     function isMyStudentDoc() {
-      return isPersonal()
-        && resource.data.personalId == request.auth.uid;
+      return isPersonal() && resource.data.personalId == request.auth.uid;
     }
 
-
-    // ── USERS ────────────────────────────────────────────────────────────
+    // ── USERS ─────────────────────────────────────
     match /users/{userId} {
 
-      // Leitura autenticada: qualquer usuário logado pode ler (get e list)
-      allow get, list: if isAuth();
+      allow get, list: if isAuth() ||
+        (resource.data.status == 'pending' && resource.data.userType == 'student');
 
-      // get público: permite ler um doc específico de aluno pendente sem login
-      // (usado pelo checkPendingStudent via studentDocId do índice)
-      allow get: if resource.data.status == 'pending'
-        && resource.data.userType == 'student';
-
-      // Usuário cria seu próprio doc (personal no signup)
       allow create: if isUser(userId);
 
-      // Personal cria doc de aluno com ID arbitrário (status pending, sem auth ainda)
+      // Personal cria aluno
       allow create: if isPersonal()
         && request.resource.data.userType == 'student'
-        && request.resource.data.personalId == request.auth.uid;
+        && request.resource.data.personalId == request.auth.uid
+        && hasActiveSubscription(request.auth.uid)
+        && isWithinStudentLimit(request.auth.uid);
 
-      // Aluno ativa a própria conta:
-      //   (a) cria users/{authUid} com os dados migrados
-      //   (b) OU cria qualquer doc de student com authUid == seu uid (primeiro acesso)
+      // Aluno ativa conta
       allow create: if isAuth()
         && request.resource.data.userType == 'student'
         && request.resource.data.authUid == request.auth.uid;
 
-      // Edição:
-      //   - o próprio usuário edita seu doc
-      //   - o personal edita docs de seus alunos
-      //   - o aluno recém-autenticado atualiza o doc provisório (authUid já foi gravado)
-      allow update: if isUser(userId)
-        || isMyStudentDoc()
-        || isOwnStudentDoc();
+      allow update: if isUser(userId) || isMyStudentDoc() || isOwnStudentDoc();
 
-      // Exclusão:
-      //   - o próprio usuário
-      //   - o personal remove alunos seus
-      //   - o aluno recém-autenticado remove o doc provisório (authUid pode ser null)
-      //     → permitido se o doc é um student pendente e o usuário está autenticado
       allow delete: if isUser(userId)
         || isMyStudentDoc()
         || isOwnStudentDoc()
@@ -81,74 +80,113 @@ service cloud.firestore {
             && (resource.data.status == 'pending' || resource.data.status == 'activating'));
     }
 
-
-    // ── EXERCISES ────────────────────────────────────────────────────────
+    // ── EXERCISES ─────────────────────────────────
     match /exercises/{exerciseId} {
+
       allow read: if isAuth() && (
         resource == null ||
+        !('personalId' in resource.data) ||
         resource.data.personalId == "" ||
-        !("personalId" in resource.data) ||
         resource.data.personalId == request.auth.uid ||
         getUserData().personalId == resource.data.personalId
       );
-      allow create: if isAuth() && isPersonal() &&
-        request.resource.data.personalId == request.auth.uid;
-      allow update: if isAuth() && isPersonal() &&
-        resource.data.personalId == request.auth.uid;
-      allow delete: if isAuth() && isPersonal() &&
-        resource.data.personalId == request.auth.uid;
+
+      allow create: if isAuth() && isPersonal()
+        && request.resource.data.personalId == request.auth.uid
+        && hasActiveSubscription(request.auth.uid);
+
+      allow update: if isAuth() && isPersonal()
+        && resource.data.personalId == request.auth.uid
+        && hasActiveSubscription(request.auth.uid);
+
+      allow delete: if isAuth() && isPersonal()
+        && resource.data.personalId == request.auth.uid;
     }
 
-
-    // ── WORKOUTS ─────────────────────────────────────────────────────────
+    // ── WORKOUTS ──────────────────────────────────
     match /workouts/{workoutId} {
+
       allow get: if isAuth() && (
         resource.data.personalId == request.auth.uid ||
-        resource.data.studentId == request.auth.uid
-      );
-      allow list: if isAuth();
-      allow create: if isAuth() &&
-        request.resource.data.personalId == request.auth.uid;
-      allow update, delete: if isAuth() &&
-        resource.data.personalId == request.auth.uid;
-    }
-
-
-    // ── FEEDBACKS ────────────────────────────────────────────────────────
-    match /feedbacks/{feedbackId} {
-      allow create: if isAuth() &&
-        request.resource.data.studentId == request.auth.uid;
-      allow get, update: if isAuth() && (
-        resource == null ||
-        resource.data.studentId == request.auth.uid
-      );
-      allow get, delete: if isAuth() && isPersonal() && (
-        resource == null ||
         (
-          exists(/databases/$(database)/documents/workouts/$(resource.data.workoutId)) &&
-          get(/databases/$(database)/documents/workouts/$(resource.data.workoutId)).data.personalId == request.auth.uid
+          resource.data.studentId == request.auth.uid &&
+          hasActiveSubscription(resource.data.personalId)
         )
       );
+
+      allow list: if isAuth();
+
+      allow create: if isAuth()
+        && request.resource.data.personalId == request.auth.uid
+        && hasActiveSubscription(request.auth.uid);
+
+      allow update: if isAuth()
+        && resource.data.personalId == request.auth.uid
+        && hasActiveSubscription(request.auth.uid);
+
+      allow delete: if isAuth()
+        && resource.data.personalId == request.auth.uid;
+    }
+
+    // ── FEEDBACKS ────────────────────────────────
+    match /feedbacks/{feedbackId} {
+
+      allow create: if isAuth()
+        && request.resource.data.studentId == request.auth.uid;
+
+      allow get, update: if isAuth()
+        && resource.data.studentId == request.auth.uid;
+
+      allow get, delete: if isAuth() && isPersonal() && (
+        exists(/databases/$(database)/documents/workouts/$(resource.data.workoutId)) &&
+        get(/databases/$(database)/documents/workouts/$(resource.data.workoutId)).data.personalId == request.auth.uid
+      );
+
       allow list: if isAuth();
     }
 
-
-    // ── PENDING ACTIVATIONS (índice público de lookup) ──────────────────
-    // Coleção separada usada APENAS para o fluxo de primeiro acesso.
-    // O aluno não está autenticado nesse momento, então precisa de acesso público.
-    // Cada doc tem ID = email (sanitizado), contém apenas studentDocId e status.
-    match /pendingActivations/{emailKey} {
-      // Leitura pública: qualquer um pode consultar se um e-mail tem ativação pendente
-      allow read: if true;
-
-      // Escrita: apenas personal autenticado (ao criar aluno) ou
-      //         o próprio aluno autenticado (ao deletar após ativar)
-      allow create, update: if isAuth();
-      allow delete: if isAuth();
+    // ── SUBSCRIPTIONS ────────────────────────────
+    match /subscriptions/{personalId} {
+      allow read: if isUser(personalId);
+      allow write: if false;
     }
 
+    // ── BILLINGS ────────────────────────────────
+    match /billings/{billingId} {
+      allow read: if isAuth()
+        && resource.data.personalId == request.auth.uid;
+      allow write: if false;
+    }
 
-    // ── BLOQUEIO PADRÃO ───────────────────────────────────────────────
+    // ── NOTIFICATIONS ───────────────────────────
+    match /notifications/{notifId} {
+
+      allow read: if isAuth()
+        && resource.data.userId == request.auth.uid;
+
+      allow update: if isAuth()
+        && resource.data.userId == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']);
+
+      allow write: if false;
+    }
+
+    // ── BACKEND ONLY ────────────────────────────
+    match /processedWebhooks/{id} {
+      allow read, write: if false;
+    }
+
+    match /securityLogs/{id} {
+      allow read, write: if false;
+    }
+
+    // ── PENDING ACTIVATIONS ─────────────────────
+    match /pendingActivations/{emailKey} {
+      allow read: if true;
+      allow create, update, delete: if isAuth();
+    }
+
+    // ── DEFAULT BLOCK ───────────────────────────
     match /{document=**} {
       allow read, write: if false;
     }

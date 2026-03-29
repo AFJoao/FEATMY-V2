@@ -16,6 +16,7 @@ class Router {
       '/personal/create-workout': 'pages/personal/create-workout.html',
       '/personal/student/:id': 'pages/personal/student-details.html',
       '/personal/feedbacks': 'pages/personal/feedbacks.html',
+      '/personal/billing': 'pages/personal/billing.html',
       '/student/dashboard': 'pages/student/dashboard.html',
       '/student/view-workout': 'pages/student/view-workout.html',
       '/personal/volume/:id': 'pages/personal/volume-analysis.html'
@@ -27,6 +28,7 @@ class Router {
       '/personal/create-workout': 'personal',
       '/personal/student/:id': 'personal',
       '/personal/feedbacks': 'personal',
+      '/personal/billing': 'personal',
       '/student/dashboard': 'student',
       '/personal/volume/:id': 'personal',
       '/student/view-workout': 'student'

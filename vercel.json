@@ -1,8 +1,27 @@
 {
   "rewrites": [
-    {
-      "source": "/(.*)",
-      "destination": "/index.html"
+    { "source": "/api/(.*)", "destination": "/api/$1" },
+    { "source": "/(.*)",     "destination": "/index.html" }
+  ],
+  "crons": [
+    { "path": "/api/cron/check-subscriptions", "schedule": "0 11 * * *" }
+  ],
+  "functions": {
+    "api/webhook/abacatepay.js": {
+      "memory": 256,
+      "maxDuration": 15
+    },
+    "api/billing/create-charge.js": {
+      "memory": 256,
+      "maxDuration": 15
+    },
+    "api/billing/subscription-status.js": {
+      "memory": 128,
+      "maxDuration": 10
+    },
+    "api/cron/check-subscriptions.js": {
+      "memory": 256,
+      "maxDuration": 60
     }
-  ]
+  }
 }
