@@ -2,23 +2,29 @@
  * POST /api/billing/simulate-payment
  *
  * Só funciona com chaves _dev_ do AbacatePay.
- * Após simular na AbacatePay, processa o pagamento localmente
- * (igual ao webhook faria), para que o polling do frontend detecte.
+ * Processa o pagamento localmente após simular na AbacatePay.
+ *
+ * Correção: em dev, não bloqueia por processedWebhooks — permite
+ * re-simular o mesmo gatewayPixId (útil para testes repetidos).
  */
 
 const admin = require('firebase-admin');
 
-if (!admin.apps.length) {
+function initFirebase() {
+  if (admin.apps.length) return;
+
+  const projectId   = process.env.FIREBASE_PROJECT_ID;
+  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+  const privateKey  = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n');
+
+  if (!projectId || !clientEmail || !privateKey) {
+    throw new Error(`Variáveis faltando: FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL ou FIREBASE_PRIVATE_KEY`);
+  }
+
   admin.initializeApp({
-    credential: admin.credential.cert({
-      projectId:   process.env.FIREBASE_PROJECT_ID,
-      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-      privateKey:  process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-    }),
+    credential: admin.credential.cert({ projectId, clientEmail, privateKey }),
   });
 }
-
-const db = admin.firestore();
 
 const PLANS = {
   starter: { maxStudents: 5,  durationDays: 30 },
@@ -55,13 +61,21 @@ module.exports = async function handler(req, res) {
     return res.status(403).json({ error: 'Simulação disponível apenas em Dev Mode' });
   }
 
+  try {
+    initFirebase();
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+
+  const db = admin.firestore();
+
   const decoded = await verifyToken(req);
   if (!decoded) return res.status(401).json({ error: 'Não autenticado' });
 
   const { gatewayPixId } = req.body || {};
   if (!gatewayPixId) return res.status(400).json({ error: 'gatewayPixId é obrigatório' });
 
-  // ── 1. Chamar AbacatePay para simular ────────────────────────
+  // ── 1. Tentar simular na AbacatePay (melhor esforço) ─────────
   let abacateOk = false;
   try {
     const abacateRes = await fetch(
@@ -78,8 +92,9 @@ module.exports = async function handler(req, res) {
     const abacateJson = await abacateRes.json();
 
     if (!abacateRes.ok || abacateJson.success === false) {
-      console.warn('[simulate-payment] AbacatePay retornou erro:', abacateJson);
-      // Continua mesmo assim — processamos localmente
+      // Em dev, QR pode ter expirado na AbacatePay mas ainda queremos
+      // processar localmente para testar o fluxo
+      console.warn('[simulate-payment] AbacatePay aviso (continuando local):', abacateJson.error);
     } else {
       abacateOk = true;
       console.log('[simulate-payment] AbacatePay simulação OK');
@@ -88,46 +103,33 @@ module.exports = async function handler(req, res) {
     console.warn('[simulate-payment] Erro ao chamar AbacatePay (continuando local):', e.message);
   }
 
-  // ── 2. Processar pagamento localmente (idempotente) ──────────
-  // Buscar billing pelo gatewayId
+  // ── 2. Buscar billing pelo gatewayId ─────────────────────────
   const billingSnap = await db.collection('billings')
     .where('gatewayId', '==', gatewayPixId)
     .limit(1)
     .get();
 
   if (billingSnap.empty) {
-    return res.status(404).json({ error: 'Cobrança não encontrada para este pixId' });
+    return res.status(404).json({
+      error: 'Cobrança não encontrada. O billing pode ter sido criado sem gatewayId.',
+    });
   }
 
   const billingDoc  = billingSnap.docs[0];
   const billingData = billingDoc.data();
   const { personalId, planId } = billingData;
 
-  // Idempotência: já processado?
-  const processedRef = db.collection('processedWebhooks').doc(gatewayPixId);
-  const alreadyDone  = await processedRef.get();
+  // ── 3. Em dev, NÃO bloquear por processedWebhooks ─────────────
+  // Em produção o webhook usa processedWebhooks para idempotência.
+  // Aqui em dev queremos poder re-simular sem ter que limpar o Firestore.
+  const processedRef = db.collection('processedWebhooks').doc(`dev_${gatewayPixId}`);
 
-  if (alreadyDone.exists) {
-    console.log('[simulate-payment] Pagamento já processado anteriormente');
-    return res.status(200).json({ success: true, alreadyProcessed: true });
-  }
-
-  // Marcar como processado
-  await processedRef.set({
-    processedAt:  admin.firestore.FieldValue.serverTimestamp(),
-    billingDocId: billingDoc.id,
-    personalId,
-    pixId:        gatewayPixId,
-    source:       'simulate-payment',
-  });
-
-  // Atualizar billing para "paid"
+  // ── 4. Processar pagamento ────────────────────────────────────
   await billingDoc.ref.update({
     status: 'paid',
     paidAt: admin.firestore.FieldValue.serverTimestamp(),
   });
 
-  // Criar/atualizar assinatura
   const planConfig = PLANS[planId] || PLANS.starter;
   const newExpiry  = calcExpiry(planId);
   const subRef     = db.collection('subscriptions').doc(personalId);
@@ -152,7 +154,6 @@ module.exports = async function handler(req, res) {
     });
   }
 
-  // Atualizar doc do personal
   await db.collection('users').doc(personalId).update({
     subscriptionStatus:  'active',
     subscriptionPlan:    planId,
@@ -160,12 +161,21 @@ module.exports = async function handler(req, res) {
     subscriptionUpdated: admin.firestore.FieldValue.serverTimestamp(),
   });
 
-  console.log(`[simulate-payment] ✓ Assinatura ativada — personal=${personalId} plano=${planId}`);
+  // Registrar (com prefixo dev_ para não conflitar com webhooks reais)
+  await processedRef.set({
+    processedAt:  admin.firestore.FieldValue.serverTimestamp(),
+    billingDocId: billingDoc.id,
+    personalId,
+    pixId:        gatewayPixId,
+    source:       'simulate-payment-dev',
+  });
+
+  console.log(`[simulate-payment] ✓ Ativado — personal=${personalId} plano=${planId}`);
 
   return res.status(200).json({
-    success:      true,
-    activated:    true,
-    abacateOk,    // informa se a chamada à AbacatePay também funcionou
+    success:   true,
+    activated: true,
+    abacateOk,
     planId,
     personalId,
   });
