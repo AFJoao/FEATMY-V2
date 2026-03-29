@@ -435,16 +435,15 @@
     document.getElementById('simPayBtn').disabled       = true;
   }
 
-  // ── Simular pagamento (Dev Mode) ─────────────────────────────────
+ // ── Simular pagamento (Dev Mode) ─────────────────────────────
   window.simulatePayment = async function() {
     if (!currentGatewayPixId) return;
 
     const btn = document.getElementById('simPayBtn');
     btn.disabled  = true;
-    btn.innerHTML = '<div class="spinner" style="border-top-color:#92400E;"></div> Simulando...';
+    btn.innerHTML = '<div class="spinner" style="border-top-color:#92400E;width:14px;height:14px;border-width:2px;display:inline-block;margin-right:6px;"></div> Processando...';
 
     try {
-      // Chama o BACKEND — que por sua vez chama a AbacatePay (evita CORS)
       const res  = await apiFetch('/api/billing/simulate-payment', {
         method: 'POST',
         body:   JSON.stringify({ gatewayPixId: currentGatewayPixId }),
@@ -452,12 +451,38 @@
       const json = await res.json();
 
       if (res.ok && json.success) {
-        btn.innerHTML = '✓ Simulação enviada! Aguardando webhook...';
-        toast('✓ Pagamento simulado! Aguardando webhook...', 4000);
+        if (json.activated) {
+          // Pagamento processado — recarregar status imediatamente
+          btn.innerHTML = '✓ Pagamento ativado!';
+          toast('✓ Assinatura ativada! Atualizando...', 3000);
+
+          // Dar um tempinho e verificar direto
+          await new Promise(r => setTimeout(r, 800));
+          const statusRes  = await apiFetch('/api/billing/subscription-status');
+          const statusData = await statusRes.json();
+
+          if (statusData.status === 'active') {
+            clearInterval(pixPollingInterval);
+            onPaymentConfirmed(statusData);
+          } else {
+            // Fallback: polling vai pegar
+            btn.innerHTML = '✓ Simulação OK — aguardando confirmação...';
+          }
+        } else if (json.alreadyProcessed) {
+          btn.innerHTML = '✓ Já processado anteriormente';
+          toast('Este pagamento já foi processado.', 3000);
+          // Verificar status mesmo assim
+          const statusRes  = await apiFetch('/api/billing/subscription-status');
+          const statusData = await statusRes.json();
+          if (statusData.status === 'active') {
+            clearInterval(pixPollingInterval);
+            onPaymentConfirmed(statusData);
+          }
+        }
       } else {
         btn.innerHTML = '🧪 Simular pagamento PIX (Dev Mode)';
         btn.disabled  = false;
-        toast('Erro na simulação: ' + (json.error || 'tente novamente'));
+        toast('Erro: ' + (json.error || 'tente novamente'));
       }
     } catch (e) {
       btn.innerHTML = '🧪 Simular pagamento PIX (Dev Mode)';
@@ -465,7 +490,6 @@
       toast('Erro ao simular: ' + e.message);
     }
   };
-
   // ── Polling ──────────────────────────────────────────────────────
   function startPolling() {
     clearInterval(pixPollingInterval);
