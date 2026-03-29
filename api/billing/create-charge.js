@@ -1,10 +1,12 @@
 /**
  * POST /api/billing/create-charge
  *
- * Correções v2:
+ * Correções v3:
+ * - CPF e telefone recebidos no body (não salvos no Firestore)
+ * - Validação de CPF (dígitos verificadores) e telefone no backend
+ * - Removido fallback hardcoded de dados do cliente
  * - Idempotência só reutiliza se for o MESMO plano, status pending E QR ainda válido
  * - Upgrade/downgrade de plano sempre cria nova cobrança
- * - Renovação (paid → novo mês ou mesmo mês) sempre cria nova cobrança
  * - QR Code expirado → marca billing antigo como 'expired' e cria novo
  */
 
@@ -51,6 +53,48 @@ const PLANS = {
   elite:   { id: 'elite',   name: 'Elite',   priceInCents: 4940, maxStudents: 40 },
 };
 
+// ── Validação de CPF (dígitos verificadores) ──────────────────────────────
+function validateCPF(raw) {
+  const digits = (raw || '').replace(/\D/g, '');
+
+  if (digits.length !== 11) return false;
+
+  // Rejeita sequências repetidas (111.111.111-11, etc.)
+  if (/^(\d)\1{10}$/.test(digits)) return false;
+
+  const calc = (factor) => {
+    let sum = 0;
+    for (let i = 0; i < factor - 1; i++) {
+      sum += parseInt(digits[i]) * (factor - i);
+    }
+    const remainder = (sum * 10) % 11;
+    return remainder === 10 || remainder === 11 ? 0 : remainder;
+  };
+
+  return calc(10) === parseInt(digits[9]) && calc(11) === parseInt(digits[10]);
+}
+
+// ── Validação de telefone brasileiro ─────────────────────────────────────
+// Aceita celular (11 dígitos com 9) ou fixo (10 dígitos)
+function validatePhone(raw) {
+  const digits = (raw || '').replace(/\D/g, '');
+  return digits.length === 10 || digits.length === 11;
+}
+
+// ── Formatadores para a API da AbacatePay ────────────────────────────────
+function formatCPF(raw) {
+  const digits = (raw || '').replace(/\D/g, '').slice(0, 11);
+  if (digits.length !== 11) return digits;
+  return `${digits.slice(0,3)}.${digits.slice(3,6)}.${digits.slice(6,9)}-${digits.slice(9,11)}`;
+}
+
+function formatPhone(raw) {
+  const digits = (raw || '').replace(/\D/g, '').slice(0, 11);
+  if (digits.length === 11) return `(${digits.slice(0,2)}) ${digits.slice(2,7)}-${digits.slice(7,11)}`;
+  if (digits.length === 10) return `(${digits.slice(0,2)}) ${digits.slice(2,6)}-${digits.slice(6,10)}`;
+  return digits;
+}
+
 async function verifyToken(admin, req) {
   const authHeader = req.headers.authorization || '';
   if (!authHeader.startsWith('Bearer ')) return null;
@@ -67,19 +111,6 @@ async function createPixQrCode({
 }) {
   const apiKey = process.env.ABACATEPAY_API_KEY;
   if (!apiKey) throw new Error('ABACATEPAY_API_KEY não configurada');
-
-  function formatCPF(raw) {
-    const digits = (raw || '').replace(/\D/g, '').slice(0, 11);
-    if (digits.length !== 11) return digits;
-    return `${digits.slice(0,3)}.${digits.slice(3,6)}.${digits.slice(6,9)}-${digits.slice(9,11)}`;
-  }
-
-  function formatPhone(raw) {
-    const digits = (raw || '').replace(/\D/g, '').slice(0, 11);
-    if (digits.length === 11) return `(${digits.slice(0,2)}) ${digits.slice(2,7)}-${digits.slice(7,11)}`;
-    if (digits.length === 10) return `(${digits.slice(0,2)}) ${digits.slice(2,6)}-${digits.slice(6,10)}`;
-    return digits;
-  }
 
   const body = {
     amount,
@@ -156,10 +187,29 @@ module.exports = async function handler(req, res) {
     return res.status(429).json({ error: 'Muitas tentativas. Aguarde 1 minuto.' });
   }
 
-  const { planId } = req.body || {};
+  const { planId, cpf, phone } = req.body || {};
+
+  // ── Validar plano ────────────────────────────────────────────────────
   const plan = PLANS[planId];
   if (!plan) return res.status(400).json({ error: 'Plano inválido' });
 
+  // ── Validar CPF (backend — nunca confiar só no frontend) ─────────────
+  if (!cpf || !validateCPF(cpf)) {
+    return res.status(400).json({
+      error: 'CPF inválido.',
+      field: 'cpf',
+    });
+  }
+
+  // ── Validar telefone ─────────────────────────────────────────────────
+  if (!phone || !validatePhone(phone)) {
+    return res.status(400).json({
+      error: 'Telefone inválido. Informe DDD + número (10 ou 11 dígitos).',
+      field: 'phone',
+    });
+  }
+
+  // ── Buscar dados do usuário (só nome e email — sem dados sensíveis) ──
   let userDoc;
   try {
     userDoc = await db.collection('users').doc(uid).get();
@@ -173,17 +223,17 @@ module.exports = async function handler(req, res) {
   }
 
   const userData      = userDoc.data();
-  const customerName  = userData.name  || 'Cliente Teste';
-  const customerEmail = userData.email || 'teste@featym.com';
-  const customerPhone = userData.phone || userData.cellphone || '11999999999';
-  const customerTaxId = userData.cpf   || userData.taxId    || '033.020.720-23';
+  const customerName  = userData.name  || 'Cliente';
+  const customerEmail = userData.email || '';
+
+  // CPF e telefone vêm do body — não salvos, não lidos do Firestore
+  const customerTaxId = cpf;
+  const customerPhone = phone;
 
   const now           = new Date();
   const billingPeriod = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
-  // ── Idempotência inteligente ───────────────────────────────────
-  // Só reutiliza se: mesmo plano + pending + QR ainda válido na AbacatePay
-  // Não reutiliza se: plano diferente (upgrade), já pago (renovação), QR expirado
+  // ── Idempotência inteligente ──────────────────────────────────────────
   try {
     const pendingSnap = await db.collection('billings')
       .where('personalId', '==', uid)
@@ -218,11 +268,10 @@ module.exports = async function handler(req, res) {
       await existingDoc.ref.update({ status: 'expired' });
     }
   } catch (err) {
-    // Não bloquear a criação se a verificação falhar
     console.warn('[create-charge] Idempotency check falhou (continuando):', err.message);
   }
 
-  // ── Criar nova cobrança ──────────────────────────────────────
+  // ── Criar nova cobrança ───────────────────────────────────────────────
   const externalId = `featym_${uid}_${billingPeriod}_${planId}_${Date.now()}`;
 
   let pixData;
@@ -242,6 +291,7 @@ module.exports = async function handler(req, res) {
     return res.status(502).json({ error: 'Erro ao gerar cobrança. Tente novamente.' });
   }
 
+  // Salvar billing — CPF e telefone NÃO são salvos
   let billingRef;
   try {
     billingRef = db.collection('billings').doc();
@@ -262,6 +312,9 @@ module.exports = async function handler(req, res) {
         : admin.firestore.Timestamp.fromDate(new Date(Date.now() + 30 * 60 * 1000)),
       createdAt:     admin.firestore.FieldValue.serverTimestamp(),
       paidAt:        null,
+      // customerName e customerEmail são salvos pois não são sensíveis
+      customerName,
+      customerEmail,
     });
   } catch (err) {
     console.error('[create-charge] Firestore save error:', err.message);

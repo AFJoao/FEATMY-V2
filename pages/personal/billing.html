@@ -18,12 +18,40 @@
     .btn-green:hover { background: #00C853; }
     .btn-green:disabled { opacity: 0.45; cursor: not-allowed; }
 
+    /* ── Formulário de dados do cliente ── */
+    .customer-form-box {
+      background: #fff;
+      border: 2px solid #EBEBEB;
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 0;
+    }
+    .cf-input {
+      width: 100%;
+      padding: 12px 14px;
+      border: 2px solid #EBEBEB;
+      border-radius: 10px;
+      font-size: 0.9rem;
+      font-family: 'DM Mono', monospace;
+      outline: none;
+      transition: border-color 0.2s;
+      background: #FAFAFA;
+      color: #111;
+      letter-spacing: 0.04em;
+    }
+    .cf-input:focus { border-color: #0A0A0A; background: #fff; }
+    .cf-input.valid   { border-color: #00C853; }
+    .cf-input.invalid { border-color: #DC2626; }
+    .cf-hint { font-size: 0.72rem; margin-top: 5px; font-weight: 600; display: flex; align-items: center; gap: 4px; }
+    .cf-hint.ok  { color: #059669; }
+    .cf-hint.err { color: #DC2626; }
+
+    /* ── PIX box ── */
     .pix-box { background: #fff; border: 2px solid #EBEBEB; border-radius: 16px; padding: 24px; }
     .copy-btn { background: #F4F4F4; border: none; border-radius: 10px; padding: 10px 16px; font-size: 0.82rem; font-weight: 700; cursor: pointer; font-family: inherit; width: 100%; display: flex; align-items: center; justify-content: center; gap: 6px; transition: all 0.2s; }
     .copy-btn:hover { background: #EBEBEB; }
     .copy-btn.copied { background: #ECFDF5; color: #047857; }
 
-    /* Botão de simular (dev mode) */
     .sim-btn { background: #FFF7ED; border: 2px solid #FDE68A; border-radius: 10px; padding: 10px 16px; font-size: 0.78rem; font-weight: 700; cursor: pointer; font-family: inherit; width: 100%; color: #92400E; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 6px; }
     .sim-btn:hover { background: #FEF3C7; }
     .sim-btn:disabled { opacity: 0.45; cursor: not-allowed; }
@@ -49,9 +77,11 @@
     .invoice-row { display: flex; align-items: center; justify-content: space-between; padding: 14px 0; border-bottom: 1px solid #F4F4F4; }
     .invoice-row:last-child { border-bottom: none; }
 
-    /* Toast */
     .toast-msg { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(60px); background: #111; color: #fff; padding: 10px 20px; border-radius: 10px; font-size: 0.82rem; font-weight: 600; z-index: 999; transition: transform 0.3s; white-space: nowrap; }
     .toast-msg.show { transform: translateX(-50%) translateY(0); }
+
+    /* privacidade notice */
+    .privacy-note { background: #F0FDF4; border: 1px solid #A7F3D0; border-radius: 10px; padding: 10px 14px; display: flex; align-items: flex-start; gap: 8px; margin-top: 4px; }
 
     @media (max-width: 768px) {
       .plans-grid { grid-template-columns: 1fr !important; }
@@ -84,11 +114,11 @@
     <div style="background:#FFF7ED;border:2px dashed #FDE68A;border-radius:12px;padding:12px 18px;margin-bottom:20px;display:flex;align-items:center;gap:10px;">
       <span style="font-size:1.1rem;">🧪</span>
       <p style="font-size:0.8rem;font-weight:600;color:#92400E;margin:0;">
-        <strong>Dev Mode ativo</strong> — Pagamentos são simulados. Use o botão "Simular pagamento PIX" para testar sem gastar dinheiro.
+        <strong>Dev Mode ativo</strong> — Use o botão "Simular pagamento PIX" para testar sem gastar dinheiro.
       </p>
     </div>
 
-    <!-- Card de status atual -->
+    <!-- Status card -->
     <div id="statusCard" style="background:#fff;border:1px solid #EBEBEB;border-radius:20px;padding:24px 28px;margin-bottom:24px;">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:14px;">
         <div>
@@ -106,7 +136,7 @@
       </div>
     </div>
 
-    <!-- Banner de aviso -->
+    <!-- Warning banner -->
     <div id="warningBanner" style="display:none;"></div>
 
     <!-- Tabs -->
@@ -125,7 +155,56 @@
       <!-- Grid de planos -->
       <div class="plans-grid" id="plansGrid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:32px;"></div>
 
-      <!-- Seção PIX (aparece após escolher plano) -->
+      <!-- ETAPA 1: Formulário de dados do cliente -->
+      <div id="customerFormSection" style="display:none;margin-bottom:24px;">
+        <div class="customer-form-box">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;">
+            <div style="width:38px;height:38px;background:#F4F4F4;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;border:1px solid #EBEBEB;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#374151" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            </div>
+            <div>
+              <h3 style="font-size:1rem;font-weight:800;color:#0A0A0A;margin:0;">Dados para o PIX</h3>
+              <p style="font-size:0.78rem;color:#6B7280;margin:0;">Necessários para emissão da cobrança</p>
+            </div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+            <!-- CPF -->
+            <div>
+              <label style="display:block;font-size:0.72rem;font-weight:700;color:#374151;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:7px;">CPF</label>
+              <input type="text" id="inputCpf" class="cf-input" placeholder="000.000.000-00" maxlength="14" inputmode="numeric" autocomplete="off">
+              <div id="hintCpf" class="cf-hint" style="display:none;"></div>
+            </div>
+            <!-- Telefone -->
+            <div>
+              <label style="display:block;font-size:0.72rem;font-weight:700;color:#374151;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:7px;">Telefone (com DDD)</label>
+              <input type="text" id="inputPhone" class="cf-input" placeholder="(00) 00000-0000" maxlength="15" inputmode="numeric" autocomplete="off">
+              <div id="hintPhone" class="cf-hint" style="display:none;"></div>
+            </div>
+          </div>
+
+          <!-- Aviso de privacidade -->
+          <div class="privacy-note">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2" style="flex-shrink:0;margin-top:1px;"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            <p style="font-size:0.72rem;color:#047857;margin:0;line-height:1.5;">
+              Seus dados são usados <strong>apenas</strong> para emissão da cobrança PIX e <strong>não são armazenados</strong> pela Featym.
+            </p>
+          </div>
+
+          <div id="cfError" style="display:none;background:#FFF1F2;border:1px solid #FECDD3;border-radius:8px;padding:10px 13px;margin-top:14px;font-size:0.82rem;color:#BE123C;font-weight:500;"></div>
+
+          <div style="display:flex;gap:10px;margin-top:18px;">
+            <button onclick="cancelCustomerForm()" style="flex:1;padding:11px;background:#F4F4F4;border:none;border-radius:10px;font-size:0.82rem;font-weight:700;color:#374151;cursor:pointer;font-family:inherit;">
+              ← Voltar
+            </button>
+            <button id="confirmCustomerBtn" onclick="confirmCustomerData()" style="flex:2;padding:11px;background:#00E676;border:none;border-radius:10px;font-size:0.875rem;font-weight:800;color:#0A0A0A;cursor:pointer;font-family:inherit;transition:all 0.2s;">
+              Gerar PIX →
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ETAPA 2: PIX -->
       <div id="pixSection" style="display:none;">
         <div class="pix-box">
           <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;">
@@ -139,7 +218,6 @@
           </div>
 
           <div class="pix-grid" style="display:grid;grid-template-columns:auto 1fr;gap:24px;align-items:start;">
-            <!-- QR Code -->
             <div style="text-align:center;">
               <div id="pixQRContainer" style="width:180px;height:180px;background:#F4F4F4;border-radius:12px;display:flex;align-items:center;justify-content:center;margin:0 auto 10px;overflow:hidden;">
                 <div class="spinner"></div>
@@ -147,7 +225,6 @@
               <p style="font-size:0.7rem;color:#9CA3AF;margin:0;">Escaneie o QR Code</p>
             </div>
 
-            <!-- Código + instruções -->
             <div>
               <div style="background:#F8F9FA;border-radius:12px;padding:14px;margin-bottom:12px;">
                 <p style="font-size:0.7rem;font-weight:700;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.06em;margin:0 0 8px;">PIX Copia e Cola</p>
@@ -158,7 +235,6 @@
                 </button>
               </div>
 
-              <!-- Botão simular (só aparece em dev mode) -->
               <button class="sim-btn" id="simPayBtn" onclick="simulatePayment()">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                 🧪 Simular pagamento PIX (Dev Mode)
@@ -201,33 +277,25 @@
     ? document.addEventListener('DOMContentLoaded', r) : r());
   await new Promise(r => setTimeout(r, 120));
 
-  // ── Planos ─────────────────────────────────────────────────────
+  // ── Planos ──────────────────────────────────────────────────────
   const PLANS = [
-    {
-      id: 'starter', name: 'Starter', price: 'R$ 9,90', period: '/mês',
-      maxStudents: 5, color: '#6B7280',
-      features: ['Até 5 alunos', 'Treinos ilimitados', 'Feedbacks dos alunos', 'Suporte por e-mail'],
-      popular: false,
-    },
-    {
-      id: 'pro', name: 'Pro', price: 'R$ 19,90', period: '/mês',
-      maxStudents: 15, color: '#00C853',
-      features: ['Até 15 alunos', 'Treinos ilimitados', 'Feedbacks dos alunos', 'Análise de volume', 'Suporte prioritário'],
-      popular: true,
-    },
-    {
-      id: 'elite', name: 'Elite', price: 'R$ 49,40', period: '/mês',
-      maxStudents: 40, color: '#7C3AED',
-      features: ['Até 40 alunos', 'Treinos ilimitados', 'Feedbacks dos alunos', 'Análise de volume', 'Relatórios avançados', 'Suporte VIP'],
-      popular: false,
-    },
+    { id: 'starter', name: 'Starter', price: 'R$ 9,90', period: '/mês', maxStudents: 5,  color: '#6B7280',
+      features: ['Até 5 alunos', 'Treinos ilimitados', 'Feedbacks dos alunos', 'Suporte por e-mail'], popular: false },
+    { id: 'pro',     name: 'Pro',     price: 'R$ 19,90', period: '/mês', maxStudents: 15, color: '#00C853',
+      features: ['Até 15 alunos', 'Treinos ilimitados', 'Feedbacks dos alunos', 'Análise de volume', 'Suporte prioritário'], popular: true },
+    { id: 'elite',   name: 'Elite',   price: 'R$ 49,40', period: '/mês', maxStudents: 40, color: '#7C3AED',
+      features: ['Até 40 alunos', 'Treinos ilimitados', 'Feedbacks dos alunos', 'Análise de volume', 'Relatórios avançados', 'Suporte VIP'], popular: false },
   ];
 
-  let selectedPlan       = null;
+  let selectedPlan        = null;
   let currentSubscription = null;
   let pixPollingInterval  = null;
-  let currentGatewayPixId = null;  // ID do PIX na AbacatePay (para simular)
+  let currentGatewayPixId = null;
   let pixCopyPaste        = '';
+
+  // CPF e telefone validados — ficam só em memória, jamais vão ao Firestore
+  let validatedCpf   = '';
+  let validatedPhone = '';
 
   // ── Logout ──────────────────────────────────────────────────────
   document.getElementById('logoutBtn').onclick = async () => {
@@ -243,14 +311,13 @@
     setTimeout(() => el.classList.remove('show'), ms);
   }
 
-  // ── Obter token Firebase ─────────────────────────────────────────
+  // ── Token Firebase ────────────────────────────────────────────────
   async function getToken() {
     const user = authManager.getCurrentUser();
     if (!user) return null;
     return user.getIdToken(true);
   }
 
-  // ── Chamar API backend ───────────────────────────────────────────
   async function apiFetch(path, options = {}) {
     const token   = await getToken();
     const baseUrl = window.location.origin;
@@ -264,7 +331,131 @@
     });
   }
 
-  // ── Carregar status da assinatura ────────────────────────────────
+  // ── Validação client-side de CPF ──────────────────────────────────
+  // Mesma lógica do backend — validação dos dígitos verificadores
+  function validateCPF(raw) {
+    const digits = raw.replace(/\D/g, '');
+    if (digits.length !== 11) return false;
+    if (/^(\d)\1{10}$/.test(digits)) return false;
+    const calc = (factor) => {
+      let sum = 0;
+      for (let i = 0; i < factor - 1; i++) sum += parseInt(digits[i]) * (factor - i);
+      const r = (sum * 10) % 11;
+      return (r === 10 || r === 11) ? 0 : r;
+    };
+    return calc(10) === parseInt(digits[9]) && calc(11) === parseInt(digits[10]);
+  }
+
+  // ── Validação client-side de telefone ────────────────────────────
+  function validatePhone(raw) {
+    const digits = raw.replace(/\D/g, '');
+    return digits.length === 10 || digits.length === 11;
+  }
+
+  // ── Máscaras ──────────────────────────────────────────────────────
+  function maskCPF(val) {
+    const d = val.replace(/\D/g, '').slice(0, 11);
+    if (d.length <= 3) return d;
+    if (d.length <= 6) return `${d.slice(0,3)}.${d.slice(3)}`;
+    if (d.length <= 9) return `${d.slice(0,3)}.${d.slice(3,6)}.${d.slice(6)}`;
+    return `${d.slice(0,3)}.${d.slice(3,6)}.${d.slice(6,9)}-${d.slice(9,11)}`;
+  }
+
+  function maskPhone(val) {
+    const d = val.replace(/\D/g, '').slice(0, 11);
+    if (d.length <= 2) return d.length ? `(${d}` : '';
+    if (d.length <= 6) return `(${d.slice(0,2)}) ${d.slice(2)}`;
+    if (d.length <= 10) return `(${d.slice(0,2)}) ${d.slice(2,6)}-${d.slice(6)}`;
+    return `(${d.slice(0,2)}) ${d.slice(2,7)}-${d.slice(7,11)}`;
+  }
+
+  // ── Bind inputs com máscara + validação visual ────────────────────
+  const inputCpf   = document.getElementById('inputCpf');
+  const inputPhone = document.getElementById('inputPhone');
+  const hintCpf    = document.getElementById('hintCpf');
+  const hintPhone  = document.getElementById('hintPhone');
+
+  inputCpf.addEventListener('input', () => {
+    const pos = inputCpf.selectionStart;
+    inputCpf.value = maskCPF(inputCpf.value);
+    const isComplete = inputCpf.value.replace(/\D/g,'').length === 11;
+    if (isComplete) {
+      const ok = validateCPF(inputCpf.value);
+      inputCpf.className = 'cf-input ' + (ok ? 'valid' : 'invalid');
+      hintCpf.className  = 'cf-hint ' + (ok ? 'ok' : 'err');
+      hintCpf.innerHTML  = ok
+        ? '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> CPF válido'
+        : '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg> CPF inválido';
+      hintCpf.style.display = 'flex';
+    } else {
+      inputCpf.className    = 'cf-input';
+      hintCpf.style.display = 'none';
+    }
+  });
+
+  inputPhone.addEventListener('input', () => {
+    inputPhone.value = maskPhone(inputPhone.value);
+    const digits = inputPhone.value.replace(/\D/g,'');
+    const isComplete = digits.length >= 10;
+    if (isComplete) {
+      const ok = validatePhone(inputPhone.value);
+      inputPhone.className = 'cf-input ' + (ok ? 'valid' : 'invalid');
+      hintPhone.className  = 'cf-hint ' + (ok ? 'ok' : 'err');
+      hintPhone.innerHTML  = ok
+        ? '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Telefone válido'
+        : '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg> Informe DDD + número';
+      hintPhone.style.display = 'flex';
+    } else {
+      inputPhone.className    = 'cf-input';
+      hintPhone.style.display = 'none';
+    }
+  });
+
+  // ── Confirmar dados do cliente e gerar PIX ────────────────────────
+  window.confirmCustomerData = function() {
+    const errDiv = document.getElementById('cfError');
+    errDiv.style.display = 'none';
+
+    const cpfRaw   = inputCpf.value;
+    const phoneRaw = inputPhone.value;
+
+    if (!validateCPF(cpfRaw)) {
+      errDiv.textContent   = 'CPF inválido. Verifique os dígitos informados.';
+      errDiv.style.display = 'block';
+      inputCpf.focus();
+      return;
+    }
+    if (!validatePhone(phoneRaw)) {
+      errDiv.textContent   = 'Telefone inválido. Informe DDD + número (10 ou 11 dígitos).';
+      errDiv.style.display = 'block';
+      inputPhone.focus();
+      return;
+    }
+
+    // Dados válidos — salva em memória e prossegue para gerar PIX
+    validatedCpf   = cpfRaw.replace(/\D/g, '');
+    validatedPhone = phoneRaw.replace(/\D/g, '');
+
+    document.getElementById('customerFormSection').style.display = 'none';
+    generatePix();
+  };
+
+  window.cancelCustomerForm = function() {
+    validatedCpf   = '';
+    validatedPhone = '';
+    inputCpf.value   = '';
+    inputPhone.value = '';
+    inputCpf.className   = 'cf-input';
+    inputPhone.className = 'cf-input';
+    hintCpf.style.display   = 'none';
+    hintPhone.style.display = 'none';
+    document.getElementById('cfError').style.display = 'none';
+    document.getElementById('customerFormSection').style.display = 'none';
+    selectedPlan = null;
+    renderPlans();
+  };
+
+  // ── Status da assinatura ──────────────────────────────────────────
   async function loadStatus() {
     try {
       const res  = await apiFetch('/api/billing/subscription-status');
@@ -281,7 +472,6 @@
     const names = { starter: 'Starter', pro: 'Pro', elite: 'Elite' };
     document.getElementById('planName').textContent =
       sub.planId ? `Plano ${names[sub.planId] || sub.planId}` : 'Sem assinatura';
-
     const badge = document.getElementById('statusBadge');
     const map = {
       active:          ['s-active',  '● Ativo'],
@@ -290,16 +480,15 @@
       no_subscription: ['s-none',    '— Sem plano'],
     };
     const [cls, label] = map[sub.status] || ['s-none', '—'];
-    badge.className = `status-badge ${cls}`;
+    badge.className   = `status-badge ${cls}`;
     badge.textContent = label;
-
     if (sub.expiresAt) {
-      const d = new Date(sub.expiresAt);
+      const d   = new Date(sub.expiresAt);
       const fmt = d.toLocaleDateString('pt-BR', { day:'2-digit', month:'long', year:'numeric' });
       document.getElementById('expiryText').textContent =
         sub.status === 'expired' ? `Expirou em ${fmt}` : `Válida até ${fmt}`;
     }
-    document.getElementById('maxStudentsText').textContent = sub.maxStudents ? 'Limite do plano' : '';
+    document.getElementById('maxStudentsText').textContent  = sub.maxStudents ? 'Limite do plano' : '';
     document.getElementById('studentsUsedText').textContent = sub.maxStudents ? `${sub.maxStudents} alunos` : '';
   }
 
@@ -312,9 +501,9 @@
       danger:  { cls: 'warn-danger',  icon: '🔒', tc: '#BE123C' },
     };
     const { cls, icon, tc } = colorMap[sub.warningLevel] || colorMap.info;
-    el.className = `warn-banner ${cls}`;
+    el.className   = `warn-banner ${cls}`;
     el.style.display = 'flex';
-    el.innerHTML = `
+    el.innerHTML   = `
       <span style="font-size:1.3rem;flex-shrink:0;">${icon}</span>
       <div style="flex:1;">
         <p style="font-size:0.875rem;font-weight:700;color:${tc};margin:0 0 4px;">${sub.warningMessage}</p>
@@ -324,9 +513,9 @@
       </div>`;
   }
 
-  // ── Render planos ────────────────────────────────────────────────
+  // ── Render planos ─────────────────────────────────────────────────
   function renderPlans() {
-    const grid = document.getElementById('plansGrid');
+    const grid    = document.getElementById('plansGrid');
     const curPlan = currentSubscription?.planId;
     const isActive = currentSubscription?.status === 'active';
 
@@ -353,7 +542,7 @@
                 <span style="color:#00C853;">✓</span>${f}
               </li>`).join('')}
           </ul>
-          <button onclick="event.stopPropagation();startPayment('${p.id}')"
+          <button onclick="event.stopPropagation();openCustomerForm('${p.id}')"
             style="width:100%;padding:11px;border:2px solid ${isSel ? '#00E676' : '#E5E7EB'};background:${isSel ? '#00E676' : '#fff'};color:${isSel ? '#0A0A0A' : '#374151'};border-radius:10px;font-size:0.85rem;font-weight:700;cursor:pointer;transition:all 0.2s;font-family:inherit;">
             ${isCurrent ? '✓ Plano atual — Renovar' : 'Assinar agora'}
           </button>
@@ -366,15 +555,33 @@
     renderPlans();
   };
 
-  // ── Iniciar pagamento ────────────────────────────────────────────
-  window.startPayment = async function(planId) {
+  // ── Abrir formulário de dados do cliente ──────────────────────────
+  window.openCustomerForm = function(planId) {
     selectedPlan = planId;
     renderPlans();
 
-    const plan = PLANS.find(p => p.id === planId);
+    // Limpar campos ao abrir
+    inputCpf.value        = '';
+    inputPhone.value      = '';
+    inputCpf.className    = 'cf-input';
+    inputPhone.className  = 'cf-input';
+    hintCpf.style.display   = 'none';
+    hintPhone.style.display  = 'none';
+    document.getElementById('cfError').style.display = 'none';
+
+    document.getElementById('pixSection').style.display          = 'none';
+    document.getElementById('customerFormSection').style.display = 'block';
+    document.getElementById('customerFormSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+    setTimeout(() => inputCpf.focus(), 300);
+  };
+
+  // ── Gerar PIX (chamado após validação dos dados) ──────────────────
+  async function generatePix() {
+    const plan = PLANS.find(p => p.id === selectedPlan);
     if (!plan) return;
 
-    document.getElementById('pixSection').style.display = 'block';
+    document.getElementById('pixSection').style.display  = 'block';
     document.getElementById('pixPlanLabel').textContent  = `${plan.name} — ${plan.price}/mês`;
     document.getElementById('pixQRContainer').innerHTML  = '<div class="spinner"></div>';
     document.getElementById('pixCodeText').textContent   = 'Gerando código PIX...';
@@ -385,7 +592,11 @@
     try {
       const res  = await apiFetch('/api/billing/create-charge', {
         method: 'POST',
-        body:   JSON.stringify({ planId }),
+        body:   JSON.stringify({
+          planId: selectedPlan,
+          cpf:    validatedCpf,
+          phone:  validatedPhone,
+        }),
       });
       const data = await res.json();
 
@@ -394,23 +605,19 @@
         return;
       }
 
-      // Guardar pixId para simular pagamento
       currentGatewayPixId = data.gatewayPixId || '';
       pixCopyPaste        = data.pixCopyPaste  || '';
 
-      // Atualizar expiry
       if (data.expiresAt) {
-        const exp = new Date(data.expiresAt);
+        const exp  = new Date(data.expiresAt);
         const diff = Math.round((exp - Date.now()) / 60000);
         document.getElementById('pixExpiryText').textContent = `Código válido por ${diff} minutos`;
       }
 
-      // QR Code via base64 da AbacatePay
       const qrContainer = document.getElementById('pixQRContainer');
       if (data.pixBase64) {
         qrContainer.innerHTML = `<img src="${data.pixBase64}" alt="QR Code PIX" style="width:100%;height:100%;object-fit:contain;border-radius:8px;">`;
       } else if (pixCopyPaste) {
-        // Fallback: gerar via API pública
         const encoded = encodeURIComponent(pixCopyPaste);
         qrContainer.innerHTML = `<img src="https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encoded}" alt="QR Code PIX" style="width:100%;height:100%;object-fit:contain;border-radius:8px;">`;
       } else {
@@ -420,14 +627,13 @@
       document.getElementById('pixCodeText').textContent = pixCopyPaste || '—';
       document.getElementById('simPayBtn').disabled = !currentGatewayPixId;
 
-      // Iniciar polling
       startPolling();
 
     } catch (e) {
       showPixError('Erro de conexão. Tente novamente.');
-      console.error('[billing] Erro startPayment:', e);
+      console.error('[billing] Erro generatePix:', e);
     }
-  };
+  }
 
   function showPixError(msg) {
     document.getElementById('pixQRContainer').innerHTML = `<span style="font-size:2rem;">❌</span>`;
@@ -435,10 +641,9 @@
     document.getElementById('simPayBtn').disabled       = true;
   }
 
- // ── Simular pagamento (Dev Mode) ─────────────────────────────
+  // ── Simular pagamento (Dev Mode) ──────────────────────────────────
   window.simulatePayment = async function() {
     if (!currentGatewayPixId) return;
-
     const btn = document.getElementById('simPayBtn');
     btn.disabled  = true;
     btn.innerHTML = '<div class="spinner" style="border-top-color:#92400E;width:14px;height:14px;border-width:2px;display:inline-block;margin-right:6px;"></div> Processando...';
@@ -452,26 +657,9 @@
 
       if (res.ok && json.success) {
         if (json.activated) {
-          // Pagamento processado — recarregar status imediatamente
           btn.innerHTML = '✓ Pagamento ativado!';
           toast('✓ Assinatura ativada! Atualizando...', 3000);
-
-          // Dar um tempinho e verificar direto
           await new Promise(r => setTimeout(r, 800));
-          const statusRes  = await apiFetch('/api/billing/subscription-status');
-          const statusData = await statusRes.json();
-
-          if (statusData.status === 'active') {
-            clearInterval(pixPollingInterval);
-            onPaymentConfirmed(statusData);
-          } else {
-            // Fallback: polling vai pegar
-            btn.innerHTML = '✓ Simulação OK — aguardando confirmação...';
-          }
-        } else if (json.alreadyProcessed) {
-          btn.innerHTML = '✓ Já processado anteriormente';
-          toast('Este pagamento já foi processado.', 3000);
-          // Verificar status mesmo assim
           const statusRes  = await apiFetch('/api/billing/subscription-status');
           const statusData = await statusRes.json();
           if (statusData.status === 'active') {
@@ -490,13 +678,14 @@
       toast('Erro ao simular: ' + e.message);
     }
   };
-  // ── Polling ──────────────────────────────────────────────────────
+
+  // ── Polling ───────────────────────────────────────────────────────
   function startPolling() {
     clearInterval(pixPollingInterval);
     let attempts = 0;
     pixPollingInterval = setInterval(async () => {
       attempts++;
-      if (attempts > 72) { clearInterval(pixPollingInterval); return; } // 6 min
+      if (attempts > 72) { clearInterval(pixPollingInterval); return; }
       try {
         const res  = await apiFetch('/api/billing/subscription-status');
         const data = await res.json();
@@ -510,7 +699,11 @@
 
   function onPaymentConfirmed(sub) {
     currentSubscription = sub;
-    document.getElementById('pixSection').style.display = 'none';
+    // Limpar dados sensíveis da memória após confirmação
+    validatedCpf   = '';
+    validatedPhone = '';
+    document.getElementById('pixSection').style.display          = 'none';
+    document.getElementById('customerFormSection').style.display = 'none';
     renderStatusCard(sub);
     renderWarningBanner(sub);
     renderPlans();
@@ -519,7 +712,13 @@
 
   window.cancelPix = function() {
     clearInterval(pixPollingInterval);
-    document.getElementById('pixSection').style.display = 'none';
+    // Limpar dados sensíveis da memória ao cancelar
+    validatedCpf   = '';
+    validatedPhone = '';
+    document.getElementById('pixSection').style.display          = 'none';
+    document.getElementById('customerFormSection').style.display = 'none';
+    selectedPlan = null;
+    renderPlans();
   };
 
   window.copyPix = function() {
@@ -535,7 +734,7 @@
     });
   };
 
-  // ── Tabs ─────────────────────────────────────────────────────────
+  // ── Tabs ──────────────────────────────────────────────────────────
   window.showTab = function(tab) {
     document.getElementById('contentPlans').style.display   = tab === 'plans'   ? 'block' : 'none';
     document.getElementById('contentHistory').style.display = tab === 'history' ? 'block' : 'none';
@@ -544,13 +743,12 @@
     if (tab === 'history') loadHistory();
   };
 
-  // ── Histórico ────────────────────────────────────────────────────
+  // ── Histórico ─────────────────────────────────────────────────────
   async function loadHistory() {
     const list = document.getElementById('historyList');
     try {
       const user = authManager.getCurrentUser();
       if (!user) return;
-
       const snap = await db.collection('billings')
         .where('personalId', '==', user.uid)
         .orderBy('createdAt', 'desc')
@@ -597,7 +795,7 @@
     }
   }
 
-  // ── Init ─────────────────────────────────────────────────────────
+  // ── Init ──────────────────────────────────────────────────────────
   renderPlans();
   await loadStatus();
   renderPlans();
