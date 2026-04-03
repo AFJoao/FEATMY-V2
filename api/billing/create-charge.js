@@ -1,16 +1,16 @@
 /**
  * POST /api/billing/create-charge
  *
- * Correções v3:
+ * Correções v4:
+ * - Rate limiting persistente via Upstash Redis (duplo: UID + IP)
+ * - CORS centralizado via helper (fail-closed em produção)
  * - CPF e telefone recebidos no body (não salvos no Firestore)
  * - Validação de CPF (dígitos verificadores) e telefone no backend
- * - Removido fallback hardcoded de dados do cliente
- * - Idempotência só reutiliza se for o MESMO plano, status pending E QR ainda válido
- * - Upgrade/downgrade de plano sempre cria nova cobrança
- * - QR Code expirado → marca billing antigo como 'expired' e cria novo
+ * - Idempotência inteligente por período de cobrança
  */
 
-const { RateLimiterMemory } = require('rate-limiter-flexible');
+const { applyCors }          = require('../_lib/cors');
+const { checkRateLimitDual } = require('../_lib/ratelimit');
 
 let _admin = null;
 let _db    = null;
@@ -45,43 +45,33 @@ function getAdmin() {
   return admin;
 }
 
-const rateLimiter = new RateLimiterMemory({ points: 5, duration: 60 });
-
 const PLANS = {
   starter: { id: 'starter', name: 'Starter', priceInCents: 990,  maxStudents: 5  },
   pro:     { id: 'pro',     name: 'Pro',     priceInCents: 1990, maxStudents: 15 },
   elite:   { id: 'elite',   name: 'Elite',   priceInCents: 4940, maxStudents: 40 },
 };
 
-// ── Validação de CPF (dígitos verificadores) ──────────────────────────────
+// ── Validação de CPF (dígitos verificadores) ──────────────────────
 function validateCPF(raw) {
   const digits = (raw || '').replace(/\D/g, '');
-
   if (digits.length !== 11) return false;
-
-  // Rejeita sequências repetidas (111.111.111-11, etc.)
   if (/^(\d)\1{10}$/.test(digits)) return false;
-
   const calc = (factor) => {
     let sum = 0;
-    for (let i = 0; i < factor - 1; i++) {
-      sum += parseInt(digits[i]) * (factor - i);
-    }
+    for (let i = 0; i < factor - 1; i++) sum += parseInt(digits[i]) * (factor - i);
     const remainder = (sum * 10) % 11;
     return remainder === 10 || remainder === 11 ? 0 : remainder;
   };
-
   return calc(10) === parseInt(digits[9]) && calc(11) === parseInt(digits[10]);
 }
 
-// ── Validação de telefone brasileiro ─────────────────────────────────────
-// Aceita celular (11 dígitos com 9) ou fixo (10 dígitos)
+// ── Validação de telefone brasileiro ─────────────────────────────
 function validatePhone(raw) {
   const digits = (raw || '').replace(/\D/g, '');
   return digits.length === 10 || digits.length === 11;
 }
 
-// ── Formatadores para a API da AbacatePay ────────────────────────────────
+// ── Formatadores para a API da AbacatePay ────────────────────────
 function formatCPF(raw) {
   const digits = (raw || '').replace(/\D/g, '').slice(0, 11);
   if (digits.length !== 11) return digits;
@@ -143,7 +133,7 @@ async function createPixQrCode({
   return json.data;
 }
 
-// Verifica se um QR Code ainda está válido na AbacatePay
+// ── Verifica se um QR Code ainda está válido na AbacatePay ───────
 async function isPixStillValid(gatewayId) {
   if (!gatewayId) return false;
   try {
@@ -159,9 +149,14 @@ async function isPixStillValid(gatewayId) {
 }
 
 module.exports = async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', process.env.APP_URL || '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  // ── CORS centralizado (fail-closed em produção) ───────────────
+  try {
+    applyCors(req, res, 'POST, OPTIONS');
+  } catch (err) {
+    console.error('[create-charge] CORS error:', err.message);
+    return res.status(403).json({ error: 'Origin não permitida' });
+  }
+
   res.setHeader('Cache-Control', 'no-store');
 
   if (req.method === 'OPTIONS') return res.status(200).end();
@@ -181,27 +176,37 @@ module.exports = async function handler(req, res) {
 
   const uid = decoded.uid;
 
+  // ── Rate limiting duplo: por UID + por IP ─────────────────────
+  // Protege contra abuso por usuário e bypass via múltiplas contas
   try {
-    await rateLimiter.consume(uid);
-  } catch {
-    return res.status(429).json({ error: 'Muitas tentativas. Aguarde 1 minuto.' });
+    const { limited, reset, reason } = await checkRateLimitDual(req, uid, 'billing');
+    if (limited) {
+      const retryAfter = Math.ceil((reset - Date.now()) / 1000);
+      res.setHeader('Retry-After', retryAfter);
+      console.warn(`[create-charge] Rate limit atingido — uid=${uid} reason=${reason}`);
+      return res.status(429).json({
+        error: 'Muitas tentativas. Aguarde antes de tentar novamente.',
+        retryAfterSeconds: retryAfter,
+      });
+    }
+  } catch (err) {
+    // Em produção: Redis indisponível → fail-closed (503)
+    console.error('[create-charge] Rate limit error:', err.message);
+    return res.status(503).json({ error: 'Serviço temporariamente indisponível' });
   }
 
   const { planId, cpf, phone } = req.body || {};
 
-  // ── Validar plano ────────────────────────────────────────────────────
+  // ── Validar plano ─────────────────────────────────────────────
   const plan = PLANS[planId];
   if (!plan) return res.status(400).json({ error: 'Plano inválido' });
 
-  // ── Validar CPF (backend — nunca confiar só no frontend) ─────────────
+  // ── Validar CPF ───────────────────────────────────────────────
   if (!cpf || !validateCPF(cpf)) {
-    return res.status(400).json({
-      error: 'CPF inválido.',
-      field: 'cpf',
-    });
+    return res.status(400).json({ error: 'CPF inválido.', field: 'cpf' });
   }
 
-  // ── Validar telefone ─────────────────────────────────────────────────
+  // ── Validar telefone ──────────────────────────────────────────
   if (!phone || !validatePhone(phone)) {
     return res.status(400).json({
       error: 'Telefone inválido. Informe DDD + número (10 ou 11 dígitos).',
@@ -209,7 +214,7 @@ module.exports = async function handler(req, res) {
     });
   }
 
-  // ── Buscar dados do usuário (só nome e email — sem dados sensíveis) ──
+  // ── Buscar dados do usuário ───────────────────────────────────
   let userDoc;
   try {
     userDoc = await db.collection('users').doc(uid).get();
@@ -233,7 +238,7 @@ module.exports = async function handler(req, res) {
   const now           = new Date();
   const billingPeriod = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
-  // ── Idempotência inteligente ──────────────────────────────────────────
+  // ── Idempotência inteligente ──────────────────────────────────
   try {
     const pendingSnap = await db.collection('billings')
       .where('personalId', '==', uid)
@@ -271,7 +276,7 @@ module.exports = async function handler(req, res) {
     console.warn('[create-charge] Idempotency check falhou (continuando):', err.message);
   }
 
-  // ── Criar nova cobrança ───────────────────────────────────────────────
+  // ── Criar nova cobrança ───────────────────────────────────────
   const externalId = `featym_${uid}_${billingPeriod}_${planId}_${Date.now()}`;
 
   let pixData;
@@ -304,15 +309,14 @@ module.exports = async function handler(req, res) {
       status:        'pending',
       billingPeriod,
       externalId,
-      gatewayId:     pixData.id          || '',
-      pixCopyPaste:  pixData.brCode      || '',
+      gatewayId:     pixData.id           || '',
+      pixCopyPaste:  pixData.brCode       || '',
       pixBase64:     pixData.brCodeBase64 || '',
       expiresAt:     pixData.expiresAt
         ? admin.firestore.Timestamp.fromDate(new Date(pixData.expiresAt))
         : admin.firestore.Timestamp.fromDate(new Date(Date.now() + 30 * 60 * 1000)),
       createdAt:     admin.firestore.FieldValue.serverTimestamp(),
       paidAt:        null,
-      // customerName e customerEmail são salvos pois não são sensíveis
       customerName,
       customerEmail,
     });

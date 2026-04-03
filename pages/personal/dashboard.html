@@ -38,74 +38,22 @@
 
     @media (max-width: 768px) {
       .header-badge { display: none !important; }
-    }
-
-    /* ── Mobile nav: ícones apenas ── */
-    .nav-label { display: inline; }
-    .nav-icon-only { display: none; }
-
-    @media (max-width: 768px) {
-      /* Header compacto */
-      .dash-header-inner {
-        padding: 0 16px !important;
-      }
-
-      /* Nav: esconde texto, mostra só ícone */
+      .dash-header-inner { padding: 0 16px !important; }
       .nav-label { display: none !important; }
       .nav-icon-only { display: flex !important; }
-
-      .nav-link {
-        padding: 8px !important;
-        min-width: 38px;
-        justify-content: center;
-      }
-      .nav-link-accent {
-        padding: 8px 10px !important;
-        font-size: 0 !important; /* esconde texto */
-        min-width: 38px;
-        justify-content: center;
-        gap: 0 !important;
-      }
-      /* Mostra o ícone do botão accent no mobile */
+      .nav-link { padding: 8px !important; min-width: 38px; justify-content: center; }
+      .nav-link-accent { padding: 8px 10px !important; font-size: 0 !important; min-width: 38px; justify-content: center; gap: 0 !important; }
       .nav-link-accent svg { display: block !important; }
-
-      /* Main padding menor */
-      .dash-main {
-        padding: 24px 16px 48px !important;
-      }
-
-      /* Título menor */
-      .dash-title {
-        font-size: 1.5rem !important;
-      }
-
-      /* Barra de ações dos alunos */
-      .students-toolbar {
-        flex-direction: column !important;
-        align-items: flex-start !important;
-        gap: 10px !important;
-      }
-      .students-toolbar-right {
-        width: 100%;
-        display: flex;
-        gap: 8px;
-      }
-      .students-toolbar-right button {
-        flex: 1;
-        justify-content: center;
-      }
-
-      /* Grid de alunos: 1 coluna */
-      #studentsList {
-        grid-template-columns: 1fr !important;
-      }
-
-      /* Modal fullscreen-ish no mobile */
-      .modal-box {
-        padding: 24px !important;
-        border-radius: 16px !important;
-      }
+      .dash-main { padding: 24px 16px 48px !important; }
+      .dash-title { font-size: 1.5rem !important; }
+      .students-toolbar { flex-direction: column !important; align-items: flex-start !important; gap: 10px !important; }
+      .students-toolbar-right { width: 100%; display: flex; gap: 8px; }
+      .students-toolbar-right button { flex: 1; justify-content: center; }
+      #studentsList { grid-template-columns: 1fr !important; }
+      .modal-box { padding: 24px !important; border-radius: 16px !important; }
     }
+    .nav-label { display: inline; }
+    .nav-icon-only { display: none; }
   </style>
 
   <!-- HEADER -->
@@ -116,17 +64,14 @@
         <span class="header-badge" style="background: rgba(0,230,118,0.15); color: #00E676; font-size: 0.65rem; font-weight: 700; padding: 2px 8px; border-radius: 20px; letter-spacing: 0.04em; text-transform: uppercase; border: 1px solid rgba(0,230,118,0.25);">Personal</span>
       </div>
       <nav style="display: flex; align-items: center; gap: 6px;">
-        <!-- Exercícios -->
         <a href="#/personal/exercises" class="nav-link" title="Exercícios">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 4v16M18 4v16M6 12h12M3 4h4M17 4h4M3 20h4M17 20h4"/></svg>
           <span class="nav-label">Exercícios</span>
         </a>
-        <!-- Criar Treino -->
         <a href="#/personal/create-workout" class="nav-link-accent" title="Criar Treino">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           <span class="nav-label" style="margin-left:4px;">Criar Treino</span>
         </a>
-        <!-- Feedbacks -->
         <a href="#/personal/feedbacks" class="nav-link" title="Feedbacks">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
           <span class="nav-label">Feedbacks</span>
@@ -138,7 +83,6 @@
           </svg>
           <span class="nav-label">Assinatura</span>
         </a>
-        <!-- Sair -->
         <button id="logoutBtn" class="nav-link" style="border: 1px solid rgba(255,255,255,0.14);" title="Sair">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
           <span class="nav-label">Sair</span>
@@ -155,7 +99,6 @@
       <h1 class="dash-title" style="font-size: 2rem; font-weight: 800; color: #0A0A0A; margin: 0; letter-spacing: -0.03em;">Olá, <span id="personalName">...</span> 👋</h1>
     </div>
 
-    <!-- Toolbar alunos -->
     <div class="students-toolbar" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
       <div style="display: flex; align-items: center; gap: 12px;">
         <h2 style="font-size: 1.2rem; font-weight: 700; color: #0A0A0A; margin: 0;">Meus Alunos</h2>
@@ -211,13 +154,25 @@
 
   await new Promise(r => setTimeout(r, 120));
 
+  // ── Sanitização XSS ────────────────────────────────────────────
+  // Dados de alunos (nome, email) vindos do Firestore são escapados antes
+  // de serem interpolados em innerHTML para prevenir XSS armazenado.
+  const esc = window.esc || function(v) {
+    if (v === null || v === undefined) return '';
+    return String(v)
+      .replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#x27;')
+      .replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\//g, '&#x2F;');
+  };
+
   document.getElementById('logoutBtn').onclick = async () => {
     await authManager.logout();
     router.goToLogin();
   };
 
+  // Exibe nome do personal usando textContent (sem risco XSS)
   dbManager.getCurrentUserData().then(d => {
-    document.getElementById('personalName').textContent = d?.name || 'Personal';
+    const nameEl = document.getElementById('personalName');
+    if (nameEl) nameEl.textContent = d?.name || 'Personal';
   });
 
   const overlay  = document.getElementById('modalOverlay');
@@ -293,35 +248,45 @@
     students.forEach(st => {
       const status   = st.status || 'active';
       const isActive = status === 'active';
-      const initials = (st.name || 'A').split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
+
+      // ✅ CORRIGIDO XSS: initials calculado de st.name (usado via textContent implícito nas iniciais)
+      // As iniciais são apenas letras A-Z, sem risco. Mas st.name e st.email são escapados abaixo.
+      const initials = (st.name || 'A').split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
+        .replace(/[^A-Z]/g, '');
+
       const badgeClass = { active: 'badge-active', pending: 'badge-pending', inactive: 'badge-inactive' }[status] || 'badge-inactive';
       const badgeLabel = { active: 'Ativo', pending: 'Pendente', inactive: 'Inativo' }[status] || status;
-      const safeName   = (st.name || '').replace(/"/g, '&quot;');
 
       const card = document.createElement('div');
       card.className = `student-card${isActive ? ' clickable' : ''}`;
+
+      // ✅ CORRIGIDO XSS: st.name e st.email escapados com esc()
+      // st.uid é um ID gerado pelo Firebase — apenas alfanumérico, sem risco real,
+      // mas mantemos esc() por consistência de política.
       card.innerHTML = `
         <div class="card-body">
           <div style="display:flex;align-items:center;gap:14px;">
             <div style="width:42px;height:42px;background:#0A0A0A;border-radius:11px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-              <span style="color:#00E676;font-size:0.85rem;font-weight:700;">${initials}</span>
+              <span style="color:#00E676;font-size:0.85rem;font-weight:700;">${esc(initials)}</span>
             </div>
             <div style="flex:1;min-width:0;">
-              <p style="font-weight:700;font-size:0.95rem;color:#0A0A0A;margin:0 0 2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${st.name}</p>
-              <p style="font-size:0.78rem;color:#9CA3AF;margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${st.email}</p>
+              <p style="font-weight:700;font-size:0.95rem;color:#0A0A0A;margin:0 0 2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(st.name)}</p>
+              <p style="font-size:0.78rem;color:#9CA3AF;margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(st.email)}</p>
             </div>
-            <span class="badge ${badgeClass}">${badgeLabel}</span>
+            <span class="badge ${badgeClass}">${esc(badgeLabel)}</span>
           </div>
-          ${status === 'pending' ? `<p style="font-size:0.74rem;color:#9CA3AF;margin:10px 0 0;display:flex;align-items:center;gap:5px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>Aguardando primeiro acesso</p>` : ''}
+          ${status === 'pending'
+            ? `<p style="font-size:0.74rem;color:#9CA3AF;margin:10px 0 0;display:flex;align-items:center;gap:5px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>Aguardando primeiro acesso</p>`
+            : ''}
         </div>
         <div class="card-footer">
           ${isActive
-            ? `<button class="card-action" data-action="deactivate" data-id="${st.uid}" data-name="${safeName}" style="background:#FFFBEB;color:#92400E;">Desativar</button>`
+            ? `<button class="card-action" data-action="deactivate" data-id="${esc(st.uid)}" data-name="${esc(st.name)}" style="background:#FFFBEB;color:#92400E;">Desativar</button>`
             : ''}
           ${status === 'inactive'
-            ? `<button class="card-action" data-action="reactivate" data-id="${st.uid}" style="background:#ECFDF5;color:#047857;">Reativar</button>`
+            ? `<button class="card-action" data-action="reactivate" data-id="${esc(st.uid)}" style="background:#ECFDF5;color:#047857;">Reativar</button>`
             : ''}
-          <button class="card-action" data-action="delete" data-id="${st.uid}" data-name="${safeName}" style="background:#FFF1F2;color:#DC2626;margin-left:auto;">Excluir</button>
+          <button class="card-action" data-action="delete" data-id="${esc(st.uid)}" data-name="${esc(st.name)}" style="background:#FFF1F2;color:#DC2626;margin-left:auto;">Excluir</button>
         </div>
       `;
 
@@ -364,7 +329,7 @@
       };
     });
   }
- 
+
   await subscriptionGuard.init();
   await loadStudents();
 

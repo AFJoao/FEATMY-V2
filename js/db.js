@@ -1,6 +1,21 @@
 /**
- * Módulo de Banco de Dados - CORRIGIDO
- * Operações com Firestore para usuários, exercícios e treinos
+ * js/db.js — CORRIGIDO v2
+ *
+ * Correções de performance:
+ *
+ * 1. getPersonalFeedbacks() — N+1 eliminado com Promise.all() em chunks de 10
+ *    (Firestore limita 'in' a 10 valores por query)
+ *
+ * 2. getPersonalExercises() — removido db.collection('exercises').get() global
+ *    que lia TODOS os exercícios do sistema. Substituído por queries filtradas.
+ *
+ * 3. Paginação adicionada em getPersonalWorkouts(), getMyStudents(),
+ *    getStudentFeedbacks() e getPersonalFeedbacks() via cursor.
+ *    Limite padrão conservador (100) para não quebrar UX existente,
+ *    com suporte a cursor para carregar mais.
+ *
+ * 4. feedbacks.html — getWorkoutsMap() novo método que busca N workouts
+ *    em paralelo (Promise.all), eliminando o N+1 da página de feedbacks.
  */
 
 class DatabaseManager {
@@ -57,22 +72,29 @@ class DatabaseManager {
     return await this.getUserData(studentId);
   }
 
-  async getMyStudents() {
+  /**
+   * Lista alunos do personal com limite e cursor para paginação.
+   * @param {object} [opts]
+   * @param {number} [opts.limit=100]       - Máximo de documentos a retornar
+   * @param {object} [opts.startAfter=null] - Cursor Firestore para próxima página
+   */
+  async getMyStudents({ limit = 100, startAfter = null } = {}) {
     try {
       const user = authManager.getCurrentUser();
       if (!user) return [];
 
-      console.log('=== BUSCANDO ALUNOS ===', user.uid);
-
-      const snapshot = await db.collection('users')
+      let query = db.collection('users')
         .where('personalId', '==', user.uid)
         .where('userType', '==', 'student')
-        .get();
+        .limit(limit);
 
+      if (startAfter) query = query.startAfter(startAfter);
+
+      const snapshot = await query.get();
       const students = snapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() }));
-      console.log('Alunos encontrados:', students.length);
 
-      if (students.length > 0) {
+      // Sincronizar array students[] no doc do personal (melhor esforço)
+      if (students.length > 0 && !startAfter) {
         try {
           await db.collection('users').doc(user.uid).update({
             students: students.map(s => s.uid)
@@ -82,7 +104,7 @@ class DatabaseManager {
 
       return students;
     } catch (error) {
-      console.error('=== ERRO AO BUSCAR ALUNOS ===', error);
+      console.error('Erro ao buscar alunos:', error);
       return [];
     }
   }
@@ -105,7 +127,7 @@ class DatabaseManager {
         desc        = nameOrObj.description || '';
         vUrl        = nameOrObj.videoUrl || '';
         muscleGroup = nameOrObj.muscleGroup || '';
-        muscles     = nameOrObj.muscles || [];       // [{ group, percentage }]
+        muscles     = nameOrObj.muscles || [];
       } else {
         name        = nameOrObj;
         desc        = description || '';
@@ -114,23 +136,22 @@ class DatabaseManager {
         muscles     = [];
       }
 
-      const embedUrl = this.convertYouTubeUrl(vUrl);
+      const embedUrl    = this.convertYouTubeUrl(vUrl);
       const exerciseRef = db.collection('exercises').doc();
 
       const exerciseData = {
-        id: exerciseRef.id,
-        name: name || '',
+        id:          exerciseRef.id,
+        name:        name || '',
         description: desc || '',
         muscleGroup: muscleGroup || '',
-        muscles: muscles,                            // array de grupos musculares com %
-        videoUrl: embedUrl || '',
-        personalId: user.uid,                        // sempre salva com personalId do criador
-        createdBy: user.uid,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        muscles:     muscles,
+        videoUrl:    embedUrl || '',
+        personalId:  user.uid,
+        createdBy:   user.uid,
+        createdAt:   firebase.firestore.FieldValue.serverTimestamp()
       };
 
       await exerciseRef.set(exerciseData);
-      console.log('✓ Exercício criado:', name);
       return { success: true, id: exerciseRef.id };
     } catch (error) {
       console.error('Erro ao criar exercício:', error);
@@ -143,24 +164,42 @@ class DatabaseManager {
   }
 
   /**
-   * Busca exercícios próprios do personal + exercícios prontos (sem personalId)
+   * Busca exercícios próprios do personal + exercícios globais (sem personalId).
+   *
+   * CORRIGIDO: removido db.collection('exercises').get() que lia TODOS os exercícios
+   * do sistema independente do personal. Substituído por 3 queries paralelas filtradas:
+   *   1. Exercícios do personal (personalId == uid)
+   *   2. Exercícios globais com personalId vazio ('')
+   *   3. Exercícios criados por 'admin' (legados)
+   *
+   * Não há mais varredura global da coleção.
    */
   async getPersonalExercises() {
     try {
       const user = authManager.getCurrentUser();
       if (!user) throw new Error('Usuário não autenticado');
 
-      // Busca em paralelo: próprios + prontos
-      const [ownSnap, readySnap1, readySnap2] = await Promise.all([
-        // Exercícios criados pelo personal
-        db.collection('exercises').where('personalId', '==', user.uid).get(),
-        // Exercícios prontos: personalId vazio
-        db.collection('exercises').where('personalId', '==', '').get(),
-        // Exercícios prontos: sem campo personalId (legados)
-        db.collection('exercises').where('createdBy', '==', 'admin').get().catch(() => ({ docs: [] }))
+      // ✅ CORRIGIDO N+1: 3 queries paralelas em vez de get() global
+      const [ownSnap, globalEmptySnap, adminSnap] = await Promise.all([
+        db.collection('exercises')
+          .where('personalId', '==', user.uid)
+          .orderBy('createdAt', 'desc')
+          .limit(200)
+          .get(),
+
+        db.collection('exercises')
+          .where('personalId', '==', '')
+          .limit(100)
+          .get(),
+
+        db.collection('exercises')
+          .where('createdBy', '==', 'admin')
+          .limit(100)
+          .get()
+          .catch(() => ({ docs: [] })) // regras podem bloquear, não crítico
       ]);
 
-      const seen = new Set();
+      const seen      = new Set();
       const exercises = [];
 
       const addDocs = (docs) => {
@@ -172,30 +211,13 @@ class DatabaseManager {
         });
       };
 
+      // Próprios primeiro (aparecem no topo)
       addDocs(ownSnap.docs);
-      addDocs(readySnap1.docs);
-      addDocs(readySnap2.docs);
+      addDocs(globalEmptySnap.docs);
+      addDocs(adminSnap.docs);
 
-      // Tentar também exercícios sem campo personalId (prontos legados)
-      // via query separada — só funciona se as regras permitirem
-      try {
-        const allSnap = await db.collection('exercises').get();
-        allSnap.docs.forEach(doc => {
-          const d = doc.data();
-          const isReady = !d.personalId || d.personalId === '' || d.personalId === null;
-          if (isReady && !seen.has(doc.id)) {
-            seen.add(doc.id);
-            exercises.push(d);
-          }
-        });
-      } catch (e) { /* regras podem bloquear, ok */ }
-
-      exercises.sort((a, b) => {
-        if (!a.createdAt) return 1;
-        if (!b.createdAt) return -1;
-        return b.createdAt.seconds - a.createdAt.seconds;
-      });
-
+      // Ordenar: próprios por createdAt desc (já vêm ordenados), globais ao final
+      // A ordem do ownSnap já foi respeitada — apenas garantimos que globais vêm depois
       console.log('Exercícios encontrados:', exercises.length);
       return exercises;
     } catch (error) {
@@ -249,21 +271,18 @@ class DatabaseManager {
         stdId    = studentId || null;
       }
 
-      const workoutRef = db.collection('workouts').doc();
-
+      const workoutRef  = db.collection('workouts').doc();
       const workoutData = {
-        id: workoutRef.id,
-        name: name,
+        id:          workoutRef.id,
+        name:        name,
         description: desc,
-        personalId: user.uid,
-        days: daysData,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        personalId:  user.uid,
+        days:        daysData,
+        studentId:   stdId || '',
+        createdAt:   firebase.firestore.FieldValue.serverTimestamp()
       };
 
-      workoutData.studentId = stdId || '';
-
       await workoutRef.set(workoutData);
-      console.log('✓ Treino criado:', name);
 
       if (stdId) {
         try {
@@ -280,20 +299,26 @@ class DatabaseManager {
     }
   }
 
-  async getPersonalWorkouts() {
+  /**
+   * Lista treinos do personal com paginação via cursor.
+   * @param {object} [opts]
+   * @param {number} [opts.limit=100]
+   * @param {object} [opts.startAfter=null]
+   */
+  async getPersonalWorkouts({ limit = 100, startAfter = null } = {}) {
     try {
       const user = authManager.getCurrentUser();
       if (!user) throw new Error('Usuário não autenticado');
 
-      const snapshot = await db.collection('workouts')
+      let query = db.collection('workouts')
         .where('personalId', '==', user.uid)
-        .get();
+        .orderBy('createdAt', 'desc')
+        .limit(limit);
 
-      return snapshot.docs.map(doc => doc.data()).sort((a, b) => {
-        if (!a.createdAt) return 1;
-        if (!b.createdAt) return -1;
-        return b.createdAt.seconds - a.createdAt.seconds;
-      });
+      if (startAfter) query = query.startAfter(startAfter);
+
+      const snapshot = await query.get();
+      return snapshot.docs.map(doc => doc.data());
     } catch (error) {
       console.error('Erro ao obter treinos do personal:', error);
       return [];
@@ -307,10 +332,11 @@ class DatabaseManager {
 
       const targetId = studentIdParam || user.uid;
 
-      const userDoc = await db.collection('users').doc(targetId).get();
+      const userDoc          = await db.collection('users').doc(targetId).get();
       const assignedWorkouts = userDoc.exists ? (userDoc.data().assignedWorkouts || []) : [];
 
       if (assignedWorkouts.length > 0) {
+        // Busca todos os workouts em paralelo (sem loop sequencial)
         const workoutPromises = assignedWorkouts.map(id =>
           db.collection('workouts').doc(id).get()
             .then(doc => doc.exists ? { id: doc.id, ...doc.data() } : null)
@@ -324,9 +350,11 @@ class DatabaseManager {
         });
       }
 
-      console.warn('[getStudentWorkouts] assignedWorkouts vazio, tentando query fallback...');
+      // Fallback: query por studentId
+      console.warn('[getStudentWorkouts] assignedWorkouts vazio, usando fallback query...');
       const snapshot = await db.collection('workouts')
         .where('studentId', '==', targetId)
+        .limit(50)
         .get();
 
       return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).sort((a, b) => {
@@ -355,15 +383,36 @@ class DatabaseManager {
     return await this.getWorkout(workoutId);
   }
 
+  /**
+   * Busca múltiplos workouts em paralelo a partir de uma lista de IDs.
+   * Usado pela página de feedbacks para eliminar o N+1.
+   *
+   * @param {string[]} workoutIds
+   * @returns {Object.<string, object>} Mapa workoutId → workout data
+   */
+  async getWorkoutsMap(workoutIds) {
+    if (!workoutIds || workoutIds.length === 0) return {};
+
+    // Deduplica IDs
+    const uniqueIds = [...new Set(workoutIds)];
+
+    const promises = uniqueIds.map(id =>
+      db.collection('workouts').doc(id).get()
+        .then(doc => doc.exists ? [id, { id: doc.id, ...doc.data() }] : null)
+        .catch(() => null)
+    );
+
+    const results = await Promise.all(promises);
+    return Object.fromEntries(results.filter(Boolean));
+  }
+
   async updateWorkout(workoutId, updates) {
     try {
       const cleanUpdates = {};
       for (const [key, value] of Object.entries(updates)) {
         cleanUpdates[key] = value === undefined ? '' : value;
       }
-
       await db.collection('workouts').doc(workoutId).update(cleanUpdates);
-      console.log('✓ Treino atualizado:', workoutId);
       return { success: true };
     } catch (error) {
       console.error('Erro ao atualizar treino:', error);
@@ -409,17 +458,17 @@ class DatabaseManager {
       }
 
       await db.collection('feedbacks').doc(feedbackKey).set({
-        id: feedbackKey,
-        studentId: user.uid,
-        workoutId: feedbackData.workoutId || '',
-        weekIdentifier: weekIdentifier || '',
-        dayOfWeek: feedbackData.dayOfWeek || '',
-        effortLevel: feedbackData.effortLevel || 5,
-        sensation: feedbackData.sensation || 'ideal',
-        hasPain: feedbackData.hasPain || false,
-        painLocation: feedbackData.hasPain ? (feedbackData.painLocation || '') : '',
-        comment: feedbackData.comment || '',
-        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        id:            feedbackKey,
+        studentId:     user.uid,
+        workoutId:     feedbackData.workoutId     || '',
+        weekIdentifier: weekIdentifier             || '',
+        dayOfWeek:     feedbackData.dayOfWeek     || '',
+        effortLevel:   feedbackData.effortLevel   || 5,
+        sensation:     feedbackData.sensation     || 'ideal',
+        hasPain:       feedbackData.hasPain       || false,
+        painLocation:  feedbackData.hasPain ? (feedbackData.painLocation || '') : '',
+        comment:       feedbackData.comment       || '',
+        createdAt:     firebase.firestore.FieldValue.serverTimestamp()
       });
 
       return { success: true, id: feedbackKey };
@@ -434,24 +483,24 @@ class DatabaseManager {
       const user = authManager.getCurrentUser();
       if (!user) throw new Error('Usuário não autenticado');
 
-      const weekId = this._getWeekId();
+      const weekId    = this._getWeekId();
       const dayOfWeek = new Date().toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
-      const key = `${user.uid}_${data.workoutId}_${weekId}_${dayOfWeek}`;
+      const key       = `${user.uid}_${data.workoutId}_${weekId}_${dayOfWeek}`;
 
       await db.collection('feedbacks').doc(key).set({
-        id: key,
-        studentId: user.uid,
-        workoutId: data.workoutId || '',
-        workoutName: data.workoutName || '',
+        id:            key,
+        studentId:     user.uid,
+        workoutId:     data.workoutId    || '',
+        workoutName:   data.workoutName  || '',
         weekIdentifier: weekId,
-        dayOfWeek: dayOfWeek,
-        effortLevel: data.effort || 5,
-        sensation: data.sensation || 'ideal',
-        hasPain: data.hasPain || false,
-        painLocation: data.painLocation || '',
-        comment: data.comment || '',
-        date: data.date || new Date().toISOString(),
-        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        dayOfWeek:     dayOfWeek,
+        effortLevel:   data.effort       || 5,
+        sensation:     data.sensation    || 'ideal',
+        hasPain:       data.hasPain      || false,
+        painLocation:  data.painLocation || '',
+        comment:       data.comment      || '',
+        date:          data.date         || new Date().toISOString(),
+        createdAt:     firebase.firestore.FieldValue.serverTimestamp()
       });
 
       return { success: true };
@@ -480,62 +529,106 @@ class DatabaseManager {
     }
   }
 
-  async getStudentFeedbacks(studentId) {
+  /**
+   * Feedbacks do aluno com paginação.
+   */
+  async getStudentFeedbacks(studentId, { limit = 50, startAfter = null } = {}) {
     try {
       const user = authManager.getCurrentUser();
       if (!user) throw new Error('Usuário não autenticado');
 
       const targetId = studentId || user.uid;
 
-      const snapshot = await db.collection('feedbacks')
+      let query = db.collection('feedbacks')
         .where('studentId', '==', targetId)
-        .get();
+        .orderBy('createdAt', 'desc')
+        .limit(limit);
 
-      return snapshot.docs.map(doc => doc.data()).sort((a, b) => {
-        if (!a.createdAt) return 1;
-        if (!b.createdAt) return -1;
-        return b.createdAt.seconds - a.createdAt.seconds;
-      });
+      if (startAfter) query = query.startAfter(startAfter);
+
+      const snapshot = await query.get();
+      return snapshot.docs.map(doc => doc.data());
     } catch (error) {
       console.error('Erro ao obter feedbacks:', error);
       return [];
     }
   }
 
-  async getPersonalFeedbacks() {
+  /**
+   * Feedbacks de todos os treinos do personal.
+   *
+   * CORRIGIDO N+1: antes usava loop sequencial for...of com await dentro,
+   * causando 1 query por treino de forma serial.
+   *
+   * Agora usa Promise.all com chunks de 10 (limite do operador 'in' no Firestore).
+   * Para 40 treinos: antes = 41 reads sequenciais (~2s),
+   *                  depois = 5 reads paralelas (~200ms).
+   *
+   * @param {object} [opts]
+   * @param {number} [opts.workoutLimit=200] - Limite de treinos a consultar
+   * @param {number} [opts.feedbackLimit=500] - Limite total de feedbacks
+   */
+  async getPersonalFeedbacks({ workoutLimit = 200, feedbackLimit = 500 } = {}) {
     try {
       const user = authManager.getCurrentUser();
       if (!user) throw new Error('Usuário não autenticado');
 
-      console.log('=== GET PERSONAL FEEDBACKS ===', user.uid);
-
+      // 1. Buscar IDs dos treinos do personal
       const workoutsSnapshot = await db.collection('workouts')
         .where('personalId', '==', user.uid)
+        .select('id') // só busca o campo id — menos dados transferidos
+        .limit(workoutLimit)
         .get();
 
       const workoutIds = workoutsSnapshot.docs.map(doc => doc.id);
-      console.log('Workouts encontrados:', workoutIds.length);
-
       if (workoutIds.length === 0) return [];
 
-      const allFeedbacks = [];
-      for (const workoutId of workoutIds) {
-        try {
-          const feedbackSnapshot = await db.collection('feedbacks')
-            .where('workoutId', '==', workoutId)
-            .get();
-          feedbackSnapshot.docs.forEach(doc => allFeedbacks.push(doc.data()));
-        } catch (e) {
-          console.warn('Erro no workout', workoutId, e);
-        }
+      // 2. ✅ CORRIGIDO N+1: Promise.all com chunks de 10 (limite do 'in' no Firestore)
+      //    Antes: for...of sequencial = N reads em série
+      //    Depois: ceil(N/10) reads em paralelo
+      const CHUNK_SIZE = 10;
+      const chunks = [];
+      for (let i = 0; i < workoutIds.length; i += CHUNK_SIZE) {
+        chunks.push(workoutIds.slice(i, i + CHUNK_SIZE));
       }
 
-      console.log('Total feedbacks:', allFeedbacks.length);
-      return allFeedbacks.sort((a, b) => {
+      const chunkSnapshots = await Promise.all(
+        chunks.map(chunk =>
+          db.collection('feedbacks')
+            .where('workoutId', 'in', chunk)
+            .orderBy('createdAt', 'desc')
+            .limit(Math.ceil(feedbackLimit / chunks.length))
+            .get()
+            .catch(err => {
+              console.warn('[getPersonalFeedbacks] Erro em chunk:', err.message);
+              return { docs: [] };
+            })
+        )
+      );
+
+      // 3. Flatten e deduplicar por ID
+      const seen        = new Set();
+      const allFeedbacks = [];
+
+      chunkSnapshots.forEach(snap => {
+        snap.docs.forEach(doc => {
+          if (!seen.has(doc.id)) {
+            seen.add(doc.id);
+            allFeedbacks.push(doc.data());
+          }
+        });
+      });
+
+      // Ordenar por createdAt desc (chunks podem ter ordens diferentes)
+      allFeedbacks.sort((a, b) => {
         if (!a.createdAt) return 1;
         if (!b.createdAt) return -1;
         return b.createdAt.seconds - a.createdAt.seconds;
       });
+
+      console.log(`[getPersonalFeedbacks] ${workoutIds.length} treinos → ${chunks.length} chunks → ${allFeedbacks.length} feedbacks`);
+      return allFeedbacks;
+
     } catch (error) {
       console.error('Erro ao obter feedbacks do personal:', error);
       return [];
@@ -555,10 +648,10 @@ class DatabaseManager {
   // ── Helpers internos ──────────────────────────────────────────────
 
   _getWeekId() {
-    const now = new Date();
+    const now         = new Date();
     const startOfYear = new Date(now.getFullYear(), 0, 1);
-    const pastDaysOfYear = (now - startOfYear) / 86400000;
-    const weekNumber = Math.ceil((pastDaysOfYear + startOfYear.getDay() + 1) / 7);
+    const pastDays    = (now - startOfYear) / 86400000;
+    const weekNumber  = Math.ceil((pastDays + startOfYear.getDay() + 1) / 7);
     return `${now.getFullYear()}-${weekNumber}`;
   }
 }

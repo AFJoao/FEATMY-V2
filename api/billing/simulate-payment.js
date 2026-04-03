@@ -4,10 +4,13 @@
  * Só funciona com chaves _dev_ do AbacatePay.
  * Processa o pagamento localmente após simular na AbacatePay.
  *
- * Correção: em dev, não bloqueia por processedWebhooks — permite
- * re-simular o mesmo gatewayPixId (útil para testes repetidos).
+ * Correções v2:
+ * - Validação de ownership — personal só simula seus próprios billings
+ * - CORS centralizado via helper (fail-closed em produção)
+ * - Em dev, não bloqueia por processedWebhooks — permite re-simular
  */
 
+const { applyCors } = require('../_lib/cors');
 const admin = require('firebase-admin');
 
 function initFirebase() {
@@ -52,7 +55,14 @@ function calcExpiry(planId) {
 module.exports = async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
 
-  res.setHeader('Access-Control-Allow-Origin', process.env.APP_URL || '*');
+  // ── CORS centralizado (fail-closed em produção) ───────────────
+  try {
+    applyCors(req, res, 'POST, OPTIONS');
+  } catch (err) {
+    console.error('[simulate-payment] CORS error:', err.message);
+    return res.status(403).json({ error: 'Origin não permitida' });
+  }
+
   res.setHeader('Cache-Control', 'no-store');
 
   // Só em dev
@@ -69,13 +79,14 @@ module.exports = async function handler(req, res) {
 
   const db = admin.firestore();
 
+  // ── Autenticação ──────────────────────────────────────────────
   const decoded = await verifyToken(req);
   if (!decoded) return res.status(401).json({ error: 'Não autenticado' });
 
   const { gatewayPixId } = req.body || {};
   if (!gatewayPixId) return res.status(400).json({ error: 'gatewayPixId é obrigatório' });
 
-  // ── 1. Tentar simular na AbacatePay (melhor esforço) ─────────
+  // ── 1. Tentar simular na AbacatePay (melhor esforço) ──────────
   let abacateOk = false;
   try {
     const abacateRes = await fetch(
@@ -92,8 +103,6 @@ module.exports = async function handler(req, res) {
     const abacateJson = await abacateRes.json();
 
     if (!abacateRes.ok || abacateJson.success === false) {
-      // Em dev, QR pode ter expirado na AbacatePay mas ainda queremos
-      // processar localmente para testar o fluxo
       console.warn('[simulate-payment] AbacatePay aviso (continuando local):', abacateJson.error);
     } else {
       abacateOk = true;
@@ -103,7 +112,7 @@ module.exports = async function handler(req, res) {
     console.warn('[simulate-payment] Erro ao chamar AbacatePay (continuando local):', e.message);
   }
 
-  // ── 2. Buscar billing pelo gatewayId ─────────────────────────
+  // ── 2. Buscar billing pelo gatewayId ──────────────────────────
   const billingSnap = await db.collection('billings')
     .where('gatewayId', '==', gatewayPixId)
     .limit(1)
@@ -119,12 +128,23 @@ module.exports = async function handler(req, res) {
   const billingData = billingDoc.data();
   const { personalId, planId } = billingData;
 
-  // ── 3. Em dev, NÃO bloquear por processedWebhooks ─────────────
+  // ── 3. Validar ownership — CRÍTICO ────────────────────────────
+  // Garante que o personal autenticado só pode simular pagamentos
+  // de cobranças que ele mesmo gerou. Impede escalonamento horizontal.
+  if (billingData.personalId !== decoded.uid) {
+    console.warn(
+      `[simulate-payment] Ownership violation: uid=${decoded.uid} ` +
+      `tentou simular billing de personalId=${billingData.personalId}`
+    );
+    return res.status(403).json({ error: 'Acesso negado' });
+  }
+
+  // ── 4. Em dev, NÃO bloquear por processedWebhooks ─────────────
   // Em produção o webhook usa processedWebhooks para idempotência.
   // Aqui em dev queremos poder re-simular sem ter que limpar o Firestore.
   const processedRef = db.collection('processedWebhooks').doc(`dev_${gatewayPixId}`);
 
-  // ── 4. Processar pagamento ────────────────────────────────────
+  // ── 5. Processar pagamento ────────────────────────────────────
   await billingDoc.ref.update({
     status: 'paid',
     paidAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -161,7 +181,7 @@ module.exports = async function handler(req, res) {
     subscriptionUpdated: admin.firestore.FieldValue.serverTimestamp(),
   });
 
-  // Registrar (com prefixo dev_ para não conflitar com webhooks reais)
+  // Registrar com prefixo dev_ para não conflitar com webhooks reais
   await processedRef.set({
     processedAt:  admin.firestore.FieldValue.serverTimestamp(),
     billingDocId: billingDoc.id,

@@ -1,7 +1,11 @@
 /**
  * GET /api/billing/subscription-status
+ *
+ * Correções v2:
+ * - CORS centralizado via helper (fail-closed em produção)
  */
 
+const { applyCors } = require('../_lib/cors');
 const admin = require('firebase-admin');
 
 // ── Inicialização segura do Firebase Admin ──────────────────────
@@ -46,15 +50,20 @@ async function verifyToken(req) {
 }
 
 module.exports = async function handler(req, res) {
-  // CORS e cache
-  res.setHeader('Access-Control-Allow-Origin', process.env.APP_URL || '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  // ── CORS centralizado (fail-closed em produção) ───────────────
+  try {
+    applyCors(req, res, 'GET, OPTIONS');
+  } catch (err) {
+    console.error('[subscription-status] CORS error:', err.message);
+    return res.status(403).json({ error: 'Origin não permitida' });
+  }
+
   res.setHeader('Cache-Control', 'no-store');
 
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'GET') return res.status(405).json({ error: 'Método não permitido' });
 
-  // Inicializar Firebase
+  // ── Inicializar Firebase ──────────────────────────────────────
   try {
     initFirebase();
   } catch (err) {
@@ -67,7 +76,7 @@ module.exports = async function handler(req, res) {
 
   const db = admin.firestore();
 
-  // Autenticar
+  // ── Autenticar ────────────────────────────────────────────────
   let decoded;
   try {
     decoded = await verifyToken(req);
@@ -82,7 +91,7 @@ module.exports = async function handler(req, res) {
 
   const uid = decoded.uid;
 
-  // Buscar assinatura
+  // ── Buscar assinatura ─────────────────────────────────────────
   let subSnap;
   try {
     subSnap = await db.collection('subscriptions').doc(uid).get();
@@ -119,11 +128,11 @@ module.exports = async function handler(req, res) {
   const daysUntilExpiry = Math.ceil(msUntilExpiry / (1000 * 60 * 60 * 24));
 
   let computedStatus;
-  if (now < expiresAt)       computedStatus = 'active';
+  if (now < expiresAt)        computedStatus = 'active';
   else if (now < graceCutoff) computedStatus = 'grace_period';
   else                        computedStatus = 'expired';
 
-  // Sincronizar se mudou
+  // ── Sincronizar se mudou ──────────────────────────────────────
   if (sub.status !== computedStatus) {
     try {
       await subSnap.ref.update({

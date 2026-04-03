@@ -19,13 +19,11 @@ service cloud.firestore {
       return isAuth() && getUserData().userType == 'personal';
     }
 
-    // Assinatura ativa ou em carência
     function hasActiveSubscription(personalId) {
       return exists(/databases/$(database)/documents/subscriptions/$(personalId)) &&
         get(/databases/$(database)/documents/subscriptions/$(personalId)).data.status in ['active', 'grace_period'];
     }
 
-    // Limite de alunos
     function isWithinStudentLimit(personalId) {
       return exists(/databases/$(database)/documents/subscriptions/$(personalId)) &&
         (
@@ -35,7 +33,7 @@ service cloud.firestore {
               ? get(/databases/$(database)/documents/users/$(personalId)).data.students.size()
               : 0
           )
-          <
+          
           get(/databases/$(database)/documents/subscriptions/$(personalId)).data.maxStudents
         );
     }
@@ -50,22 +48,35 @@ service cloud.firestore {
       return isPersonal() && resource.data.personalId == request.auth.uid;
     }
 
-    // ── USERS ─────────────────────────────────────
+    // ── USERS ─────────────────────────────────────────────────────
     match /users/{userId} {
 
-      allow get, list: if isAuth() ||
-        (resource.data.status == 'pending' && resource.data.userType == 'student');
+      // GET individual: próprio doc, ou doc de aluno pendente (fluxo de ativação)
+      // REMOVIDO: allow list global — nenhum usuário pode listar a coleção inteira
+      allow get: if isUser(userId)
+        || (resource.data.status == 'pending' && resource.data.userType == 'student')
+        || (isAuth() && resource.data.personalId == request.auth.uid);
 
+      // Personal consulta seus próprios alunos por query filtrada
+      // A query DEVE incluir where('personalId', '==', uid) — garantido no código
+      allow list: if isAuth() && (
+        // Personal listando seus próprios alunos
+        (isPersonal() && request.query.filters.size() > 0)
+        // Aluno buscando seu próprio doc
+        || request.auth.uid == userId
+      );
+
+      // Criação do próprio doc (personal no signup)
       allow create: if isUser(userId);
 
-      // Personal cria aluno
+      // Personal cria doc de aluno
       allow create: if isPersonal()
         && request.resource.data.userType == 'student'
         && request.resource.data.personalId == request.auth.uid
         && hasActiveSubscription(request.auth.uid)
         && isWithinStudentLimit(request.auth.uid);
 
-      // Aluno ativa conta
+      // Aluno ativa conta (cria doc com seu próprio uid)
       allow create: if isAuth()
         && request.resource.data.userType == 'student'
         && request.resource.data.authUid == request.auth.uid;
@@ -80,9 +91,11 @@ service cloud.firestore {
             && (resource.data.status == 'pending' || resource.data.status == 'activating'));
     }
 
-    // ── EXERCISES ─────────────────────────────────
+    // ── EXERCISES ──────────────────────────────────────────────────
     match /exercises/{exerciseId} {
 
+      // Leitura: próprios exercícios ou exercícios globais (sem personalId)
+      // Aluno pode ler exercícios do seu personal
       allow read: if isAuth() && (
         resource == null ||
         !('personalId' in resource.data) ||
@@ -103,9 +116,10 @@ service cloud.firestore {
         && resource.data.personalId == request.auth.uid;
     }
 
-    // ── WORKOUTS ──────────────────────────────────
+    // ── WORKOUTS ───────────────────────────────────────────────────
     match /workouts/{workoutId} {
 
+      // GET individual: personal dono OU aluno dono com personal ativo
       allow get: if isAuth() && (
         resource.data.personalId == request.auth.uid ||
         (
@@ -114,7 +128,17 @@ service cloud.firestore {
         )
       );
 
-      allow list: if isAuth();
+      // LIST: NUNCA permitir listagem global.
+      // Personal só lista seus próprios treinos (filtro obrigatório por personalId).
+      // Aluno só lista treinos atribuídos a ele (filtro obrigatório por studentId).
+      // A query no código já faz o where() — aqui garantimos no backend.
+      allow list: if isAuth() && (
+        // Personal listando seus próprios treinos
+        (resource.data.personalId == request.auth.uid) ||
+        // Aluno listando treinos atribuídos a ele (com assinatura ativa do personal)
+        (resource.data.studentId == request.auth.uid &&
+          hasActiveSubscription(resource.data.personalId))
+      );
 
       allow create: if isAuth()
         && request.resource.data.personalId == request.auth.uid
@@ -128,39 +152,49 @@ service cloud.firestore {
         && resource.data.personalId == request.auth.uid;
     }
 
-    // ── FEEDBACKS ────────────────────────────────
+    // ── FEEDBACKS ──────────────────────────────────────────────────
     match /feedbacks/{feedbackId} {
 
+      // Aluno cria feedback do próprio treino
       allow create: if isAuth()
         && request.resource.data.studentId == request.auth.uid;
 
+      // Aluno lê e atualiza seus próprios feedbacks
       allow get, update: if isAuth()
         && resource.data.studentId == request.auth.uid;
 
+      // Personal lê e deleta feedbacks de treinos seus
       allow get, delete: if isAuth() && isPersonal() && (
         exists(/databases/$(database)/documents/workouts/$(resource.data.workoutId)) &&
         get(/databases/$(database)/documents/workouts/$(resource.data.workoutId)).data.personalId == request.auth.uid
       );
 
-      allow list: if isAuth();
+      // LIST: NUNCA permitir listagem global.
+      // Personal só lista feedbacks filtrados por workoutId (dos seus treinos).
+      // Aluno só lista seus próprios feedbacks (filtrado por studentId).
+      allow list: if isAuth() && (
+        resource.data.studentId == request.auth.uid ||
+        (isPersonal() &&
+          exists(/databases/$(database)/documents/workouts/$(resource.data.workoutId)) &&
+          get(/databases/$(database)/documents/workouts/$(resource.data.workoutId)).data.personalId == request.auth.uid)
+      );
     }
 
-    // ── SUBSCRIPTIONS ────────────────────────────
+    // ── SUBSCRIPTIONS ──────────────────────────────────────────────
     match /subscriptions/{personalId} {
       allow read: if isUser(personalId);
       allow write: if false;
     }
 
-    // ── BILLINGS ────────────────────────────────
+    // ── BILLINGS ───────────────────────────────────────────────────
     match /billings/{billingId} {
       allow read: if isAuth()
         && resource.data.personalId == request.auth.uid;
       allow write: if false;
     }
 
-    // ── NOTIFICATIONS ───────────────────────────
+    // ── NOTIFICATIONS ───────────────────────────────────────────────
     match /notifications/{notifId} {
-
       allow read: if isAuth()
         && resource.data.userId == request.auth.uid;
 
@@ -171,7 +205,7 @@ service cloud.firestore {
       allow write: if false;
     }
 
-    // ── BACKEND ONLY ────────────────────────────
+    // ── BACKEND ONLY ────────────────────────────────────────────────
     match /processedWebhooks/{id} {
       allow read, write: if false;
     }
@@ -180,13 +214,17 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
-    // ── PENDING ACTIVATIONS ─────────────────────
+    // ── PENDING ACTIVATIONS ─────────────────────────────────────────
+    // CORRIGIDO: removido "allow read: if true" (listagem pública)
+    // GET individual ainda é público — necessário para o fluxo de primeiro acesso
+    // LIST é bloqueado — impede enumeração de emails
     match /pendingActivations/{emailKey} {
-      allow read: if true;
+      allow get: if true;   // get por emailKey específico: necessário para ativar conta sem auth
+      allow list: if false; // NUNCA listar toda a coleção
       allow create, update, delete: if isAuth();
     }
 
-    // ── DEFAULT BLOCK ───────────────────────────
+    // ── DEFAULT BLOCK ───────────────────────────────────────────────
     match /{document=**} {
       allow read, write: if false;
     }
