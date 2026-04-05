@@ -573,8 +573,11 @@ input[type="radio"] {
     padding: 20px;
   }
 
-  button,
-  .btn {
+  /* ── CORREÇÃO: antes era "button { width: 100% }" que afetava TODOS os botões,
+     incluindo os de contexto dentro de cards (remover exercício, check button).
+     Agora é scoped para form button e .btn-block — só botões de formulário. ── */
+  form button,
+  .btn-block {
     width: 100%;
     margin-bottom: 10px;
   }

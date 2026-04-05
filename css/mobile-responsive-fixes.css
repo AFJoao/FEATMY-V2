@@ -8,7 +8,6 @@
    ======================================== */
 
 @media (max-width: 768px) {
-  /* Header principal */
   header {
     padding: 12px 15px !important;
   }
@@ -17,7 +16,6 @@
     gap: 10px;
   }
 
-  /* Logo e título do header */
   header h1 {
     font-size: 18px !important;
     white-space: nowrap;
@@ -28,7 +26,6 @@
     height: 24px !important;
   }
 
-  /* Navegação - esconder texto, mostrar apenas ícones */
   header nav,
   header .header-nav,
   .header-content nav {
@@ -43,11 +40,10 @@
   .header-content nav button {
     padding: 10px !important;
     min-width: 40px;
-    font-size: 0 !important; /* Esconder texto */
+    font-size: 0 !important;
     gap: 0 !important;
   }
 
-  /* Garantir que os ícones apareçam */
   header nav a svg,
   header nav button svg,
   header .header-nav a svg,
@@ -59,14 +55,12 @@
     margin: 0 !important;
   }
 
-  /* Ajustar botão de voltar */
   .back-btn,
   #backBtn {
     padding: 10px !important;
     min-width: 40px !important;
   }
 
-  /* Informações do aluno no header */
   .student-info h1 {
     font-size: 16px !important;
   }
@@ -81,24 +75,20 @@
    ======================================== */
 
 @media (max-width: 768px) {
-  /* Código de referência */
   .personal-dashboard header + div > div:first-child {
     padding: 20px 15px !important;
   }
 
-  /* Card do código */
   .personal-dashboard #referralCode {
     font-size: 28px !important;
     letter-spacing: 4px !important;
   }
 
-  /* Grid de alunos */
   #studentsList {
     grid-template-columns: 1fr !important;
     gap: 15px !important;
   }
 
-  /* Contador de alunos */
   #studentsCount {
     font-size: 12px !important;
     padding: 3px 10px !important;
@@ -110,36 +100,30 @@
    ======================================== */
 
 @media (max-width: 1024px) {
-  /* Grid de 2 colunas vira 1 coluna */
   .grid-2,
   .create-workout-page .grid-2 {
     grid-template-columns: 1fr !important;
   }
 
-  /* Preview fixo vira normal */
   .create-workout-page .section:last-child {
     position: static !important;
   }
 }
 
 @media (max-width: 768px) {
-  /* Container principal */
   .create-workout-page .container,
   .container {
     padding: 20px 15px !important;
   }
 
-  /* Seções */
   .section {
     padding: 20px 15px !important;
   }
 
-  /* Título das seções */
   .section h2 {
     font-size: 18px !important;
   }
 
-  /* Grid de dias - 2 colunas em mobile */
   .days-grid {
     grid-template-columns: repeat(2, 1fr) !important;
     gap: 8px !important;
@@ -150,22 +134,21 @@
     font-size: 13px !important;
   }
 
-  /* Lista de exercícios */
   .exercise-item {
     flex-direction: column;
     align-items: stretch !important;
     gap: 10px;
   }
 
-  .exercise-item button {
+  /* Botão dentro de exercise-item — scoped para não afetar outros contextos */
+  .exercise-item > button {
     width: 100%;
   }
 
-  /* Inputs e textareas */
   .form-group input,
   .form-group textarea,
   .form-group select {
-    font-size: 16px !important; /* Evita zoom no iOS */
+    font-size: 16px !important;
   }
 }
 
@@ -174,17 +157,14 @@
    ======================================== */
 
 @media (max-width: 768px) {
-  /* Grid de 2 colunas vira empilhado */
   .exercises-page > div > div {
     grid-template-columns: 1fr !important;
   }
 
-  /* Form fica em cima */
   .exercises-page .form-group {
     margin-bottom: 15px !important;
   }
 
-  /* Lista de exercícios */
   .exercise-card,
   .exercise-item {
     padding: 15px !important;
@@ -195,7 +175,6 @@
     font-size: 16px !important;
   }
 
-  /* Contador de exercícios */
   #exercisesCount {
     font-size: 12px !important;
     padding: 3px 10px !important;
@@ -207,18 +186,15 @@
    ======================================== */
 
 @media (max-width: 768px) {
-  /* Grid semanal - 2 colunas */
   #weeklyWorkouts {
     grid-template-columns: repeat(2, 1fr) !important;
     gap: 12px !important;
   }
 
-  /* Cards dos dias */
   .day-column {
     min-height: 300px !important;
   }
 
-  /* Nome do aluno */
   #studentName {
     font-size: 24px !important;
   }
@@ -233,19 +209,16 @@
     padding: 20px 15px !important;
   }
 
-  /* Título do treino */
   .student-view-workout h2 {
     font-size: 24px !important;
   }
 
-  /* Botões de dias */
   .days-navigation,
   .day-btn {
     width: 100%;
     margin-bottom: 8px;
   }
 
-  /* Cards de exercícios */
   .exercise-card {
     padding: 20px 15px !important;
   }
@@ -254,7 +227,6 @@
     font-size: 18px !important;
   }
 
-  /* Badges de séries/reps */
   .exercise-meta {
     flex-wrap: wrap;
   }
@@ -264,7 +236,6 @@
     padding: 6px 12px !important;
   }
 
-  /* Vídeos */
   .video-container {
     margin: 15px 0 !important;
   }
@@ -332,6 +303,85 @@
 }
 
 /* ========================================
+   VOLUME ANALYSIS - MOBILE
+   Corrige stat cards cortados em telas < 560px
+   ======================================== */
+
+@media (max-width: 560px) {
+  .vp-stats-row {
+    grid-template-columns: repeat(2, 1fr) !important;
+    padding: 0 16px !important;
+  }
+
+  .vp-stat-value {
+    font-size: 1.4rem !important;
+  }
+
+  .vp-hero {
+    padding: 24px 16px 12px !important;
+  }
+
+  .vp-hero-title {
+    font-size: 1.4rem !important;
+  }
+
+  .vp-mode-row {
+    padding: 0 16px !important;
+    flex-direction: column !important;
+    align-items: flex-start !important;
+  }
+
+  .vp-main {
+    padding: 0 16px 60px !important;
+  }
+}
+
+@media (max-width: 375px) {
+  .vp-stats-row {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  .vp-stat-value {
+    font-size: 1.2rem !important;
+  }
+}
+
+/* ========================================
+   BILLING - MOBILE
+   Corrige PIX grid e botão simular escondido
+   ======================================== */
+
+@media (max-width: 768px) {
+  /* Grid PIX vira coluna única */
+  .pix-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* QR Code centralizado em mobile */
+  #pixQRContainer {
+    margin: 0 auto 16px !important;
+  }
+
+  /* Botão simular sempre visível — sticky no bottom da seção */
+  #simPayBtn {
+    position: sticky !important;
+    bottom: 16px !important;
+    z-index: 10 !important;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.12) !important;
+  }
+
+  /* Plans grid: 1 coluna em mobile */
+  .plans-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Customer form grid: 1 coluna */
+  .customer-form-box > div[style*="grid-template-columns"] {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* ========================================
    MODAL - MOBILE
    ======================================== */
 
@@ -372,7 +422,6 @@
    ======================================== */
 
 @media (max-width: 768px) {
-  /* Evitar zoom no iOS ao focar inputs */
   input[type="text"],
   input[type="email"],
   input[type="password"],
@@ -382,14 +431,14 @@
     font-size: 16px !important;
   }
 
-  /* Botões ocupam largura total */
-  button:not(.day-box):not(.exercise-option):not(.remove-btn):not(.close-modal),
-  .btn {
+  /* Botões de formulário e .btn globais — largura 100% em mobile
+     EXCETO: botões dentro de cards, kanban, modais de contexto */
+  form button,
+  .btn-block {
     width: 100%;
     margin-bottom: 10px;
   }
 
-  /* Forms */
   form {
     margin: 15px !important;
     padding: 20px 15px !important;
@@ -405,12 +454,10 @@
    ======================================== */
 
 @media (max-width: 768px) {
-  /* Textos de ajuda menores */
   small {
     font-size: 12px !important;
   }
 
-  /* Alertas */
   .alert {
     padding: 12px 15px !important;
     font-size: 13px !important;
@@ -455,13 +502,11 @@
    ======================================== */
 
 @media (max-width: 768px) {
-  /* Scroll suave em containers */
   .exercises-list,
   .day-body {
     -webkit-overflow-scrolling: touch;
   }
 
-  /* Melhorar área de toque */
   button,
   a,
   .clickable {
@@ -469,7 +514,6 @@
     min-width: 44px;
   }
 
-  /* Espaçamento entre elementos */
   * + * {
     margin-top: 0;
   }
@@ -492,12 +536,10 @@
    ======================================== */
 
 @media (max-width: 768px) {
-  /* Prevenir overflow horizontal */
   body {
     overflow-x: hidden;
   }
 
-  /* Containers responsivos */
   .container,
   .main-content {
     width: 100%;
@@ -506,7 +548,6 @@
     padding-right: 15px !important;
   }
 
-  /* Títulos grandes */
   h1 {
     font-size: 24px !important;
   }
@@ -519,7 +560,6 @@
     font-size: 18px !important;
   }
 
-  /* Parágrafos */
   p {
     font-size: 14px !important;
   }
@@ -529,7 +569,6 @@
    CORREÇÕES DE ACESSIBILIDADE
    ======================================== */
 
-/* Aumentar área de toque em todos os dispositivos */
 @media (pointer: coarse) {
   button,
   a,
@@ -542,7 +581,7 @@
 }
 
 /* ========================================
-   DARK MODE SUPPORT (OPCIONAL)
+   DARK MODE SUPPORT (FUTURO)
    ======================================== */
 
 @media (prefers-color-scheme: dark) {

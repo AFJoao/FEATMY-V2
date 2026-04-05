@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Personal Trainer App</title>
   <link rel="stylesheet" href="css/style.css">
+  <!-- mobile-responsive-fixes carregado globalmente (antes era só em student-details.html) -->
+  <link rel="stylesheet" href="css/mobile-responsive-fixes.css">
 </head>
 <body>
   <!-- Container principal para carregamento dinâmico de páginas -->
@@ -25,6 +27,10 @@
   <script src="js/auth.js"></script>
   <script src="js/db.js"></script>
   <script src="js/subscriptionGuard.js"></script>
+  <!-- sanitize.js ANTES do router.js — garante que esc() esteja disponível
+       quando os scripts inline das páginas executam via new Function() -->
+  <script src="js/sanitize.js"></script>
+  <script src="js/domain/feedbacks/feedbackModel.js"></script>
   <script src="js/router.js"></script>
 
   <script>

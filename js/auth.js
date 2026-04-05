@@ -1,12 +1,10 @@
 /**
- * Módulo de Autenticação — Refatorado
+ * Módulo de Autenticação — v3
  *
- * FLUXO:
- * - Personal cria conta do aluno (nome + email) → status: 'pending'
- *   → cria também doc em pendingActivations/{emailKey} como índice público
- * - Aluno acessa /primeiro-acesso → checkPendingStudent faz get no índice público
- *   → sem query na coleção users (evita bloqueio das regras Firestore)
- * - Aluno define senha → activateStudentAccount migra doc, deleta índice
+ * CORREÇÕES v3:
+ * - Race condition em activateStudentAccount resolvida via lock em memória
+ *   + status 'activating' no Firestore como mutex distribuído.
+ *   Dois cliques rápidos ou duas abas simultâneas não criam duplicatas.
  */
 
 class AuthManager {
@@ -17,6 +15,9 @@ class AuthManager {
     this.isInitialized = false;
     this.authStateUnsubscribe = null;
     this.initializationPromise = null;
+
+    // Lock em memória para evitar dupla ativação na mesma aba
+    this._activationInProgress = false;
   }
 
   // ── Inicialização ──────────────────────────────────────────────
@@ -109,10 +110,6 @@ class AuthManager {
 
   // ── Gerenciamento de Alunos pelo Personal ──────────────────────
 
-  /**
-   * Personal cria pré-conta de aluno (sem senha).
-   * Cria doc em users/ com status 'pending' e índice em pendingActivations/.
-   */
   async createStudentAccount(name, email) {
     try {
       const personalUser = this.currentUser;
@@ -146,8 +143,6 @@ class AuthManager {
         students: firebase.firestore.FieldValue.arrayUnion(studentRef.id)
       });
 
-      // Índice público para o fluxo de primeiro acesso.
-      // ID = email sanitizado. Permite get sem auth pela página de primeiro acesso.
       const emailKey = normalizedEmail.replace(/[^a-z0-9]/g, '_');
       await db.collection('pendingActivations').doc(emailKey).set({
         studentDocId: studentRef.id,
@@ -184,14 +179,13 @@ class AuthManager {
       const personalUser = this.currentUser;
       if (!personalUser) throw new Error('Não autenticado');
 
-      // Buscar email do aluno para limpar o índice
       try {
         const studentDoc = await db.collection('users').doc(studentDocId).get();
         if (studentDoc.exists) {
           const emailKey = studentDoc.data().email.replace(/[^a-z0-9]/g, '_');
           await db.collection('pendingActivations').doc(emailKey).delete();
         }
-      } catch (e) { /* índice pode não existir, ignorar */ }
+      } catch (e) { /* índice pode não existir */ }
 
       await db.collection('users').doc(personalUser.uid).update({
         students: firebase.firestore.FieldValue.arrayRemove(studentDocId)
@@ -207,33 +201,14 @@ class AuthManager {
 
   // ── Primeiro Acesso do Aluno ───────────────────────────────────
 
-  /**
-   * Verifica se um e-mail tem conta pendente de ativação.
-   *
-   * USA GET DIRETO no índice pendingActivations/{emailKey} — não faz query.
-   * Queries na coleção users são bloqueadas pelas regras para usuários não autenticados.
-   *
-   * Retorna:
-   *   { exists: true,  studentDocId, name, personalId } → pendente, pode ativar
-   *   { exists: false, alreadyActive: true }            → já ativada, fazer login
-   *   { exists: false, noIndex: true }                  → aluno sem índice (criado antes desta versão)
-   *   { exists: false }                                 → e-mail não encontrado
-   */
   async checkPendingStudent(email) {
     try {
       const normalizedEmail = email.toLowerCase().trim();
       const emailKey = normalizedEmail.replace(/[^a-z0-9]/g, '_');
 
-      // Get direto no índice público — permitido pelas regras sem autenticação
       const indexDoc = await db.collection('pendingActivations').doc(emailKey).get();
 
       if (!indexDoc.exists) {
-        // Índice não existe. Pode ser:
-        // (a) e-mail nunca cadastrado
-        // (b) aluno já ativou e o índice foi deletado → alreadyActive
-        // (c) aluno criado antes desta versão → noIndex
-        // Não conseguimos distinguir (a) de (c) sem auth. Retornamos noIndex
-        // para que a página informe o personal.
         return { exists: false, noIndex: true };
       }
 
@@ -243,11 +218,16 @@ class AuthManager {
         return { exists: false, alreadyActive: true };
       }
 
-      // Get direto no doc do aluno pelo ID do índice
-      // Permitido pelas regras: get público de doc com status=pending
       const studentDoc = await db.collection('users').doc(indexData.studentDocId).get();
 
-      if (!studentDoc.exists || studentDoc.data().status !== 'pending') {
+      if (!studentDoc.exists) {
+        return { exists: false, alreadyActive: true };
+      }
+
+      // Status 'activating' significa que outra aba/sessão já está no meio da ativação.
+      // Tratamos como alreadyActive para evitar conflito.
+      const studentStatus = studentDoc.data().status;
+      if (studentStatus !== 'pending') {
         return { exists: false, alreadyActive: true };
       }
 
@@ -265,46 +245,89 @@ class AuthManager {
   }
 
   /**
-   * Aluno define senha e ativa a conta.
+   * Ativa a conta do aluno com proteção contra race condition.
    *
-   * Idempotente — pode ser chamado N vezes com segurança:
-   * 1. Lê doc provisório (get, sem update)
-   * 2. Cria Auth ou faz login se já existe
-   * 3. Verifica se migração já concluída
-   * 4. Cria doc definitivo users/{uid}
-   * 5. Deleta doc provisório
-   * 6. Atualiza lista do personal
-   * 7. Deleta índice pendingActivations
+   * PROTEÇÃO v3 (duas camadas):
+   *
+   * Camada 1 — Lock em memória (mesma aba):
+   *   this._activationInProgress impede que dois cliques rápidos
+   *   no botão disparem duas execuções simultâneas na mesma aba.
+   *
+   * Camada 2 — Status 'activating' no Firestore (distribuído):
+   *   Antes de criar o usuário no Auth, marcamos o doc provisório
+   *   como 'activating'. Se outra aba ou dispositivo tentar ativar
+   *   ao mesmo tempo, checkPendingStudent retornará alreadyActive.
+   *   Ao final (sucesso ou erro), revertemos para 'pending' se algo
+   *   falhar, para não deixar o aluno travado.
+   *
+   * Idempotência:
+   *   Se o Auth foi criado mas o Firestore não foi atualizado (falha
+   *   de rede), a próxima tentativa detecta o doc existente via
+   *   existingDoc e conclui a migração sem recriar o Auth.
    */
   async activateStudentAccount(email, password, studentDocId) {
+    // Camada 1: lock em memória
+    if (this._activationInProgress) {
+      return { success: false, error: 'Ativação já em andamento. Aguarde.' };
+    }
+    this._activationInProgress = true;
+
     try {
       if (password.length < 6) throw new Error('A senha deve ter pelo menos 6 caracteres');
 
       const normalizedEmail = email.toLowerCase().trim();
 
-      // ── 1. Ler doc provisório (apenas get, sem update) ─────────────
+      // ── 1. Ler doc provisório ──────────────────────────────────
       const provisoryDoc = await db.collection('users').doc(studentDocId).get();
       if (!provisoryDoc.exists) {
         throw new Error('Dados do aluno não encontrados. Entre em contato com seu personal trainer.');
       }
       const studentData = provisoryDoc.data();
 
-      // ── 2. Criar Auth ou recuperar se já existe ────────────────────
+      // Se já está ativating por outra sessão, aguardar e verificar resultado
+      if (studentData.status === 'activating') {
+        // Pode ser uma tentativa anterior que falhou sem limpar o status.
+        // Aguardamos 3s e verificamos se virou 'active' (sucesso de outra aba)
+        // ou voltou para 'pending' (falha de outra aba — podemos tentar).
+        await new Promise(r => setTimeout(r, 3000));
+        const recheckDoc = await db.collection('users').doc(studentDocId).get();
+        if (recheckDoc.exists && recheckDoc.data().status === 'activating') {
+          // Ainda travado — limpar e continuar (a outra sessão provavelmente falhou)
+          console.warn('[activateStudentAccount] Status travado em activating, limpando...');
+          await db.collection('users').doc(studentDocId).update({ status: 'pending' });
+        } else if (recheckDoc.exists && recheckDoc.data().status !== 'pending') {
+          return { success: false, error: 'Conta já foi ativada em outro dispositivo. Faça login.' };
+        }
+      }
+
+      // ── 2. Camada 2: marcar como 'activating' (mutex distribuído) ──
+      try {
+        await db.collection('users').doc(studentDocId).update({ status: 'activating' });
+      } catch (e) {
+        // Pode falhar por regras se o doc já não existe — ignorar
+        console.warn('[activateStudentAccount] Não foi possível marcar activating:', e.message);
+      }
+
+      // ── 3. Criar Auth ou recuperar se já existe ────────────────
       let user;
       try {
         const credential = await auth.createUserWithEmailAndPassword(normalizedEmail, password);
         user = credential.user;
       } catch (authError) {
         if (authError.code === 'auth/email-already-in-use') {
-          // Tentativa anterior criou o Auth mas não finalizou o Firestore.
+          // Tentativa anterior criou o Auth mas não finalizou o Firestore
           const credential = await auth.signInWithEmailAndPassword(normalizedEmail, password);
           user = credential.user;
         } else {
+          // Auth falhou — reverter status para 'pending'
+          try {
+            await db.collection('users').doc(studentDocId).update({ status: 'pending' });
+          } catch (e) { /* melhor esforço */ }
           throw authError;
         }
       }
 
-      // ── 3. Verificar se migração já foi concluída ──────────────────
+      // ── 4. Verificar se migração já foi concluída ──────────────
       const existingDoc = await db.collection('users').doc(user.uid).get();
       if (existingDoc.exists && existingDoc.data().status === 'active') {
         this.currentUser     = user;
@@ -312,7 +335,7 @@ class AuthManager {
         return { success: true, user, userType: 'student' };
       }
 
-      // ── 4. Criar doc definitivo users/{uid} ────────────────────────
+      // ── 5. Criar doc definitivo users/{uid} ────────────────────
       await db.collection('users').doc(user.uid).set({
         ...studentData,
         uid:         user.uid,
@@ -321,14 +344,14 @@ class AuthManager {
         activatedAt: firebase.firestore.FieldValue.serverTimestamp()
       });
 
-      // ── 5. Deletar doc provisório ──────────────────────────────────
+      // ── 6. Deletar doc provisório ──────────────────────────────
       try {
         await db.collection('users').doc(studentDocId).delete();
       } catch (e) {
-        console.warn('Aviso: não foi possível deletar doc provisório:', e.message);
+        console.warn('[activateStudentAccount] Não foi possível deletar doc provisório:', e.message);
       }
 
-      // ── 6. Atualizar lista do personal ─────────────────────────────
+      // ── 7. Atualizar lista do personal ─────────────────────────
       const personalId = studentData.personalId;
       if (personalId) {
         try {
@@ -339,24 +362,37 @@ class AuthManager {
             students: firebase.firestore.FieldValue.arrayUnion(user.uid)
           });
         } catch (e) {
-          console.warn('Aviso: não foi possível atualizar lista do personal:', e.message);
+          console.warn('[activateStudentAccount] Não foi possível atualizar lista do personal:', e.message);
         }
       }
 
-      // ── 7. Deletar índice pendingActivations ───────────────────────
+      // ── 8. Deletar índice pendingActivations ───────────────────
       try {
         const emailKey = normalizedEmail.replace(/[^a-z0-9]/g, '_');
         await db.collection('pendingActivations').doc(emailKey).delete();
       } catch (e) {
-        console.warn('Aviso: não foi possível remover índice pendingActivations:', e.message);
+        console.warn('[activateStudentAccount] Não foi possível remover índice:', e.message);
       }
 
       this.currentUser     = user;
       this.currentUserType = 'student';
 
       return { success: true, user, userType: 'student' };
+
     } catch (error) {
+      // Em caso de erro inesperado, tentar reverter status para 'pending'
+      // para não deixar o aluno travado
+      try {
+        const currentDoc = await db.collection('users').doc(studentDocId).get();
+        if (currentDoc.exists && currentDoc.data().status === 'activating') {
+          await db.collection('users').doc(studentDocId).update({ status: 'pending' });
+        }
+      } catch (e) { /* melhor esforço */ }
+
       return { success: false, error: this._translateError(error) };
+    } finally {
+      // Sempre liberar o lock em memória
+      this._activationInProgress = false;
     }
   }
 

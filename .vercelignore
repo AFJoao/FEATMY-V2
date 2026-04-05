@@ -1,5 +1,45 @@
-# Ignorar apenas arquivos desnecessários
-node_modules
-.git
-*.md
+# Dependências
+node_modules/
+package-lock.json
+yarn.lock
+
+# Variáveis de ambiente
+.env
+.env.local
+.env.*.local
+
+# Arquivos do IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Arquivos do sistema
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Build
+dist/
+build/
+
+# Firebase
+.firebase/
+.firebaserc
+
+# Vercel
+.vercel/
+
+# Cache
+.cache/
+
+# Arquivos de teste — não devem ir para o repositório
+# pois expõem estrutura interna e referências a localhost
+test-feedbacks.html
 TESTE_*.html
