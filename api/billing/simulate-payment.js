@@ -4,13 +4,16 @@
  * Só funciona com chaves _dev_ do AbacatePay.
  * Processa o pagamento localmente após simular na AbacatePay.
  *
- * Correções v2:
+ * Correções v3:
+ * - Rate limiting duplo (UID + IP) — igual ao create-charge
  * - Validação de ownership — personal só simula seus próprios billings
  * - CORS centralizado via helper (fail-closed em produção)
  * - Em dev, não bloqueia por processedWebhooks — permite re-simular
  */
 
-const { applyCors } = require('../_lib/cors');
+const { applyCors }          = require('../_lib/cors');
+const { checkRateLimitDual } = require('../_lib/ratelimit');
+const { logger }             = require('../_lib/logger');
 const admin = require('firebase-admin');
 
 function initFirebase() {
@@ -59,7 +62,7 @@ module.exports = async function handler(req, res) {
   try {
     applyCors(req, res, 'POST, OPTIONS');
   } catch (err) {
-    console.error('[simulate-payment] CORS error:', err.message);
+    logger.security('simulate-payment', 'CORS bloqueado', { error: err.message });
     return res.status(403).json({ error: 'Origin não permitida' });
   }
 
@@ -82,6 +85,33 @@ module.exports = async function handler(req, res) {
   // ── Autenticação ──────────────────────────────────────────────
   const decoded = await verifyToken(req);
   if (!decoded) return res.status(401).json({ error: 'Não autenticado' });
+
+  const uid = decoded.uid;
+
+  // ── Rate limiting duplo: por UID + por IP ─────────────────────
+  // NOVO v3: protege contra abuso de simulação em dev.
+  // Limite billing: 10 req/min por UID e por IP.
+  try {
+    const { limited, reset, reason } = await checkRateLimitDual(req, uid, 'billing');
+    if (limited) {
+      const retryAfter = Math.ceil((reset - Date.now()) / 1000);
+      res.setHeader('Retry-After', retryAfter);
+      logger.warn('simulate-payment', 'Rate limit atingido', { uid, reason });
+      return res.status(429).json({
+        error: 'Muitas tentativas. Aguarde antes de tentar novamente.',
+        retryAfterSeconds: retryAfter,
+      });
+    }
+  } catch (err) {
+    // Em produção: Redis indisponível → fail-closed
+    // Em dev: sem Redis → fail-open (não quebra o dev)
+    if (process.env.NODE_ENV === 'production') {
+      logger.error('simulate-payment', 'Rate limit error em produção', { error: err.message });
+      return res.status(503).json({ error: 'Serviço temporariamente indisponível' });
+    }
+    // Dev sem Redis: logar e continuar
+    console.warn('[simulate-payment] Rate limit indisponível em dev:', err.message);
+  }
 
   const { gatewayPixId } = req.body || {};
   if (!gatewayPixId) return res.status(400).json({ error: 'gatewayPixId é obrigatório' });
@@ -129,19 +159,16 @@ module.exports = async function handler(req, res) {
   const { personalId, planId } = billingData;
 
   // ── 3. Validar ownership — CRÍTICO ────────────────────────────
-  // Garante que o personal autenticado só pode simular pagamentos
-  // de cobranças que ele mesmo gerou. Impede escalonamento horizontal.
   if (billingData.personalId !== decoded.uid) {
-    console.warn(
-      `[simulate-payment] Ownership violation: uid=${decoded.uid} ` +
-      `tentou simular billing de personalId=${billingData.personalId}`
-    );
+    logger.security('simulate-payment', 'Ownership violation', {
+      uid:              decoded.uid,
+      billingPersonalId: billingData.personalId,
+      gatewayPixId
+    });
     return res.status(403).json({ error: 'Acesso negado' });
   }
 
   // ── 4. Em dev, NÃO bloquear por processedWebhooks ─────────────
-  // Em produção o webhook usa processedWebhooks para idempotência.
-  // Aqui em dev queremos poder re-simular sem ter que limpar o Firestore.
   const processedRef = db.collection('processedWebhooks').doc(`dev_${gatewayPixId}`);
 
   // ── 5. Processar pagamento ────────────────────────────────────
@@ -181,7 +208,6 @@ module.exports = async function handler(req, res) {
     subscriptionUpdated: admin.firestore.FieldValue.serverTimestamp(),
   });
 
-  // Registrar com prefixo dev_ para não conflitar com webhooks reais
   await processedRef.set({
     processedAt:  admin.firestore.FieldValue.serverTimestamp(),
     billingDocId: billingDoc.id,
@@ -190,7 +216,7 @@ module.exports = async function handler(req, res) {
     source:       'simulate-payment-dev',
   });
 
-  console.log(`[simulate-payment] ✓ Ativado — personal=${personalId} plano=${planId}`);
+  logger.info('simulate-payment', 'Ativado em dev', { personalId, planId });
 
   return res.status(200).json({
     success:   true,

@@ -6,6 +6,15 @@
  *
  * IMPORTANTE: Este módulo é apenas para UX.
  * O bloqueio real é feito pelas regras do Firestore e pelas Serverless Functions.
+ *
+ * CORREÇÃO v2:
+ * - Cache com TTL de 5 minutos evita chamada à API a cada navegação de página.
+ *   Antes: toda mudança de rota na SPA disparava uma nova chamada a
+ *   /api/billing/subscription-status, somando 10+ calls por sessão.
+ *   Agora: a primeira call é feita normalmente; as seguintes dentro
+ *   de 5 minutos reutilizam o cache em memória.
+ * - Se o pagamento for confirmado (status muda para 'active'), o cache
+ *   é invalidado e a página recarrega automaticamente.
  */
 
 class SubscriptionGuard {
@@ -13,10 +22,32 @@ class SubscriptionGuard {
     this.status        = null;
     this.checkInterval = null;
     this._initialized  = false;
+
+    // Cache: timestamp da última verificação bem-sucedida
+    this._lastCheckAt  = 0;
+    this._cacheTTL     = 5 * 60 * 1000; // 5 minutos em ms
+  }
+
+  // ── Verificar se o cache ainda é válido ─────────────────────────
+  _isCacheValid() {
+    return this.status !== null &&
+      (Date.now() - this._lastCheckAt) < this._cacheTTL;
+  }
+
+  // ── Invalidar cache manualmente ──────────────────────────────────
+  // Chamar após um pagamento ser confirmado ou ao fazer logout.
+  invalidateCache() {
+    this._lastCheckAt = 0;
+    this.status = null;
   }
 
   // ── Verificar status via API backend ────────────────────────────
-  async checkStatus() {
+  async checkStatus(forceRefresh = false) {
+    // Retornar cache se ainda válido e não forçando refresh
+    if (!forceRefresh && this._isCacheValid()) {
+      return this.status;
+    }
+
     try {
       const user = authManager?.getCurrentUser?.();
       if (!user) return null;
@@ -28,7 +59,9 @@ class SubscriptionGuard {
       });
 
       if (!res.ok) return null;
-      this.status = await res.json();
+
+      this.status      = await res.json();
+      this._lastCheckAt = Date.now();
       return this.status;
     } catch (e) {
       console.warn('[subscriptionGuard] Erro ao verificar status:', e.message);
@@ -38,7 +71,17 @@ class SubscriptionGuard {
 
   // ── Inicializar para páginas de personal ────────────────────────
   async init() {
-    if (this._initialized) return this.status;
+    // Se já inicializado e cache ainda válido, retornar sem nova call
+    if (this._initialized && this._isCacheValid()) {
+      // Re-aplicar UI caso a página tenha sido recarregada
+      if (this.status?.showWarning) this._showWarningBanner(this.status);
+      if (!this.status?.isActive)   this._applyReadOnlyMode();
+      window._subscriptionMaxStudents = this.status?.maxStudents || 0;
+      window._subscriptionPlanId      = this.status?.planId      || null;
+      window._subscriptionIsActive    = this.status?.isActive    || false;
+      return this.status;
+    }
+
     this._initialized = true;
 
     const status = await this.checkStatus();
@@ -52,19 +95,26 @@ class SubscriptionGuard {
       this._applyReadOnlyMode();
     }
 
-    // Guardar limite de alunos globalmente
     window._subscriptionMaxStudents = status.maxStudents || 0;
     window._subscriptionPlanId      = status.planId      || null;
     window._subscriptionIsActive    = status.isActive    || false;
 
-    // Recheck a cada 5 minutos
+    // Recheck a cada 5 minutos — detecta pagamento confirmado
+    if (this.checkInterval) clearInterval(this.checkInterval);
     this.checkInterval = setInterval(async () => {
-      const updated = await this.checkStatus();
+      // Forçar refresh ignorando cache
+      const updated = await this.checkStatus(true);
       if (!updated) return;
-      // Se estava bloqueado e agora está ativo → recarregar
-      if (updated.status === 'active' && this.status?.status !== 'active') {
+
+      const wasInactive = !this.status?.isActive;
+      const nowActive   = updated.status === 'active';
+
+      // Se acabou de ativar → recarregar para liberar a UI
+      if (wasInactive && nowActive) {
         window.location.reload();
+        return;
       }
+
       this.status = updated;
     }, 5 * 60 * 1000);
 
@@ -116,7 +166,6 @@ class SubscriptionGuard {
   // ── Modo somente leitura quando expirado ────────────────────────
   _applyReadOnlyMode() {
     const apply = () => {
-      // Seletores dos botões de ação que devem ser bloqueados
       const selectors = [
         '#addStudentBtn',
         '#saveWorkoutBtn',
@@ -130,15 +179,14 @@ class SubscriptionGuard {
       ];
       selectors.forEach(sel => {
         document.querySelectorAll(sel).forEach(btn => {
-          btn.disabled           = true;
-          btn.title              = 'Renove sua assinatura para usar este recurso';
-          btn.style.opacity      = '0.4';
-          btn.style.cursor       = 'not-allowed';
+          btn.disabled            = true;
+          btn.title               = 'Renove sua assinatura para usar este recurso';
+          btn.style.opacity       = '0.4';
+          btn.style.cursor        = 'not-allowed';
           btn.style.pointerEvents = 'none';
         });
       });
 
-      // Interceptar links de navegação para criação
       document.querySelectorAll(
         'a[href="#/personal/create-workout"], a[href="#/personal/exercises"]'
       ).forEach(link => {
@@ -204,6 +252,7 @@ class SubscriptionGuard {
   destroy() {
     clearInterval(this.checkInterval);
     this._initialized = false;
+    this._lastCheckAt = 0;
     this.status       = null;
   }
 }

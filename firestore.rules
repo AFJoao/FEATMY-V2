@@ -25,17 +25,14 @@ service cloud.firestore {
     }
 
     function isWithinStudentLimit(personalId) {
+      let subDoc   = get(/databases/$(database)/documents/subscriptions/$(personalId));
+      let maxStudents = subDoc.data.maxStudents;
+      let userDoc  = get(/databases/$(database)/documents/users/$(personalId));
+      let currentCount = ('students' in userDoc.data && userDoc.data.students != null)
+        ? userDoc.data.students.size()
+        : 0;
       return exists(/databases/$(database)/documents/subscriptions/$(personalId)) &&
-        (
-          (
-            exists(/databases/$(database)/documents/users/$(personalId)) &&
-            'students' in get(/databases/$(database)/documents/users/$(personalId)).data
-              ? get(/databases/$(database)/documents/users/$(personalId)).data.students.size()
-              : 0
-          )
-          
-          get(/databases/$(database)/documents/subscriptions/$(personalId)).data.maxStudents
-        );
+        currentCount < maxStudents;
     }
 
     function isOwnStudentDoc() {
@@ -48,35 +45,25 @@ service cloud.firestore {
       return isPersonal() && resource.data.personalId == request.auth.uid;
     }
 
-    // ── USERS ─────────────────────────────────────────────────────
+    // ── USERS ──────────────────────────────────────────────────────
     match /users/{userId} {
-
-      // GET individual: próprio doc, ou doc de aluno pendente (fluxo de ativação)
-      // REMOVIDO: allow list global — nenhum usuário pode listar a coleção inteira
       allow get: if isUser(userId)
         || (resource.data.status == 'pending' && resource.data.userType == 'student')
         || (isAuth() && resource.data.personalId == request.auth.uid);
 
-      // Personal consulta seus próprios alunos por query filtrada
-      // A query DEVE incluir where('personalId', '==', uid) — garantido no código
       allow list: if isAuth() && (
-        // Personal listando seus próprios alunos
         (isPersonal() && request.query.filters.size() > 0)
-        // Aluno buscando seu próprio doc
         || request.auth.uid == userId
       );
 
-      // Criação do próprio doc (personal no signup)
       allow create: if isUser(userId);
 
-      // Personal cria doc de aluno
       allow create: if isPersonal()
         && request.resource.data.userType == 'student'
         && request.resource.data.personalId == request.auth.uid
         && hasActiveSubscription(request.auth.uid)
         && isWithinStudentLimit(request.auth.uid);
 
-      // Aluno ativa conta (cria doc com seu próprio uid)
       allow create: if isAuth()
         && request.resource.data.userType == 'student'
         && request.resource.data.authUid == request.auth.uid;
@@ -93,9 +80,6 @@ service cloud.firestore {
 
     // ── EXERCISES ──────────────────────────────────────────────────
     match /exercises/{exerciseId} {
-
-      // Leitura: próprios exercícios ou exercícios globais (sem personalId)
-      // Aluno pode ler exercícios do seu personal
       allow read: if isAuth() && (
         resource == null ||
         !('personalId' in resource.data) ||
@@ -118,24 +102,14 @@ service cloud.firestore {
 
     // ── WORKOUTS ───────────────────────────────────────────────────
     match /workouts/{workoutId} {
-
-      // GET individual: personal dono OU aluno dono com personal ativo
       allow get: if isAuth() && (
         resource.data.personalId == request.auth.uid ||
-        (
-          resource.data.studentId == request.auth.uid &&
-          hasActiveSubscription(resource.data.personalId)
-        )
+        (resource.data.studentId == request.auth.uid &&
+          hasActiveSubscription(resource.data.personalId))
       );
 
-      // LIST: NUNCA permitir listagem global.
-      // Personal só lista seus próprios treinos (filtro obrigatório por personalId).
-      // Aluno só lista treinos atribuídos a ele (filtro obrigatório por studentId).
-      // A query no código já faz o where() — aqui garantimos no backend.
       allow list: if isAuth() && (
-        // Personal listando seus próprios treinos
         (resource.data.personalId == request.auth.uid) ||
-        // Aluno listando treinos atribuídos a ele (com assinatura ativa do personal)
         (resource.data.studentId == request.auth.uid &&
           hasActiveSubscription(resource.data.personalId))
       );
@@ -154,24 +128,17 @@ service cloud.firestore {
 
     // ── FEEDBACKS ──────────────────────────────────────────────────
     match /feedbacks/{feedbackId} {
-
-      // Aluno cria feedback do próprio treino
       allow create: if isAuth()
         && request.resource.data.studentId == request.auth.uid;
 
-      // Aluno lê e atualiza seus próprios feedbacks
       allow get, update: if isAuth()
         && resource.data.studentId == request.auth.uid;
 
-      // Personal lê e deleta feedbacks de treinos seus
       allow get, delete: if isAuth() && isPersonal() && (
         exists(/databases/$(database)/documents/workouts/$(resource.data.workoutId)) &&
         get(/databases/$(database)/documents/workouts/$(resource.data.workoutId)).data.personalId == request.auth.uid
       );
 
-      // LIST: NUNCA permitir listagem global.
-      // Personal só lista feedbacks filtrados por workoutId (dos seus treinos).
-      // Aluno só lista seus próprios feedbacks (filtrado por studentId).
       allow list: if isAuth() && (
         resource.data.studentId == request.auth.uid ||
         (isPersonal() &&
@@ -182,45 +149,51 @@ service cloud.firestore {
 
     // ── SUBSCRIPTIONS ──────────────────────────────────────────────
     match /subscriptions/{personalId} {
-      allow read: if isUser(personalId);
+      allow read:  if isUser(personalId);
       allow write: if false;
     }
 
     // ── BILLINGS ───────────────────────────────────────────────────
     match /billings/{billingId} {
-      allow read: if isAuth()
-        && resource.data.personalId == request.auth.uid;
+      allow read:  if isAuth() && resource.data.personalId == request.auth.uid;
       allow write: if false;
     }
 
     // ── NOTIFICATIONS ───────────────────────────────────────────────
     match /notifications/{notifId} {
-      allow read: if isAuth()
-        && resource.data.userId == request.auth.uid;
-
+      allow read: if isAuth() && resource.data.userId == request.auth.uid;
       allow update: if isAuth()
         && resource.data.userId == request.auth.uid
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']);
-
       allow write: if false;
     }
 
     // ── BACKEND ONLY ────────────────────────────────────────────────
-    match /processedWebhooks/{id} {
-      allow read, write: if false;
-    }
-
-    match /securityLogs/{id} {
-      allow read, write: if false;
-    }
+    match /processedWebhooks/{id} { allow read, write: if false; }
+    match /securityLogs/{id}      { allow read, write: if false; }
 
     // ── PENDING ACTIVATIONS ─────────────────────────────────────────
-    // CORRIGIDO: removido "allow read: if true" (listagem pública)
-    // GET individual ainda é público — necessário para o fluxo de primeiro acesso
-    // LIST é bloqueado — impede enumeração de emails
+    //
+    // CORREÇÃO ITEM 4:
+    //
+    // O fluxo de ativação usa um endpoint serverless (/api/activation/check)
+    // que valida o token via Admin SDK no backend — sem expor dados ao cliente.
+    //
+    // O cliente (primeiro-acesso.html) NÃO faz mais query direta ao Firestore.
+    // Ele chama POST /api/activation/check com o token e recebe os dados
+    // necessários para prosseguir com a ativação.
+    //
+    // Por isso:
+    //   - allow list: if false  (query por token feita via Admin SDK no backend)
+    //   - allow get:  personal autenticado pode ler seu próprio doc (para reenviar link)
+    //   - allow write: personal autenticado (criar/atualizar tokens)
+    //
     match /pendingActivations/{emailKey} {
-      allow get: if true;   // get por emailKey específico: necessário para ativar conta sem auth
-      allow list: if false; // NUNCA listar toda a coleção
+      allow get: if isAuth() && (
+        resource.data.createdBy == request.auth.uid ||
+        resource.data.authUid   == request.auth.uid
+      );
+      allow list:   if false;
       allow create, update, delete: if isAuth();
     }
 

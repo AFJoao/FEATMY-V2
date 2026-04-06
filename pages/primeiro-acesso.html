@@ -19,74 +19,37 @@
     .pa-btn:disabled { opacity: 0.55; cursor: not-allowed; transform: none; box-shadow: none; }
     .spinner { width: 22px; height: 22px; border: 3px solid rgba(0,0,0,0.08); border-top-color: #00E676; border-radius: 50%; animation: spin 0.8s linear infinite; display: inline-block; vertical-align: middle; }
     @keyframes spin { to { transform: rotate(360deg); } }
-
     .step { display: none; }
     .step.active { display: block; }
-
-    /* ── Left Panel ── */
     .pa-left {
-      width: 44%;
-      background: #0A0A0A;
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
-      padding: 48px;
-      position: relative;
-      overflow: hidden;
-      flex-shrink: 0;
+      width: 44%; background: #0A0A0A; display: flex; flex-direction: column;
+      justify-content: space-between; padding: 48px; position: relative; overflow: hidden; flex-shrink: 0;
     }
-
-    /* ── Right Panel ── */
     .pa-right {
-      flex: 1;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 48px 56px;
-      overflow-y: auto;
+      flex: 1; display: flex; align-items: center; justify-content: center;
+      padding: 48px 56px; overflow-y: auto;
     }
-
-    /* ── Mobile logo bar ── */
     .mobile-logo-bar {
-      display: none;
-      width: 100%;
-      background: #0A0A0A;
-      padding: 20px 24px;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
+      display: none; width: 100%; background: #0A0A0A; padding: 20px 24px;
+      align-items: center; justify-content: center; flex-shrink: 0;
     }
-
     @media (max-width: 768px) {
-      .primeiro-acesso-page {
-        flex-direction: column !important;
-      }
-      .pa-left {
-        display: none !important;
-      }
-      .mobile-logo-bar {
-        display: flex !important;
-      }
-      .pa-right {
-        padding: 32px 24px 48px !important;
-        align-items: flex-start !important;
-      }
+      .primeiro-acesso-page { flex-direction: column !important; }
+      .pa-left { display: none !important; }
+      .mobile-logo-bar { display: flex !important; }
+      .pa-right { padding: 32px 24px 48px !important; align-items: flex-start !important; }
     }
   </style>
 
-  <!-- Mobile Logo Bar -->
   <div class="mobile-logo-bar">
     <img src="assets/branca_larga.png" alt="Featym" style="height:28px;object-fit:contain;" onerror="this.style.display='none'">
   </div>
 
-  <!-- Left Panel (desktop only) -->
   <div class="pa-left">
     <div style="position:absolute;inset:0;background:radial-gradient(ellipse at 25% 75%,rgba(0,230,118,0.08) 0%,transparent 55%);pointer-events:none;"></div>
-
     <div style="position:relative;flex:1;display:flex;align-items:center;justify-content:center;">
-      <img src="assets/branca_larga.png" alt="Featym" style="width:72%;max-width:320px;object-fit:contain;filter:drop-shadow(0 0 40px rgba(0,230,118,0.12));" onerror="this.style.display='none'">
+      <img src="assets/branca_larga.png" alt="Featym" style="width:72%;max-width:320px;object-fit:contain;" onerror="this.style.display='none'">
     </div>
-
     <div style="position:relative;">
       <p style="color:rgba(0,230,118,0.75);font-size:0.72rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;margin:0 0 14px;">Primeiro acesso</p>
       <h2 style="color:#fff;font-size:2rem;font-weight:800;margin:0 0 16px;line-height:1.2;letter-spacing:-0.03em;">Bem-vindo à<br>sua jornada<br>fitness.</h2>
@@ -94,35 +57,34 @@
     </div>
   </div>
 
-  <!-- Right Panel -->
   <div class="pa-right">
     <div style="width:100%;max-width:380px;">
 
-      <!-- STEP 1: verificar e-mail -->
-      <div id="step1" class="step active">
-        <div style="margin-bottom:28px;">
-          <h1 style="font-size:1.7rem;font-weight:800;color:#0A0A0A;margin:0 0 6px;letter-spacing:-0.03em;">Identificação</h1>
-          <p style="color:#6B7280;font-size:0.875rem;margin:0;">Informe o e-mail cadastrado pelo seu personal trainer</p>
+      <!-- STEP: loading (verificando token) -->
+      <div id="stepLoading" class="step active">
+        <div style="text-align:center;padding:40px 0;">
+          <div class="spinner" style="margin:0 auto 16px;"></div>
+          <p style="color:#9CA3AF;font-size:0.875rem;">Verificando seu link de ativação...</p>
         </div>
-
-        <div id="step1Error" style="display:none;background:#FFF1F2;border:1px solid #FECDD3;border-radius:10px;padding:11px 14px;margin-bottom:16px;font-size:0.83rem;color:#BE123C;font-weight:500;"></div>
-
-        <div style="display:flex;flex-direction:column;gap:16px;">
-          <div>
-            <label style="display:block;font-size:0.78rem;font-weight:700;color:#374151;margin-bottom:7px;">Seu e-mail</label>
-            <input type="email" id="emailInput" class="pa-input" placeholder="seu@email.com" autocomplete="email">
-          </div>
-          <button id="checkEmailBtn" class="pa-btn">Continuar →</button>
-        </div>
-
-        <p style="text-align:center;margin-top:20px;font-size:0.875rem;color:#6B7280;">
-          Já tem senha? <a href="#/login" style="color:#0A0A0A;font-weight:700;text-decoration:none;">Fazer login →</a>
-        </p>
       </div>
 
-      <!-- STEP 2: definir senha -->
-      <div id="step2" class="step">
-        <!-- Boas-vindas personalizadas -->
+      <!-- STEP: token inválido / expirado / já usado -->
+      <div id="stepInvalid" class="step">
+        <div style="text-align:center;padding:20px 0;">
+          <div style="width:56px;height:56px;background:#FFF1F2;border-radius:16px;margin:0 auto 18px;display:flex;align-items:center;justify-content:center;">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#BE123C" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          </div>
+          <h2 style="font-size:1.3rem;font-weight:800;color:#0A0A0A;margin:0 0 10px;">Link inválido</h2>
+          <p id="invalidMsg" style="color:#6B7280;font-size:0.875rem;margin:0 0 20px;line-height:1.6;">
+            Este link de ativação é inválido ou já foi utilizado.<br>
+            Solicite um novo link ao seu personal trainer.
+          </p>
+          <a href="#/login" style="color:#0A0A0A;font-weight:700;font-size:0.875rem;">Já tenho senha → Fazer login</a>
+        </div>
+      </div>
+
+      <!-- STEP: definir senha (token válido) -->
+      <div id="stepPassword" class="step">
         <div style="background:#ECFDF5;border:1px solid #A7F3D0;border-radius:12px;padding:14px 16px;margin-bottom:24px;display:flex;align-items:center;gap:12px;">
           <div style="width:36px;height:36px;background:#00E676;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0A0A0A" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
@@ -138,7 +100,7 @@
           <p style="color:#6B7280;font-size:0.875rem;margin:0;">Crie uma senha para acessar sua conta</p>
         </div>
 
-        <div id="step2Error" style="display:none;background:#FFF1F2;border:1px solid #FECDD3;border-radius:10px;padding:11px 14px;margin-bottom:16px;font-size:0.83rem;color:#BE123C;font-weight:500;"></div>
+        <div id="stepError" style="display:none;background:#FFF1F2;border:1px solid #FECDD3;border-radius:10px;padding:11px 14px;margin-bottom:16px;font-size:0.83rem;color:#BE123C;font-weight:500;"></div>
 
         <div style="display:flex;flex-direction:column;gap:16px;">
           <div>
@@ -150,7 +112,9 @@
             <input type="password" id="passwordConfirmInput" class="pa-input" placeholder="Repita a senha" autocomplete="new-password" minlength="6">
           </div>
           <button id="activateBtn" class="pa-btn">Ativar minha conta</button>
-          <button id="backBtn" style="background:none;border:none;color:#9CA3AF;font-size:0.82rem;cursor:pointer;font-family:inherit;padding:0;">← Usar outro e-mail</button>
+          <p style="text-align:center;font-size:0.82rem;color:#9CA3AF;margin:0;">
+            Já tem senha? <a href="#/login" style="color:#0A0A0A;font-weight:700;">Fazer login</a>
+          </p>
         </div>
       </div>
 
@@ -161,97 +125,121 @@
 <script>
 (function() {
 
-  let pendingStudentDocId = null;
-  let pendingEmail        = null;
-  let isActivating        = false;
+  // ── Estado ─────────────────────────────────────────────────────
+  let activationData = null; // resposta do endpoint /api/activation/check
+  let activationToken = null;
+  let isActivating   = false;
 
-  const step1       = document.getElementById('step1');
-  const step2       = document.getElementById('step2');
-  const step1Error  = document.getElementById('step1Error');
-  const step2Error  = document.getElementById('step2Error');
-
-  function goStep(n) {
-    step1.classList.toggle('active', n === 1);
-    step2.classList.toggle('active', n === 2);
+  // ── Helpers de UI ──────────────────────────────────────────────
+  function showStep(id) {
+    ['stepLoading', 'stepInvalid', 'stepPassword'].forEach(s => {
+      const el = document.getElementById(s);
+      if (el) el.classList.toggle('active', s === id);
+    });
   }
 
-  function showError(div, msg) {
-    div.textContent = msg;
-    div.style.display = 'block';
+  function showError(msg) {
+    const el = document.getElementById('stepError');
+    if (el) { el.textContent = msg; el.style.display = 'block'; }
   }
 
-  function hideError(div) {
-    div.style.display = 'none';
+  function hideError() {
+    const el = document.getElementById('stepError');
+    if (el) el.style.display = 'none';
   }
 
-  // ── STEP 1 ────────────────────────────────────────────────────
-  const checkEmailBtn = document.getElementById('checkEmailBtn');
-  const emailInput    = document.getElementById('emailInput');
+  // ── Ler token da URL ───────────────────────────────────────────
+  // URL de ativação: /#/primeiro-acesso?token=xxxx
+  function getTokenFromUrl() {
+    const search = new URLSearchParams(window.location.search);
+    if (search.has('token')) return search.get('token');
+    const hash = window.location.hash || '';
+    const qi   = hash.indexOf('?');
+    if (qi === -1) return null;
+    return new URLSearchParams(hash.slice(qi)).get('token') || null;
+  }
 
-  async function checkEmail() {
-    hideError(step1Error);
-    const email = emailInput.value.trim();
-    if (!email) return showError(step1Error, 'Informe seu e-mail.');
+  // ── Verificar token via endpoint serverless ────────────────────
+  // NÃO faz query direta ao Firestore.
+  // O Admin SDK no backend faz a query — sem expor a coleção ao cliente.
+  async function checkTokenViaAPI(token) {
+    try {
+      const res = await fetch('/api/activation/check', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ token }),
+      });
 
-    checkEmailBtn.innerHTML = '<span class="spinner"></span>';
-    checkEmailBtn.disabled  = true;
+      const data = await res.json();
 
-    const result = await authManager.checkPendingStudent(email);
+      if (res.status === 200 && data.valid) return { ok: true, data };
+      if (res.status === 410) return { ok: false, expired: true,      message: data.error };
+      if (res.status === 409) return { ok: false, alreadyActive: true, message: data.error };
+      if (res.status === 429) return { ok: false, rateLimited: true,  message: data.error };
+      return { ok: false, message: data.error || 'Link inválido ou expirado.' };
+    } catch (e) {
+      return { ok: false, message: 'Erro de conexão. Verifique sua internet e tente novamente.' };
+    }
+  }
 
-    if (result.exists) {
-      pendingStudentDocId = result.studentDocId;
-      pendingEmail        = email;
-      document.getElementById('welcomeName').textContent = result.name;
-      goStep(2);
-      setTimeout(() => document.getElementById('passwordInput').focus(), 100);
-    } else if (result.alreadyActive) {
-      step1Error.innerHTML = 'Esta conta já foi ativada. <a href="#/login" style="color:#BE123C;font-weight:700;">Faça login →</a>';
-      step1Error.style.display = 'block';
-    } else if (result.noIndex) {
-      step1Error.innerHTML = 'Conta encontrada mas precisa ser reconfigurada. Peça ao seu personal para remover e recadastrar seu e-mail no painel.';
-      step1Error.style.display = 'block';
-    } else {
-      showError(step1Error, 'Nenhuma conta pendente encontrada para este e-mail. Verifique com seu personal trainer.');
+  // ── Init ───────────────────────────────────────────────────────
+  async function init() {
+    activationToken = getTokenFromUrl();
+
+    if (!activationToken) {
+      document.getElementById('invalidMsg').innerHTML =
+        'Para ativar sua conta, use o link enviado pelo seu personal trainer.<br><br>' +
+        'Se você já ativou sua conta, <a href="#/login" style="color:#BE123C;font-weight:700;">faça login aqui</a>.';
+      showStep('stepInvalid');
+      return;
     }
 
-    checkEmailBtn.innerHTML = 'Continuar →';
-    checkEmailBtn.disabled  = false;
+    showStep('stepLoading');
+
+    const result = await checkTokenViaAPI(activationToken);
+
+    if (!result.ok) {
+      document.getElementById('invalidMsg').innerHTML = result.alreadyActive
+        ? `Conta já ativada. <a href="#/login" style="color:#BE123C;font-weight:700;">Faça login aqui →</a>`
+        : (result.message || 'Link de ativação inválido ou expirado. Solicite um novo ao seu personal trainer.');
+      showStep('stepInvalid');
+      return;
+    }
+
+    // Token válido — salvar dados e mostrar form de senha
+    activationData = result.data;
+    document.getElementById('welcomeName').textContent = activationData.name;
+    showStep('stepPassword');
+    setTimeout(() => document.getElementById('passwordInput')?.focus(), 100);
   }
 
-  checkEmailBtn.onclick = checkEmail;
-  emailInput.addEventListener('keydown', e => { if (e.key === 'Enter') checkEmail(); });
-
-  // ── STEP 2 ────────────────────────────────────────────────────
-  const activateBtn           = document.getElementById('activateBtn');
-  const passwordInput         = document.getElementById('passwordInput');
-  const passwordConfirmInput  = document.getElementById('passwordConfirmInput');
-
-  document.getElementById('backBtn').onclick = () => {
-    pendingStudentDocId = null;
-    pendingEmail        = null;
-    hideError(step2Error);
-    passwordInput.value        = '';
-    passwordConfirmInput.value = '';
-    goStep(1);
-  };
-
+  // ── Ativar conta ───────────────────────────────────────────────
   async function activate() {
-    if (isActivating) return;
-    hideError(step2Error);
-    const password = passwordInput.value;
-    const confirm  = passwordConfirmInput.value;
+    if (isActivating || !activationData) return;
+    hideError();
 
-    if (password.length < 6)  return showError(step2Error, 'A senha deve ter pelo menos 6 caracteres.');
-    if (password !== confirm)  return showError(step2Error, 'As senhas não conferem.');
+    const password = document.getElementById('passwordInput').value;
+    const confirm  = document.getElementById('passwordConfirmInput').value;
 
-    isActivating          = true;
-    activateBtn.innerHTML = '<span class="spinner"></span>';
-    activateBtn.disabled  = true;
+    if (password.length < 6) return showError('A senha deve ter pelo menos 6 caracteres.');
+    if (password !== confirm) return showError('As senhas não conferem.');
 
-    const result = await authManager.activateStudentAccount(pendingEmail, password, pendingStudentDocId);
+    isActivating = true;
+    const btn = document.getElementById('activateBtn');
+    btn.innerHTML = '<span class="spinner"></span>';
+    btn.disabled  = true;
+
+    // activateStudentAccount agora recebe o token para revalidar no Firestore
+    const result = await authManager.activateStudentAccount(
+      activationData.email,
+      password,
+      activationData.studentDocId,
+      activationToken,
+      activationData.emailKey
+    );
 
     if (result.success) {
-      activateBtn.closest('div[style]').innerHTML = `
+      document.getElementById('stepPassword').innerHTML = `
         <div style="text-align:center;padding:20px 0;">
           <div style="width:56px;height:56px;background:#00E676;border-radius:16px;margin:0 auto 18px;display:flex;align-items:center;justify-content:center;">
             <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#0A0A0A" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
@@ -263,15 +251,20 @@
       `;
       setTimeout(() => router.goToStudentDashboard(), 2000);
     } else {
-      showError(step2Error, result.error || 'Erro ao ativar conta. Tente novamente.');
-      activateBtn.innerHTML = 'Ativar minha conta';
-      activateBtn.disabled  = false;
-      isActivating = false;
+      showError(result.error || 'Erro ao ativar conta. Tente novamente.');
+      btn.innerHTML = 'Ativar minha conta';
+      btn.disabled  = false;
+      isActivating  = false;
     }
   }
 
-  activateBtn.onclick = activate;
-  passwordConfirmInput.addEventListener('keydown', e => { if (e.key === 'Enter') activate(); });
+  // ── Bind ───────────────────────────────────────────────────────
+  document.getElementById('activateBtn')?.addEventListener('click', activate);
+  document.getElementById('passwordConfirmInput')?.addEventListener('keydown', e => {
+    if (e.key === 'Enter') activate();
+  });
+
+  init();
 
 })();
 </script>
