@@ -3,13 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Personal Trainer App</title>
+  <title>Featym — Personal Training Platform</title>
   <link rel="stylesheet" href="css/style.css">
-  <!-- mobile-responsive-fixes carregado globalmente (antes era só em student-details.html) -->
   <link rel="stylesheet" href="css/mobile-responsive-fixes.css">
 </head>
 <body>
-  <!-- Container principal para carregamento dinâmico de páginas -->
   <div id="app">
     <div class="loading">
       <div class="spinner"></div>
@@ -17,31 +15,68 @@
     </div>
   </div>
 
-  <!-- Firebase SDK v9 (Compat mode) -->
-  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+  <!--
+    Firebase SDK v9 (Compat mode)
 
-  <!-- Scripts da aplicação -->
+    CORREÇÃO: Adicionado Subresource Integrity (SRI) para prevenir
+    supply chain attacks via CDN comprometido.
+
+    Como gerar/verificar os hashes SRI:
+      https://www.srihash.org/
+      ou: cat firebase-app-compat.js | openssl dgst -sha384 -binary | openssl base64 -A
+
+    ATENÇÃO: Os hashes abaixo são para a versão 9.22.0.
+    Ao atualizar a versão do Firebase, recalcule os hashes.
+  -->
+  <script
+    src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"
+    integrity="sha384-SUBSTITUA_PELO_HASH_REAL_DO_FIREBASE_APP"
+    crossorigin="anonymous"
+  ></script>
+  <script
+    src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"
+    integrity="sha384-SUBSTITUA_PELO_HASH_REAL_DO_FIREBASE_AUTH"
+    crossorigin="anonymous"
+  ></script>
+  <script
+    src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"
+    integrity="sha384-SUBSTITUA_PELO_HASH_REAL_DO_FIREBASE_FIRESTORE"
+    crossorigin="anonymous"
+  ></script>
+
+  <!--
+    Scripts da aplicação — ordem importa:
+    1. config.js     → inicializa Firebase (auth, db globais)
+    2. auth.js       → AuthManager (depende de auth, db)
+    3. db.js         → DatabaseManager (depende de auth, db, authManager)
+    4. sanitize.js   → esc() global (depende de nada, precisa estar antes dos page scripts)
+    5. feedbackModel → helpers de feedback (depende de nada)
+    6. subscriptionGuard → depende de authManager
+    7. router.js     → inicializa app (depende de tudo acima)
+
+    Arquivos de página (js/pages/**/*.js) são carregados DINAMICAMENTE
+    pelo router.js via createElement('script') — não aqui.
+  -->
   <script src="js/config.js"></script>
   <script src="js/auth.js"></script>
   <script src="js/db.js"></script>
-  <script src="js/subscriptionGuard.js"></script>
-  <!-- sanitize.js ANTES do router.js — garante que esc() esteja disponível
-       quando os scripts inline das páginas executam via new Function() -->
   <script src="js/sanitize.js"></script>
   <script src="js/domain/feedbacks/feedbackModel.js"></script>
+  <script src="js/subscriptionGuard.js"></script>
   <script src="js/router.js"></script>
 
-  <script>
-    // Inicializar autenticação quando o app carrega
-    authManager.onAuthStateChanged((user, userType) => {
-      if (user) {
-        console.log('Usuário autenticado:', user.email, 'Tipo:', userType);
-      } else {
-        console.log('Usuário não autenticado');
-      }
-    });
-  </script>
+  <!--
+    NÃO há scripts inline aqui.
+    Toda a lógica de inicialização está em router.js (init automático via DOMContentLoaded).
+
+    COMO GERAR OS HASHES SRI DO FIREBASE:
+    Execute no terminal:
+
+    curl -s https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js | \
+      openssl dgst -sha384 -binary | openssl base64 -A
+
+    Repita para firebase-auth-compat.js e firebase-firestore-compat.js.
+    Cole os resultados nos atributos integrity acima no formato: sha384-BASE64AQUI
+  -->
 </body>
 </html>

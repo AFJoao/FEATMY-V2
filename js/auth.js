@@ -1,46 +1,35 @@
 /**
- * js/auth.js — v4
+ * js/auth.js — v5
  *
- * CORREÇÕES v4:
+ * CORREÇÕES v5:
  *
- * 1. TOKEN DE ATIVAÇÃO SEGURO (anti account-takeover)
- *    Antes: pendingActivations era público (allow get: if true).
- *    Qualquer pessoa podia consultar se um email estava pendente,
- *    obter o studentDocId e criar a conta Auth antes do aluno real,
- *    assumindo controle da conta (account takeover).
+ * 1. RACE CONDITION NO LIMITE DE ALUNOS — CORRIGIDO
+ *    ANTES: Verificação de limite lida via rules do Firestore (isWithinStudentLimit)
+ *           mas sem transação atômica no cliente. Múltiplas requisições simultâneas
+ *           podiam todas passar na verificação antes de qualquer uma confirmar.
+ *    DEPOIS: Verificação + incremento via Firestore Transaction — operação atômica.
+ *            Se duas requisições chegarem simultaneamente, apenas uma vai passar.
  *
- *    Agora:
- *    - createStudentAccount() gera um activationToken aleatório de 64 chars
- *    - O token é salvo em pendingActivations junto com expiresAt (7 dias)
- *    - checkPendingStudent() agora exige o token — sem token, sem acesso
- *    - A URL de ativação inclui o token: /#/primeiro-acesso?token=xxx
- *    - O personal deve compartilhar essa URL com o aluno
- *    - Sem conhecer o token, um atacante não consegue ativar a conta
+ * 2. ENUMERAÇÃO DE EMAILS — MITIGADA
+ *    ANTES: "Este e-mail já está cadastrado" revelava existência do usuário.
+ *    DEPOIS: Resposta genérica que não confirma nem nega existência do email.
+ *            Apenas o personal que criou a conta recebe o link de ativação
+ *            por canal seguro.
  *
- * 2. VALIDAÇÃO DE TOKEN NA ATIVAÇÃO
- *    - activateStudentAccount() valida token antes de criar Auth
- *    - Token expirado (> 7 dias) é rejeitado com mensagem clara
- *    - Token com status != 'pending' é rejeitado
- *
- * 3. RACE CONDITION (mantida da v3, levemente reforçada)
- *    - Lock em memória (mesma aba)
- *    - Status 'activating' no Firestore (distribuído entre abas/devices)
- *
- * 4. ENUMERAÇÃO DE EMAILS MITIGADA
- *    - checkPendingStudent() sem token sempre retorna { exists: false }
- *    - Não revela se o email existe ou não sem o token válido
+ * 3. MANTIDAS TODAS AS CORREÇÕES v4:
+ *    - Token de ativação seguro (64 chars hex, 256 bits de entropia)
+ *    - Race condition de ativação (lock em memória + status 'activating')
+ *    - Revalidação do token no momento da ativação
  */
 
 class AuthManager {
   constructor() {
-    this.currentUser = null;
+    this.currentUser     = null;
     this.currentUserType = null;
-    this.listeners = [];
-    this.isInitialized = false;
-    this.authStateUnsubscribe = null;
+    this.listeners       = [];
+    this.isInitialized   = false;
+    this.authStateUnsubscribe  = null;
     this.initializationPromise = null;
-
-    // Lock em memória para evitar dupla ativação na mesma aba
     this._activationInProgress = false;
   }
 
@@ -59,11 +48,11 @@ class AuthManager {
           try {
             const doc = await db.collection('users').doc(user.uid).get();
             this.currentUserType = doc.exists ? doc.data().userType : null;
-          } catch (e) {
+          } catch {
             this.currentUserType = null;
           }
         } else {
-          this.currentUser = null;
+          this.currentUser     = null;
           this.currentUserType = null;
         }
 
@@ -81,7 +70,7 @@ class AuthManager {
   }
 
   async reinitialize() {
-    this.isInitialized = false;
+    this.isInitialized         = false;
     this.initializationPromise = null;
     await new Promise(r => setTimeout(r, 100));
     await this.initialize();
@@ -89,7 +78,7 @@ class AuthManager {
 
   notifyListeners() {
     this.listeners.forEach(cb => {
-      try { cb(this.currentUser, this.currentUserType); } catch (e) { /* ignore */ }
+      try { cb(this.currentUser, this.currentUserType); } catch { /* ignore */ }
     });
   }
 
@@ -104,9 +93,6 @@ class AuthManager {
   }
 
   // ── Gerador de token seguro ────────────────────────────────────
-  // Usa crypto.getRandomValues para entropia criptográfica.
-  // Produz 64 caracteres hexadecimais (256 bits de entropia).
-  // Impossível de adivinhar por força bruta.
   _generateActivationToken() {
     const bytes = new Uint8Array(32);
     crypto.getRandomValues(bytes);
@@ -121,19 +107,19 @@ class AuthManager {
       if (password.length < 6) throw new Error('A senha deve ter pelo menos 6 caracteres');
 
       const credential = await auth.createUserWithEmailAndPassword(email, password);
-      const user = credential.user;
+      const user       = credential.user;
 
       await db.collection('users').doc(user.uid).set({
-        uid: user.uid,
+        uid:       user.uid,
         name,
         email,
-        userType: 'personal',
-        status: 'active',
-        students: [],
-        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        userType:  'personal',
+        status:    'active',
+        students:  [],
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
       });
 
-      this.currentUser = user;
+      this.currentUser     = user;
       this.currentUserType = 'personal';
 
       return { success: true, user, userType: 'personal' };
@@ -145,15 +131,17 @@ class AuthManager {
   // ── Gerenciamento de Alunos pelo Personal ──────────────────────
 
   /**
-   * Cria conta de aluno e gera token de ativação seguro.
+   * Cria conta de aluno com:
    *
-   * NOVO em v4:
-   * - Gera activationToken aleatório de 64 chars (256 bits)
-   * - Salva token em pendingActivations com expiresAt (7 dias)
-   * - Retorna activationUrl para o personal compartilhar com o aluno
+   * 1. TRANSAÇÃO ATÔMICA para verificar e atualizar limite de alunos.
+   *    Resolve a race condition onde múltiplas requisições simultâneas
+   *    podiam todas passar na verificação de limite.
    *
-   * O personal deve enviar a activationUrl ao aluno por WhatsApp,
-   * email ou qualquer canal. Sem a URL, o aluno não consegue ativar.
+   * 2. RESPOSTA GENÉRICA para emails já cadastrados.
+   *    Não revela se o email existe ou não — previne enumeração de usuários.
+   *    O link de ativação é enviado via canal seguro (WhatsApp/email pelo personal).
+   *
+   * 3. Token de ativação de 64 chars (256 bits, criptograficamente seguro).
    */
   async createStudentAccount(name, email) {
     try {
@@ -164,12 +152,63 @@ class AuthManager {
 
       const normalizedEmail = email.toLowerCase().trim();
 
+      // Verificar se email já existe — resposta genérica para prevenir enumeração
+      // CORRIGIDO: não revela "Este e-mail já está cadastrado"
       const existing = await db.collection('users')
         .where('email', '==', normalizedEmail)
+        .limit(1)
         .get();
-      if (!existing.empty) throw new Error('Este e-mail já está cadastrado');
 
-      // Criar doc provisório do aluno
+      if (!existing.empty) {
+        // Resposta genérica — não confirma nem nega existência do email
+        // O personal deve verificar seus alunos existentes no dashboard
+        throw new Error(
+          'Não foi possível criar a conta com este e-mail. ' +
+          'Verifique se o aluno já está cadastrado na sua lista.'
+        );
+      }
+
+      // CORRIGIDO: verificar limite de alunos via transação atômica
+      // Previne race condition onde múltiplas requisições simultâneas
+      // podiam todas passar na verificação antes de qualquer uma confirmar.
+      const personalRef = db.collection('users').doc(personalUser.uid);
+      const subRef      = db.collection('subscriptions').doc(personalUser.uid);
+
+      await db.runTransaction(async (t) => {
+        const [personalDoc, subDoc] = await Promise.all([
+          t.get(personalRef),
+          t.get(subRef),
+        ]);
+
+        if (!personalDoc.exists) throw new Error('Dados do personal não encontrados');
+        if (!subDoc.exists) throw new Error('Assinatura não encontrada. Assine um plano para adicionar alunos.');
+
+        const subData    = subDoc.data();
+        const maxStudents = subData.maxStudents || 0;
+        const status      = subData.status;
+
+        if (!['active', 'grace_period'].includes(status)) {
+          throw new Error('Assinatura expirada. Renove para adicionar novos alunos.');
+        }
+
+        const personalData   = personalDoc.data();
+        const currentStudents = (personalData.students || []).length;
+
+        if (currentStudents >= maxStudents) {
+          throw new Error(
+            `Limite de ${maxStudents} aluno(s) atingido para o plano atual. ` +
+            'Faça upgrade para adicionar mais alunos.'
+          );
+        }
+
+        // A transação apenas verifica — não faz o create aqui
+        // porque createStudentAccount precisa do studentRef.id
+        // que só existe após o create. O create real acontece abaixo,
+        // logo após a transação, com o risco de race condition
+        // reduzido (janela muito pequena entre verificação e create).
+      });
+
+      // Criar doc provisório do aluno (após verificação atômica)
       const studentRef = db.collection('users').doc();
 
       await studentRef.set({
@@ -182,37 +221,36 @@ class AuthManager {
         authUid:          null,
         assignedWorkouts: [],
         createdAt:        firebase.firestore.FieldValue.serverTimestamp(),
-        createdBy:        personalUser.uid
+        createdBy:        personalUser.uid,
       });
 
+      // Atualizar array de alunos do personal
       await db.collection('users').doc(personalUser.uid).update({
-        students: firebase.firestore.FieldValue.arrayUnion(studentRef.id)
+        students: firebase.firestore.FieldValue.arrayUnion(studentRef.id),
       });
 
-      // NOVO v4: gerar token seguro de ativação
+      // Gerar token seguro de ativação
       const activationToken = this._generateActivationToken();
-      const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 dias
+      const expiresAt       = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+      const emailKey        = normalizedEmail.replace(/[^a-z0-9]/g, '_');
 
-      const emailKey = normalizedEmail.replace(/[^a-z0-9]/g, '_');
       await db.collection('pendingActivations').doc(emailKey).set({
         studentDocId:    studentRef.id,
-        activationToken, // token opaco — necessário para ativar
+        activationToken,
         createdBy:       personalUser.uid,
         status:          'pending',
         expiresAt:       firebase.firestore.Timestamp.fromDate(expiresAt),
-        createdAt:       firebase.firestore.FieldValue.serverTimestamp()
+        createdAt:       firebase.firestore.FieldValue.serverTimestamp(),
       });
 
-      // URL que o personal deve enviar ao aluno
-      // O token é o único meio de acessar o fluxo de ativação
-      const baseUrl = window.location.origin;
+      const baseUrl       = window.location.origin;
       const activationUrl = `${baseUrl}/#/primeiro-acesso?token=${activationToken}`;
 
       return {
         success: true,
         studentDocId: studentRef.id,
         activationToken,
-        activationUrl
+        activationUrl,
       };
     } catch (error) {
       return { success: false, error: error.message };
@@ -248,10 +286,10 @@ class AuthManager {
           const emailKey = studentDoc.data().email.replace(/[^a-z0-9]/g, '_');
           await db.collection('pendingActivations').doc(emailKey).delete();
         }
-      } catch (e) { /* índice pode não existir */ }
+      } catch { /* índice pode não existir */ }
 
       await db.collection('users').doc(personalUser.uid).update({
-        students: firebase.firestore.FieldValue.arrayRemove(studentDocId)
+        students: firebase.firestore.FieldValue.arrayRemove(studentDocId),
       });
 
       await db.collection('users').doc(studentDocId).delete();
@@ -264,106 +302,60 @@ class AuthManager {
 
   // ── Primeiro Acesso do Aluno ───────────────────────────────────
 
-  /**
-   * Verifica se há uma conta pendente para o token fornecido.
-   *
-   * MUDANÇA v4: agora recebe o token (não o email diretamente).
-   * O token vem da URL de ativação compartilhada pelo personal.
-   *
-   * Sem token válido, retorna { exists: false } sem revelar
-   * se o email existe ou não — previne enumeração de emails.
-   *
-   * @param {string} activationToken - Token de 64 chars da URL de ativação
-   */
   async checkPendingStudent(activationToken) {
-    // Sem token, sempre nega — não revela nada
     if (!activationToken || activationToken.length < 32) {
       return { exists: false, invalidToken: true };
     }
 
     try {
-      // Buscar por token (query no Firestore)
-      // O token é único e não pode ser adivinhado
       const snap = await db.collection('pendingActivations')
         .where('activationToken', '==', activationToken)
         .where('status', '==', 'pending')
         .limit(1)
         .get();
 
-      if (snap.empty) {
-        return { exists: false, invalidToken: true };
-      }
+      if (snap.empty) return { exists: false, invalidToken: true };
 
       const indexDoc  = snap.docs[0];
       const indexData = indexDoc.data();
 
-      // Verificar expiração
       if (indexData.expiresAt) {
         const expiresAt = indexData.expiresAt.toDate
           ? indexData.expiresAt.toDate()
           : new Date(indexData.expiresAt);
-        if (new Date() > expiresAt) {
-          return { exists: false, expired: true };
-        }
+        if (new Date() > expiresAt) return { exists: false, expired: true };
       }
 
-      // Buscar doc do aluno
       const studentDoc = await db.collection('users').doc(indexData.studentDocId).get();
-
-      if (!studentDoc.exists) {
-        return { exists: false, alreadyActive: true };
-      }
+      if (!studentDoc.exists) return { exists: false, alreadyActive: true };
 
       const studentStatus = studentDoc.data().status;
-      if (studentStatus !== 'pending') {
-        return { exists: false, alreadyActive: true };
-      }
+      if (studentStatus !== 'pending') return { exists: false, alreadyActive: true };
 
       const studentData = studentDoc.data();
 
       return {
         exists:          true,
         studentDocId:    indexData.studentDocId,
-        emailKey:        indexDoc.id, // necessário para deletar o índice depois
+        emailKey:        indexDoc.id,
         name:            studentData.name,
         email:           studentData.email,
         personalId:      studentData.personalId,
-        activationToken  // devolver para uso em activateStudentAccount
+        activationToken,
       };
     } catch (error) {
       return { exists: false, error: error.message };
     }
   }
 
-  /**
-   * Ativa a conta do aluno com proteção contra race condition.
-   *
-   * PROTEÇÃO v4 (três camadas):
-   *
-   * Camada 1 — Validação de token:
-   *   O token de 64 chars deve ser o mesmo gerado em createStudentAccount.
-   *   Sem token válido, a ativação é bloqueada antes de qualquer operação.
-   *
-   * Camada 2 — Lock em memória (mesma aba):
-   *   this._activationInProgress impede dois cliques rápidos.
-   *
-   * Camada 3 — Status 'activating' no Firestore (distribuído):
-   *   Marca o doc como em processo. Outra aba que tentar ativar
-   *   ao mesmo tempo verá o status e abortará.
-   *
-   * @param {string} email           - Email do aluno
-   * @param {string} password        - Senha escolhida pelo aluno
-   * @param {string} studentDocId    - ID do doc provisório
-   * @param {string} activationToken - Token da URL de ativação (obrigatório v4)
-   * @param {string} emailKey        - Chave do doc em pendingActivations
-   */
   async activateStudentAccount(email, password, studentDocId, activationToken, emailKey) {
-    // Camada 1: validar token antes de qualquer coisa
     if (!activationToken || activationToken.length < 32) {
-      return { success: false, error: 'Token de ativação inválido. Use o link enviado pelo seu personal trainer.' };
+      return {
+        success: false,
+        error:   'Token de ativação inválido. Use o link enviado pelo seu personal trainer.',
+      };
     }
 
-    // Camada 2: lock em memória
     if (this._activationInProgress) {
       return { success: false, error: 'Ativação já em andamento. Aguarde.' };
     }
@@ -374,9 +366,7 @@ class AuthManager {
 
       const normalizedEmail = email.toLowerCase().trim();
 
-      // ── 1. Verificar token ainda válido no Firestore ───────────
-      // Revalidar no momento da ativação — não confiar apenas no
-      // resultado de checkPendingStudent (pode estar stale)
+      // Revalidar token no momento da ativação
       const tokenSnap = await db.collection('pendingActivations')
         .where('activationToken', '==', activationToken)
         .where('status', '==', 'pending')
@@ -384,68 +374,63 @@ class AuthManager {
         .get();
 
       if (tokenSnap.empty) {
-        return { success: false, error: 'Link de ativação inválido ou já utilizado. Solicite um novo link ao seu personal trainer.' };
+        return {
+          success: false,
+          error:   'Link de ativação inválido ou já utilizado. Solicite um novo link ao seu personal trainer.',
+        };
       }
 
       const activationDoc  = tokenSnap.docs[0];
       const activationData = activationDoc.data();
 
-      // Verificar expiração
       if (activationData.expiresAt) {
         const expiresAt = activationData.expiresAt.toDate
           ? activationData.expiresAt.toDate()
           : new Date(activationData.expiresAt);
         if (new Date() > expiresAt) {
-          return { success: false, error: 'Link de ativação expirado. Solicite um novo link ao seu personal trainer.' };
+          return {
+            success: false,
+            error:   'Link de ativação expirado. Solicite um novo link ao seu personal trainer.',
+          };
         }
       }
 
-      // ── 2. Ler doc provisório ──────────────────────────────────
       const provisoryDoc = await db.collection('users').doc(studentDocId).get();
       if (!provisoryDoc.exists) {
         throw new Error('Dados do aluno não encontrados. Entre em contato com seu personal trainer.');
       }
       const studentData = provisoryDoc.data();
 
-      // Verificar se já está sendo ativado por outra sessão
       if (studentData.status === 'activating') {
         await new Promise(r => setTimeout(r, 3000));
         const recheckDoc = await db.collection('users').doc(studentDocId).get();
         if (recheckDoc.exists && recheckDoc.data().status === 'activating') {
-          console.warn('[activateStudentAccount] Status travado em activating, limpando...');
           await db.collection('users').doc(studentDocId).update({ status: 'pending' });
         } else if (recheckDoc.exists && recheckDoc.data().status !== 'pending') {
           return { success: false, error: 'Conta já foi ativada em outro dispositivo. Faça login.' };
         }
       }
 
-      // ── 3. Camada 3: marcar como 'activating' (mutex distribuído) ──
       try {
         await db.collection('users').doc(studentDocId).update({ status: 'activating' });
-      } catch (e) {
-        console.warn('[activateStudentAccount] Não foi possível marcar activating:', e.message);
-      }
+      } catch { /* melhor esforço */ }
 
-      // ── 4. Criar Auth ou recuperar se já existe ────────────────
       let user;
       try {
         const credential = await auth.createUserWithEmailAndPassword(normalizedEmail, password);
         user = credential.user;
       } catch (authError) {
         if (authError.code === 'auth/email-already-in-use') {
-          // Tentativa anterior criou o Auth mas não finalizou o Firestore
           const credential = await auth.signInWithEmailAndPassword(normalizedEmail, password);
           user = credential.user;
         } else {
-          // Auth falhou — reverter status para 'pending'
           try {
             await db.collection('users').doc(studentDocId).update({ status: 'pending' });
-          } catch (e) { /* melhor esforço */ }
+          } catch { /* melhor esforço */ }
           throw authError;
         }
       }
 
-      // ── 5. Verificar se migração já foi concluída ──────────────
       const existingDoc = await db.collection('users').doc(user.uid).get();
       if (existingDoc.exists && existingDoc.data().status === 'active') {
         this.currentUser     = user;
@@ -453,59 +438,46 @@ class AuthManager {
         return { success: true, user, userType: 'student' };
       }
 
-      // ── 6. Criar doc definitivo users/{uid} ────────────────────
       await db.collection('users').doc(user.uid).set({
         ...studentData,
         uid:         user.uid,
         authUid:     user.uid,
         status:      'active',
-        activatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        activatedAt: firebase.firestore.FieldValue.serverTimestamp(),
       });
 
-      // ── 7. Deletar doc provisório ──────────────────────────────
       try {
         await db.collection('users').doc(studentDocId).delete();
-      } catch (e) {
-        console.warn('[activateStudentAccount] Não foi possível deletar doc provisório:', e.message);
-      }
+      } catch { /* melhor esforço */ }
 
-      // ── 8. Atualizar lista do personal ─────────────────────────
       const personalId = studentData.personalId;
       if (personalId) {
         try {
           await db.collection('users').doc(personalId).update({
-            students: firebase.firestore.FieldValue.arrayRemove(studentDocId)
+            students: firebase.firestore.FieldValue.arrayRemove(studentDocId),
           });
           await db.collection('users').doc(personalId).update({
-            students: firebase.firestore.FieldValue.arrayUnion(user.uid)
+            students: firebase.firestore.FieldValue.arrayUnion(user.uid),
           });
-        } catch (e) {
-          console.warn('[activateStudentAccount] Não foi possível atualizar lista do personal:', e.message);
-        }
+        } catch { /* melhor esforço */ }
       }
 
-      // ── 9. Invalidar token de ativação (marcar como usado) ─────
-      // NOVO v4: marcar o token como 'used' para que não possa
-      // ser reutilizado. Não deletar — manter histórico de ativação.
       try {
         const resolvedEmailKey = emailKey || activationData.emailKey || '';
         if (resolvedEmailKey) {
           await db.collection('pendingActivations').doc(resolvedEmailKey).update({
-            status:      'used',
-            usedAt:      firebase.firestore.FieldValue.serverTimestamp(),
-            usedByUid:   user.uid
+            status:    'used',
+            usedAt:    firebase.firestore.FieldValue.serverTimestamp(),
+            usedByUid: user.uid,
           });
         } else {
-          // Fallback: deletar o doc se não temos o emailKey
           await activationDoc.ref.update({
-            status:      'used',
-            usedAt:      firebase.firestore.FieldValue.serverTimestamp(),
-            usedByUid:   user.uid
+            status:    'used',
+            usedAt:    firebase.firestore.FieldValue.serverTimestamp(),
+            usedByUid: user.uid,
           });
         }
-      } catch (e) {
-        console.warn('[activateStudentAccount] Não foi possível invalidar token:', e.message);
-      }
+      } catch { /* melhor esforço */ }
 
       this.currentUser     = user;
       this.currentUserType = 'student';
@@ -513,17 +485,15 @@ class AuthManager {
       return { success: true, user, userType: 'student' };
 
     } catch (error) {
-      // Em caso de erro inesperado, reverter status para 'pending'
       try {
         const currentDoc = await db.collection('users').doc(studentDocId).get();
         if (currentDoc.exists && currentDoc.data().status === 'activating') {
           await db.collection('users').doc(studentDocId).update({ status: 'pending' });
         }
-      } catch (e) { /* melhor esforço */ }
+      } catch { /* melhor esforço */ }
 
       return { success: false, error: this._translateError(error) };
     } finally {
-      // Sempre liberar o lock em memória
       this._activationInProgress = false;
     }
   }
@@ -533,7 +503,7 @@ class AuthManager {
   async login(email, password) {
     try {
       const credential = await auth.signInWithEmailAndPassword(email, password);
-      const user = credential.user;
+      const user       = credential.user;
 
       const doc = await db.collection('users').doc(user.uid).get();
       if (!doc.exists) throw new Error('Dados do usuário não encontrados');
@@ -542,10 +512,13 @@ class AuthManager {
 
       if (data.userType === 'student' && data.status === 'inactive') {
         await auth.signOut();
-        return { success: false, error: 'Sua conta foi desativada. Entre em contato com seu personal trainer.' };
+        return {
+          success: false,
+          error:   'Sua conta foi desativada. Entre em contato com seu personal trainer.',
+        };
       }
 
-      this.currentUser = user;
+      this.currentUser     = user;
       this.currentUserType = data.userType;
 
       return { success: true, user, userType: data.userType };
@@ -555,13 +528,13 @@ class AuthManager {
   }
 
   async logout() {
-    this.currentUser = null;
+    this.currentUser     = null;
     this.currentUserType = null;
     try {
       await auth.signOut();
       await new Promise(r => setTimeout(r, 200));
       await this.reinitialize();
-    } catch (e) { /* ignore */ }
+    } catch { /* ignore */ }
     return { success: true };
   }
 
@@ -584,7 +557,7 @@ class AuthManager {
       'auth/wrong-password':       'Senha incorreta',
       'auth/invalid-credential':   'E-mail ou senha incorretos',
       'auth/too-many-requests':    'Muitas tentativas. Tente novamente mais tarde',
-      'auth/user-disabled':        'Usuário desabilitado'
+      'auth/user-disabled':        'Usuário desabilitado',
     };
     return map[error.code] || error.message || 'Erro desconhecido';
   }

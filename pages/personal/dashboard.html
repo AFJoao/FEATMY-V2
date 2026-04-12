@@ -40,7 +40,6 @@
       .header-badge { display: none !important; }
       .dash-header-inner { padding: 0 16px !important; }
       .nav-label { display: none !important; }
-      .nav-icon-only { display: flex !important; }
       .nav-link { padding: 8px !important; min-width: 38px; justify-content: center; }
       .nav-link-accent { padding: 8px 10px !important; font-size: 0 !important; min-width: 38px; justify-content: center; gap: 0 !important; }
       .nav-link-accent svg { display: block !important; }
@@ -53,7 +52,6 @@
       .modal-box { padding: 24px !important; border-radius: 16px !important; }
     }
     .nav-label { display: inline; }
-    .nav-icon-only { display: none; }
   </style>
 
   <!-- HEADER -->
@@ -77,10 +75,7 @@
           <span class="nav-label">Feedbacks</span>
         </a>
         <a href="#/personal/billing" class="nav-link" title="Assinatura">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <rect x="1" y="4" width="22" height="16" rx="2" ry="2"/>
-            <line x1="1" y1="10" x2="23" y2="10"/>
-          </svg>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
           <span class="nav-label">Assinatura</span>
         </a>
         <button id="logoutBtn" class="nav-link" style="border: 1px solid rgba(255,255,255,0.14);" title="Sair">
@@ -93,10 +88,11 @@
 
   <!-- MAIN -->
   <main class="dash-main" style="max-width: 1200px; margin: 0 auto; padding: 40px 32px 60px;">
-
     <div style="margin-bottom: 36px;">
       <p style="color: #9CA3AF; font-size: 0.8rem; font-weight: 600; margin: 0 0 6px; letter-spacing: 0.05em; text-transform: uppercase;">Bem-vindo de volta</p>
-      <h1 class="dash-title" style="font-size: 2rem; font-weight: 800; color: #0A0A0A; margin: 0; letter-spacing: -0.03em;">Olá, <span id="personalName">...</span> 👋</h1>
+      <h1 class="dash-title" style="font-size: 2rem; font-weight: 800; color: #0A0A0A; margin: 0; letter-spacing: -0.03em;">
+        Olá, <span id="personalName">...</span> 👋
+      </h1>
     </div>
 
     <div class="students-toolbar" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
@@ -105,7 +101,9 @@
         <span id="studentsCount" style="background: #F4F4F4; color: #6B7280; font-size: 0.75rem; font-weight: 700; padding: 3px 10px; border-radius: 20px;">0</span>
       </div>
       <div class="students-toolbar-right" style="display: flex; gap: 8px;">
-        <button id="reloadBtn" style="background: #F4F4F4; border: none; color: #6B7280; padding: 9px 16px; border-radius: 8px; font-size: 0.8rem; font-weight: 600; cursor: pointer; font-family: inherit; display:flex; align-items:center; gap:6px;" onmouseover="this.style.background='#EBEBEB'" onmouseout="this.style.background='#F4F4F4'">
+        <button id="reloadBtn"
+          style="background: #F4F4F4; border: none; color: #6B7280; padding: 9px 16px; border-radius: 8px; font-size: 0.8rem; font-weight: 600; cursor: pointer; font-family: inherit; display:flex; align-items:center; gap:6px;"
+          onmouseover="this.style.background='#EBEBEB'" onmouseout="this.style.background='#F4F4F4'">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
           <span class="nav-label">Atualizar</span>
         </button>
@@ -117,7 +115,6 @@
     </div>
 
     <div id="studentsList" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px;"></div>
-
   </main>
 
   <!-- MODAL -->
@@ -146,477 +143,5 @@
       </div>
     </div>
   </div>
-
 </div>
-
-<script>
-(async function() {
-
-  await new Promise(r => setTimeout(r, 120));
-
-  // ── Sanitização XSS ────────────────────────────────────────────
-  // Dados de alunos (nome, email) vindos do Firestore são escapados antes
-  // de serem interpolados em innerHTML para prevenir XSS armazenado.
-  const esc = window.esc || function(v) {
-    if (v === null || v === undefined) return '';
-    return String(v)
-      .replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#x27;')
-      .replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\//g, '&#x2F;');
-  };
-
-  document.getElementById('logoutBtn').onclick = async () => {
-    await authManager.logout();
-    router.goToLogin();
-  };
-
-  // Exibe nome do personal usando textContent (sem risco XSS)
-  dbManager.getCurrentUserData().then(d => {
-    const nameEl = document.getElementById('personalName');
-    if (nameEl) nameEl.textContent = d?.name || 'Personal';
-  });
-
-  const overlay  = document.getElementById('modalOverlay');
-  const modalErr = document.getElementById('modalError');
-
-  const openModal = () => {
-    document.getElementById('newStudentName').value  = '';
-    document.getElementById('newStudentEmail').value = '';
-    modalErr.style.display = 'none';
-    overlay.classList.add('open');
-    setTimeout(() => document.getElementById('newStudentName').focus(), 150);
-  };
-  const closeModal = () => overlay.classList.remove('open');
-
-  document.getElementById('addStudentBtn').onclick = openModal;
-  document.getElementById('closeModal').onclick    = closeModal;
-  overlay.addEventListener('click', e => { if (e.target === overlay) closeModal(); });
-
-  /**
- * PATCH — pages/personal/dashboard.html
- *
- * Substitua o bloco do botão "createStudentBtn" no dashboard.html
- * pelo código abaixo. A única mudança é no handler de createStudentBtn:
- * agora exibe a activationUrl após criar o aluno, para o personal
- * copiar e enviar ao aluno.
- *
- * Localizar no dashboard.html original:
- *   document.getElementById('createStudentBtn').onclick = async () => {
- *
- * Substituir APENAS o bloco onclick completo pelo código abaixo.
- */
-
-document.getElementById('createStudentBtn').onclick = async () => {
-  const name  = document.getElementById('newStudentName').value.trim();
-  const email = document.getElementById('newStudentEmail').value.trim();
-  const btn   = document.getElementById('createStudentBtn');
-
-  modalErr.style.display = 'none';
-  if (!name || !email) {
-    modalErr.textContent   = 'Preencha nome e e-mail.';
-    modalErr.style.display = 'block';
-    return;
-  }
-
-  btn.textContent = 'Criando...';
-  btn.disabled    = true;
-
-  const result = await authManager.createStudentAccount(name, email);
-
-  if (result.success) {
-    // NOVO v4: mostrar URL de ativação para o personal copiar
-    // O modal é substituído pela tela de URL ao invés de fechar direto
-    const modalBox = document.querySelector('#modalOverlay .modal-box');
-    if (modalBox) {
-      modalBox.innerHTML = `
-        <div>
-          <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;">
-            <div style="width:40px;height:40px;background:#00E676;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0A0A0A" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-            </div>
-            <div>
-              <h3 style="font-size:1rem;font-weight:800;color:#0A0A0A;margin:0 0 2px;">Aluno criado!</h3>
-              <p style="font-size:0.78rem;color:#9CA3AF;margin:0;">Envie o link abaixo para ${window.esc ? window.esc(name) : name} ativar a conta</p>
-            </div>
-          </div>
-
-          <div style="background:#F8F9FA;border:1px solid #EBEBEB;border-radius:12px;padding:14px 16px;margin-bottom:16px;">
-            <p style="font-size:0.7rem;font-weight:700;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.06em;margin:0 0 8px;">Link de primeiro acesso</p>
-            <p style="font-size:0.78rem;color:#374151;word-break:break-all;margin:0 0 10px;line-height:1.5;font-family:'DM Mono',monospace;background:#fff;padding:10px;border-radius:8px;border:1px solid #EBEBEB;" id="activationUrlText">
-              ${result.activationUrl}
-            </p>
-            <button id="copyActivationUrl"
-              style="width:100%;padding:9px;background:#0A0A0A;color:#fff;border:none;border-radius:8px;font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:6px;transition:all 0.2s;">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-              Copiar link
-            </button>
-          </div>
-
-          <div style="background:#FFFBEB;border:1px solid #FDE68A;border-radius:10px;padding:11px 14px;margin-bottom:16px;">
-            <p style="font-size:0.78rem;color:#92400E;margin:0;line-height:1.5;">
-              <strong>⚠️ Importante:</strong> Este link é válido por 7 dias e deve ser enviado
-              diretamente ao aluno por WhatsApp, e-mail ou outro canal seguro.
-              Não compartilhe publicamente.
-            </p>
-          </div>
-
-          <button id="closeActivationModal"
-            style="width:100%;padding:12px;background:#F4F4F4;border:none;border-radius:10px;font-size:0.875rem;font-weight:600;color:#374151;cursor:pointer;font-family:inherit;">
-            Fechar e atualizar lista
-          </button>
-        </div>
-      `;
-
-      document.getElementById('copyActivationUrl').onclick = async () => {
-        try {
-          await navigator.clipboard.writeText(result.activationUrl);
-          const copyBtn = document.getElementById('copyActivationUrl');
-          copyBtn.innerHTML = '✓ Copiado!';
-          copyBtn.style.background = '#059669';
-          setTimeout(() => {
-            copyBtn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copiar link';
-            copyBtn.style.background = '#0A0A0A';
-          }, 3000);
-        } catch (e) {
-          // Fallback: selecionar o texto
-          const urlEl = document.getElementById('activationUrlText');
-          if (urlEl) {
-            const range = document.createRange();
-            range.selectNodeContents(urlEl);
-            window.getSelection().removeAllRanges();
-            window.getSelection().addRange(range);
-          }
-        }
-      };
-
-      document.getElementById('closeActivationModal').onclick = async () => {
-        closeModal();
-        await loadStudents();
-      };
-    }
-  } else {
-    modalErr.textContent   = result.error || 'Erro ao criar aluno.';
-    modalErr.style.display = 'block';
-    btn.textContent        = 'Criar conta do aluno';
-    btn.disabled           = false;
-  }
-};
-
-  document.getElementById('reloadBtn').onclick = loadStudents;
-
-async function regenerateActivationLink(studentDocId, studentEmail) {
-  // Gerar novo token seguro — mesma lógica do createStudentAccount
-  const bytes = new Uint8Array(32);
-  crypto.getRandomValues(bytes);
-  const newToken  = Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
-  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 dias
-  const emailKey  = studentEmail.toLowerCase().replace(/[^a-z0-9]/g, '_');
- 
-  await db.collection('pendingActivations').doc(emailKey).set({
-    studentDocId,
-    activationToken: newToken,
-    createdBy:       authManager.getCurrentUser().uid,
-    status:          'pending',
-    expiresAt:       firebase.firestore.Timestamp.fromDate(expiresAt),
-    updatedAt:       firebase.firestore.FieldValue.serverTimestamp()
-  }, { merge: true }); // merge para não sobrescrever createdAt original
- 
-  return `${window.location.origin}/#/primeiro-acesso?token=${newToken}`;
-}
-
-  async function loadStudents() {
-    const list = document.getElementById('studentsList');
-    list.innerHTML = `
-      <div style="grid-column:1/-1;text-align:center;padding:60px 20px;">
-        <div class="spinner" style="margin:0 auto 14px;"></div>
-        <p style="color:#9CA3AF;font-size:0.875rem;margin:0;">Carregando...</p>
-      </div>`;
-
-    const students = await dbManager.getMyStudents();
-    document.getElementById('studentsCount').textContent = students.length;
-
-    if (students.length === 0) {
-      list.innerHTML = `
-        <div style="grid-column:1/-1;padding:48px 32px;background:#FAFAFA;border-radius:16px;border:2px dashed #E5E7EB;text-align:center;">
-          <div style="width:48px;height:48px;background:#F4F4F4;border-radius:12px;margin:0 auto 14px;display:flex;align-items:center;justify-content:center;">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-          </div>
-          <p style="font-size:1rem;font-weight:600;color:#374151;margin:0 0 6px;">Nenhum aluno ainda</p>
-          <p style="font-size:0.85rem;color:#9CA3AF;margin:0;">Adicione seu primeiro aluno pelo botão acima</p>
-        </div>`;
-      return;
-    }
-
-    list.innerHTML = '';
-    students.forEach(st => {
-      const status   = st.status || 'active';
-      const isActive = status === 'active';
-
-      // ✅ CORRIGIDO XSS: initials calculado de st.name (usado via textContent implícito nas iniciais)
-      // As iniciais são apenas letras A-Z, sem risco. Mas st.name e st.email são escapados abaixo.
-      const initials = (st.name || 'A').split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
-        .replace(/[^A-Z]/g, '');
-
-      const badgeClass = { active: 'badge-active', pending: 'badge-pending', inactive: 'badge-inactive' }[status] || 'badge-inactive';
-      const badgeLabel = { active: 'Ativo', pending: 'Pendente', inactive: 'Inativo' }[status] || status;
-
-      const card = document.createElement('div');
-      card.className = `student-card${isActive ? ' clickable' : ''}`;
-
-      // ✅ CORRIGIDO XSS: st.name e st.email escapados com esc()
-      // st.uid é um ID gerado pelo Firebase — apenas alfanumérico, sem risco real,
-      // mas mantemos esc() por consistência de política.
-      card.innerHTML = `
-  <div class="card-body">
-    <div style="display:flex;align-items:center;gap:14px;">
-      <div style="width:42px;height:42px;background:#0A0A0A;border-radius:11px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-        <span style="color:#00E676;font-size:0.85rem;font-weight:700;">${esc(initials)}</span>
-      </div>
-      <div style="flex:1;min-width:0;">
-        <p style="font-weight:700;font-size:0.95rem;color:#0A0A0A;margin:0 0 2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(st.name)}</p>
-        <p style="font-size:0.78rem;color:#9CA3AF;margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(st.email)}</p>
-      </div>
-      <span class="badge ${badgeClass}">${esc(badgeLabel)}</span>
-    </div>
-    ${status === 'pending'
-      ? `<p style="font-size:0.74rem;color:#9CA3AF;margin:10px 0 0;display:flex;align-items:center;gap:5px;">
-           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-           Aguardando primeiro acesso
-         </p>`
-      : ''}
-  </div>
-  <div class="card-footer">
-    ${isActive
-      ? `<button class="card-action" data-action="deactivate" data-id="${esc(st.uid)}" data-name="${esc(st.name)}" style="background:#FFFBEB;color:#92400E;">Desativar</button>`
-      : ''}
-    ${status === 'inactive'
-      ? `<button class="card-action" data-action="reactivate" data-id="${esc(st.uid)}" style="background:#ECFDF5;color:#047857;">Reativar</button>`
-      : ''}
- 
-    ${/* NOVO: botão Reenviar link — só aparece para alunos pendentes */ ''}
-    ${status === 'pending'
-      ? `<button class="card-action" data-action="resend" data-id="${esc(st.uid)}" data-email="${esc(st.email)}" data-name="${esc(st.name)}"
-           style="background:#EFF6FF;color:#1D4ED8;">
-           🔗 Reenviar link
-         </button>`
-      : ''}
- 
-    <button class="card-action" data-action="delete" data-id="${esc(st.uid)}" data-name="${esc(st.name)}" style="background:#FFF1F2;color:#DC2626;margin-left:auto;">Excluir</button>
-  </div>
-`;
-
-      if (isActive) {
-        card.querySelector('.card-body').onclick = () => router.goTo(`/personal/student/${st.uid}`);
-      }
-
-      list.appendChild(card);
-    });
-
-    document.querySelectorAll('[data-action]').forEach(btn => {
-      btn.onclick = async (e) => {
-        e.stopPropagation();
-        const { action, id, name } = btn.dataset;
-
-        if (action === 'deactivate') {
-          if (!confirm(`Desativar ${name}? O aluno não conseguirá mais fazer login.`)) return;
-        } else if (action === 'delete') {
-          if (!confirm(`Excluir permanentemente ${name}? Esta ação não pode ser desfeita.`)) return;
-        }
-
-        /**
- * PATCH — pages/personal/dashboard.html
- * Item 5: Botão "Reenviar link" para alunos pendentes
- *
- * COMO APLICAR:
- * No dashboard.html, dentro da função loadStudents(), localize o trecho
- * que monta o card do aluno (card.innerHTML = `...`) e substitua
- * o bloco da card-footer pelo código abaixo.
- *
- * Também adicione a função regenerateActivationLink() antes do loadStudents().
- */
-
-// ── 1. ADICIONAR ESTA FUNÇÃO antes de loadStudents() ──────────────
-
-async function regenerateActivationLink(studentDocId, studentEmail) {
-  // Gerar novo token seguro — mesma lógica do createStudentAccount
-  const bytes = new Uint8Array(32);
-  crypto.getRandomValues(bytes);
-  const newToken  = Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
-  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 dias
-  const emailKey  = studentEmail.toLowerCase().replace(/[^a-z0-9]/g, '_');
-
-  await db.collection('pendingActivations').doc(emailKey).set({
-    studentDocId,
-    activationToken: newToken,
-    createdBy:       authManager.getCurrentUser().uid,
-    status:          'pending',
-    expiresAt:       firebase.firestore.Timestamp.fromDate(expiresAt),
-    updatedAt:       firebase.firestore.FieldValue.serverTimestamp()
-  }, { merge: true }); // merge para não sobrescrever createdAt original
-
-  return `${window.location.origin}/#/primeiro-acesso?token=${newToken}`;
-}
-
-// ── 2. DENTRO DE loadStudents(), substituir o card-footer ─────────
-// Localize no seu dashboard.html o bloco card.innerHTML e substitua
-// o <div class="card-footer"> pelo trecho abaixo.
-// O resto do card (card-body) permanece igual.
-
-/*
-  SUBSTITUA APENAS O BLOCO card.innerHTML INTEIRO pelo template abaixo.
-  As variáveis st, status, isActive, badgeClass, badgeLabel, initials
-  já existem no seu código — não precisa redefinir.
-*/
-
-card.innerHTML = `
-  <div class="card-body">
-    <div style="display:flex;align-items:center;gap:14px;">
-      <div style="width:42px;height:42px;background:#0A0A0A;border-radius:11px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-        <span style="color:#00E676;font-size:0.85rem;font-weight:700;">${esc(initials)}</span>
-      </div>
-      <div style="flex:1;min-width:0;">
-        <p style="font-weight:700;font-size:0.95rem;color:#0A0A0A;margin:0 0 2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(st.name)}</p>
-        <p style="font-size:0.78rem;color:#9CA3AF;margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(st.email)}</p>
-      </div>
-      <span class="badge ${badgeClass}">${esc(badgeLabel)}</span>
-    </div>
-    ${status === 'pending'
-      ? `<p style="font-size:0.74rem;color:#9CA3AF;margin:10px 0 0;display:flex;align-items:center;gap:5px;">
-           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-           Aguardando primeiro acesso
-         </p>`
-      : ''}
-  </div>
-  <div class="card-footer">
-    ${isActive
-      ? `<button class="card-action" data-action="deactivate" data-id="${esc(st.uid)}" data-name="${esc(st.name)}" style="background:#FFFBEB;color:#92400E;">Desativar</button>`
-      : ''}
-    ${status === 'inactive'
-      ? `<button class="card-action" data-action="reactivate" data-id="${esc(st.uid)}" style="background:#ECFDF5;color:#047857;">Reativar</button>`
-      : ''}
-
-    ${/* NOVO: botão Reenviar link — só aparece para alunos pendentes */ ''}
-    ${status === 'pending'
-      ? `<button class="card-action" data-action="resend" data-id="${esc(st.uid)}" data-email="${esc(st.email)}" data-name="${esc(st.name)}"
-           style="background:#EFF6FF;color:#1D4ED8;">
-           🔗 Reenviar link
-         </button>`
-      : ''}
-
-    <button class="card-action" data-action="delete" data-id="${esc(st.uid)}" data-name="${esc(st.name)}" style="background:#FFF1F2;color:#DC2626;margin-left:auto;">Excluir</button>
-  </div>
-`;
-
-// ── 3. NO BLOCO document.querySelectorAll('[data-action]'), ADICIONAR o case 'resend' ──
-// Dentro do switch/if que trata as actions dos botões, adicione:
-
-if (action === 'resend') {
-  const btn = document.querySelector(`[data-action="resend"][data-id="${id}"]`);
-  const originalText = btn.textContent;
-  btn.textContent = 'Gerando...';
-  btn.disabled    = true;
-
-  try {
-    const email = btn.dataset.email;
-    const url   = await regenerateActivationLink(id, email);
-
-    // Mostrar modal com a nova URL
-    const modalOverlay = document.getElementById('modalOverlay');
-    const modalBox     = document.querySelector('#modalOverlay .modal-box');
-
-    if (modalBox) {
-      modalBox.innerHTML = `
-        <div>
-          <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;">
-            <div style="width:40px;height:40px;background:#EFF6FF;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0;border:1px solid #BFDBFE;">
-              🔗
-            </div>
-            <div>
-              <h3 style="font-size:1rem;font-weight:800;color:#0A0A0A;margin:0 0 2px;">Novo link gerado!</h3>
-              <p style="font-size:0.78rem;color:#9CA3AF;margin:0;">Envie para ${esc(btn.dataset.name || 'o aluno')} ativar a conta</p>
-            </div>
-          </div>
-
-          <div style="background:#F8F9FA;border:1px solid #EBEBEB;border-radius:12px;padding:14px 16px;margin-bottom:16px;">
-            <p style="font-size:0.7rem;font-weight:700;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.06em;margin:0 0 8px;">Link de primeiro acesso (válido por 7 dias)</p>
-            <p style="font-size:0.75rem;color:#374151;word-break:break-all;margin:0 0 10px;line-height:1.5;font-family:monospace;background:#fff;padding:10px;border-radius:8px;border:1px solid #EBEBEB;" id="newActivationUrl">
-              ${url}
-            </p>
-            <button id="copyNewUrl" style="width:100%;padding:9px;background:#0A0A0A;color:#fff;border:none;border-radius:8px;font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;">
-              📋 Copiar link
-            </button>
-          </div>
-
-          <div style="background:#FFFBEB;border:1px solid #FDE68A;border-radius:10px;padding:11px 14px;margin-bottom:16px;">
-            <p style="font-size:0.78rem;color:#92400E;margin:0;line-height:1.5;">
-              ⚠️ O link anterior foi invalidado. Envie apenas este novo link ao aluno.
-            </p>
-          </div>
-
-          <button id="closeResendModal" style="width:100%;padding:12px;background:#F4F4F4;border:none;border-radius:10px;font-size:0.875rem;font-weight:600;color:#374151;cursor:pointer;font-family:inherit;">
-            Fechar
-          </button>
-        </div>
-      `;
-
-      document.getElementById('copyNewUrl').onclick = async () => {
-        try {
-          await navigator.clipboard.writeText(url);
-          const cpBtn = document.getElementById('copyNewUrl');
-          cpBtn.textContent    = '✓ Copiado!';
-          cpBtn.style.background = '#059669';
-          setTimeout(() => {
-            cpBtn.textContent    = '📋 Copiar link';
-            cpBtn.style.background = '#0A0A0A';
-          }, 3000);
-        } catch {
-          const urlEl = document.getElementById('newActivationUrl');
-          if (urlEl) {
-            const r = document.createRange();
-            r.selectNodeContents(urlEl);
-            window.getSelection().removeAllRanges();
-            window.getSelection().addRange(r);
-          }
-        }
-      };
-
-      document.getElementById('closeResendModal').onclick = () => {
-        modalOverlay.classList.remove('open');
-      };
-
-      modalOverlay.classList.add('open');
-    }
-  } catch (e) {
-    alert('Erro ao gerar novo link: ' + e.message);
-  } finally {
-    btn.textContent = originalText;
-    btn.disabled    = false;
-  }
-}
-
-        const original  = btn.textContent;
-        btn.textContent = '...';
-        btn.disabled    = true;
-
-        const fn = {
-          deactivate: () => authManager.deactivateStudent(id),
-          reactivate: () => authManager.reactivateStudent(id),
-          delete:     () => authManager.deleteStudent(id),
-        }[action];
-
-        const result = await fn();
-        if (result.success) {
-          await loadStudents();
-        } else {
-          alert('Erro: ' + result.error);
-          btn.textContent = original;
-          btn.disabled    = false;
-        }
-      };
-    });
-  }
-
-  await subscriptionGuard.init();
-  await loadStudents();
-
-})();
-</script>
+<!-- Sem scripts inline — lógica em js/pages/personal/dashboard.js -->
