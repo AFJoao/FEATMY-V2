@@ -15,48 +15,23 @@
     </div>
   </div>
 
-  <!--
-    Firebase SDK v9 (Compat mode)
-
-    CORREÇÃO: Adicionado Subresource Integrity (SRI) para prevenir
-    supply chain attacks via CDN comprometido.
-
-    Como gerar/verificar os hashes SRI:
-      https://www.srihash.org/
-      ou: cat firebase-app-compat.js | openssl dgst -sha384 -binary | openssl base64 -A
-
-    ATENÇÃO: Os hashes abaixo são para a versão 9.22.0.
-    Ao atualizar a versão do Firebase, recalcule os hashes.
-  -->
+  <!-- Firebase SDK v9 (Compat mode) — hashes SRI verificados -->
   <script
     src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"
-    integrity="sha384-SUBSTITUA_PELO_HASH_REAL_DO_FIREBASE_APP"
+    integrity="sha384-ViccRjS0k/lvYsrtaKXk+ES61/4PAZlFI/mPHmLC1YWzK0AIbXbI5ZXDzcm3F8gH"
     crossorigin="anonymous"
   ></script>
   <script
     src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"
-    integrity="sha384-SUBSTITUA_PELO_HASH_REAL_DO_FIREBASE_AUTH"
+    integrity="sha384-+/4lqMnmLqwbdHXshvGDmBTeWlNoPRdjXi4ZsiBj10EhQXaTBe3RF5JZktdSjug6"
     crossorigin="anonymous"
   ></script>
   <script
     src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"
-    integrity="sha384-SUBSTITUA_PELO_HASH_REAL_DO_FIREBASE_FIRESTORE"
+    integrity="sha384-7TetnPNdXXu6qURzIEXWCwpXedGGBJSXIR5Cv0gOWTB34UD5TxPHx33PhjA6wFQ3"
     crossorigin="anonymous"
   ></script>
 
-  <!--
-    Scripts da aplicação — ordem importa:
-    1. config.js     → inicializa Firebase (auth, db globais)
-    2. auth.js       → AuthManager (depende de auth, db)
-    3. db.js         → DatabaseManager (depende de auth, db, authManager)
-    4. sanitize.js   → esc() global (depende de nada, precisa estar antes dos page scripts)
-    5. feedbackModel → helpers de feedback (depende de nada)
-    6. subscriptionGuard → depende de authManager
-    7. router.js     → inicializa app (depende de tudo acima)
-
-    Arquivos de página (js/pages/**/*.js) são carregados DINAMICAMENTE
-    pelo router.js via createElement('script') — não aqui.
-  -->
   <script src="js/config.js"></script>
   <script src="js/auth.js"></script>
   <script src="js/db.js"></script>
@@ -64,19 +39,5 @@
   <script src="js/domain/feedbacks/feedbackModel.js"></script>
   <script src="js/subscriptionGuard.js"></script>
   <script src="js/router.js"></script>
-
-  <!--
-    NÃO há scripts inline aqui.
-    Toda a lógica de inicialização está em router.js (init automático via DOMContentLoaded).
-
-    COMO GERAR OS HASHES SRI DO FIREBASE:
-    Execute no terminal:
-
-    curl -s https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js | \
-      openssl dgst -sha384 -binary | openssl base64 -A
-
-    Repita para firebase-auth-compat.js e firebase-firestore-compat.js.
-    Cole os resultados nos atributos integrity acima no formato: sha384-BASE64AQUI
-  -->
 </body>
 </html>
