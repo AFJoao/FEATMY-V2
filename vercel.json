@@ -36,7 +36,7 @@
         },
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'self'; script-src 'self' https://www.gstatic.com https://fonts.googleapis.com https://apis.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://*.firebaseio.com https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firebase.googleapis.com https://api.abacatepay.com https://api.qrserver.com; frame-src https://www.youtube.com https://player.vimeo.com; img-src 'self' data: blob: https://api.qrserver.com https://www.gstatic.com https://lh3.googleusercontent.com; worker-src 'none'; object-src 'none'; base-uri 'self'; form-action 'self';"
+          "value": "default-src 'self'; script-src 'self' https://www.gstatic.com https://fonts.googleapis.com https://apis.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://www.gstatic.com https://*.firebaseio.com https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firebase.googleapis.com https://api.abacatepay.com; frame-src https://www.youtube.com https://player.vimeo.com; img-src 'self' data: blob: https://api.qrserver.com https://www.gstatic.com https://lh3.googleusercontent.com; worker-src 'none'; object-src 'none'; base-uri 'self'; form-action 'self';"
         }
       ]
     },
@@ -76,6 +76,10 @@
     "api/billing/create-charge.js": {
       "memory": 256,
       "maxDuration": 15
+    },
+    "api/billing/simulate-payment.js": {
+      "memory": 128,
+      "maxDuration": 10
     },
     "api/billing/subscription-status.js": {
       "memory": 128,

@@ -3,9 +3,16 @@
  *
  * Helper centralizado de CORS.
  *
- * Comportamento por ambiente:
- * - Produção: fail-closed — origin não permitida lança erro (nunca retorna fallback silencioso)
- * - Dev: permite localhost automaticamente; sem APP_URL, usa localhost:3000
+ * CORREÇÃO v2:
+ *   Em produção sem APP_URL configurada, o comportamento anterior lançava
+ *   uma exceção que retornava 403 em TODAS as requisições — derrubando
+ *   o dashboard inteiro mesmo que o usuário estivesse autenticado.
+ *
+ *   Novo comportamento:
+ *   - APP_URL ausente em produção: loga erro crítico + permite requisição
+ *     (fail-open controlado). O handler ainda pode rejeitar por token inválido.
+ *   - Origin não permitida em produção: bloqueia com 403 (fail-closed).
+ *   - Em dev: sempre permissivo para localhost.
  *
  * APP_URL suporta múltiplas origens separadas por vírgula:
  *   APP_URL=https://featym.com,https://www.featym.com
@@ -23,26 +30,24 @@ const isProd = process.env.NODE_ENV === 'production';
 /**
  * Retorna a origin permitida para o request atual.
  *
- * Produção (fail-closed):
- *   - Origin na lista → retorna ela
- *   - Origin fora da lista ou ausente → lança erro
- *   - APP_URL não configurado → lança erro
+ * CORRIGIDO v2:
+ *   Produção sem APP_URL → loga erro mas retorna '*' em vez de lançar.
+ *   Isso evita que uma variável de ambiente faltando derrube toda a API.
+ *   O erro no log é suficiente para alertar — o deploy deve ter APP_URL.
  *
- * Desenvolvimento (fail-open para localhost):
- *   - localhost com qualquer porta → permitido
- *   - Origin na lista → retorna ela
- *   - Sem APP_URL → retorna localhost:3000 como fallback
+ *   Produção com APP_URL mas origin não permitida → lança (fail-closed).
  */
 function getAllowedOrigin(req) {
   const requestOrigin = req?.headers?.origin || '';
 
   if (isProd) {
-    // Produção: exige APP_URL configurado
+    // APP_URL não configurada: loga erro crítico mas não bloqueia
     if (ALLOWED_ORIGINS.size === 0) {
-      throw new Error(
-        '[cors] APP_URL não configurado em produção. ' +
-        'Adicione a variável de ambiente antes do deploy.'
+      console.error(
+        '[cors] CRÍTICO: APP_URL não configurada em produção. ' +
+        'Configure a variável de ambiente na Vercel. Permitindo request sem restrição de origin.'
       );
+      return requestOrigin || '*';
     }
 
     // Origin presente e permitida → OK
@@ -50,8 +55,13 @@ function getAllowedOrigin(req) {
       return requestOrigin;
     }
 
-    // Qualquer outro caso em produção → fail-closed
-    // Não retorna fallback silencioso — força o browser a rejeitar
+    // Sem origin no header (ex: chamadas server-side, Postman, cron) → permite
+    // Requisições sem origin são feitas por servidores, não por browsers
+    if (!requestOrigin) {
+      return '*';
+    }
+
+    // Origin presente mas não permitida → fail-closed
     throw new Error(
       `[cors] Origin não permitida: "${requestOrigin}". ` +
       `Origens aceitas: ${[...ALLOWED_ORIGINS].join(', ')}`
@@ -63,26 +73,21 @@ function getAllowedOrigin(req) {
     return requestOrigin;
   }
 
-  // Origin na lista de dev → permitida
+  // Origin na lista → permitida
   if (requestOrigin && ALLOWED_ORIGINS.has(requestOrigin)) {
     return requestOrigin;
   }
 
-  // Fallback apenas em dev
+  // Fallback dev
   if (ALLOWED_ORIGINS.size > 0) return [...ALLOWED_ORIGINS][0];
   return 'http://localhost:3000';
 }
 
 /**
  * Aplica headers CORS no response.
- * Lança erro se a origin não for permitida (em produção).
- *
- * useCredentials: true quando o frontend envia cookies ou
- * Authorization header via fetch com credentials: 'include'.
- * Para este projeto (Bearer token no header), false é correto.
  */
 function applyCors(req, res, methods = 'POST, OPTIONS', useCredentials = false) {
-  const origin = getAllowedOrigin(req); // pode lançar em produção
+  const origin = getAllowedOrigin(req); // pode lançar em produção com origin inválida
   res.setHeader('Access-Control-Allow-Origin', origin);
   res.setHeader('Access-Control-Allow-Methods', methods);
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');

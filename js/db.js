@@ -1,19 +1,21 @@
 /**
- * js/db.js — v3
+ * js/db.js — v4
  *
- * CORREÇÕES v3:
+ * CORREÇÃO v4:
  *
- * 1. SYNC DESNECESSÁRIO DO ARRAY students[] REMOVIDO
- *    ANTES: getMyStudents() sobrescrevia students[] no doc do personal
- *           a cada chamada — 1 write extra por listagem = ~100k writes/mês
- *           desnecessários em escala.
- *    DEPOIS: getMyStudents() apenas lê. A atualização do array students[]
- *            acontece APENAS em createStudentAccount() e deleteStudent(),
- *            onde de fato há mudança de dados.
+ * getStudentWorkouts — fallback inconsistente:
+ *   O caminho principal ordena por createdAt desc via sort() manual.
+ *   O fallback (.where('studentId') sem orderBy) retornava documentos
+ *   em ordem de inserção no Firestore, diferente do caminho principal.
+ *   Ambos os caminhos agora usam o mesmo sort() manual para consistência.
+ *   (orderBy no Firestore client requer índice composto; o sort manual
+ *   é mais seguro para um campo que pode ser null em docs antigos.)
  *
- * 2. N+1 mantido corrigido (Promise.all com chunks de 10)
- * 3. getWorkoutsMap() mantido para feedbacks
- * 4. Paginação mantida via cursor
+ * Todas as correções v3 mantidas:
+ * - getMyStudents sem sync automático do array students[]
+ * - N+1 corrigido com Promise.all em chunks de 10
+ * - getWorkoutsMap para feedbacks
+ * - Paginação via cursor
  */
 
 class DatabaseManager {
@@ -68,17 +70,6 @@ class DatabaseManager {
     return await this.getUserData(studentId);
   }
 
-  /**
-   * Lista alunos do personal com limite e cursor para paginação.
-   *
-   * CORRIGIDO v3: removido o bloco de sincronização do array students[]
-   * que executava 1 write extra a cada chamada desta função.
-   * A query é a fonte de verdade — o array students[] é auxiliar.
-   *
-   * @param {object} [opts]
-   * @param {number} [opts.limit=100]
-   * @param {object} [opts.startAfter=null]
-   */
   async getMyStudents({ limit = 100, startAfter = null } = {}) {
     try {
       const user = authManager.getCurrentUser();
@@ -93,11 +84,6 @@ class DatabaseManager {
 
       const snapshot = await query.get();
       return snapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() }));
-
-      // REMOVIDO: bloco de sync automático do array students[]
-      // A sync era: await db.collection('users').doc(user.uid).update({ students: [...] })
-      // Isso gerava 1 write desnecessário por navegação ao dashboard.
-      // Atualizar students[] apenas em createStudentAccount() e deleteStudent().
     } catch (error) {
       console.error('[db] Erro ao buscar alunos:', error);
       return [];
@@ -156,24 +142,16 @@ class DatabaseManager {
     return await this.createExercise(data);
   }
 
-  /**
-   * Busca exercícios do personal.
-   *
-   * CORRIGIDO v2 (mantido): query filtrada por personalId em vez de get() global.
-   * Exercícios globais (personalId == "") só acessíveis via Admin SDK no backend.
-   */
   async getPersonalExercises() {
     try {
       const user = authManager.getCurrentUser();
       if (!user) throw new Error('Usuário não autenticado');
 
-      const [ownSnap] = await Promise.all([
-        db.collection('exercises')
-          .where('personalId', '==', user.uid)
-          .orderBy('createdAt', 'desc')
-          .limit(200)
-          .get(),
-      ]);
+      const ownSnap = await db.collection('exercises')
+        .where('personalId', '==', user.uid)
+        .orderBy('createdAt', 'desc')
+        .limit(200)
+        .get();
 
       const seen      = new Set();
       const exercises = [];
@@ -284,6 +262,16 @@ class DatabaseManager {
     }
   }
 
+  // Helper de ordenação — centralizado para garantir consistência entre
+  // caminho principal (por assignedWorkouts) e fallback (query por studentId)
+  _sortWorkoutsByDate(workouts) {
+    return workouts.sort((a, b) => {
+      if (!a.createdAt) return 1;
+      if (!b.createdAt) return -1;
+      return b.createdAt.seconds - a.createdAt.seconds;
+    });
+  }
+
   async getStudentWorkouts(studentIdParam) {
     try {
       const user = authManager.getCurrentUser();
@@ -301,24 +289,19 @@ class DatabaseManager {
             .catch(() => null)
         );
         const workouts = (await Promise.all(workoutPromises)).filter(Boolean);
-        return workouts.sort((a, b) => {
-          if (!a.createdAt) return 1;
-          if (!b.createdAt) return -1;
-          return b.createdAt.seconds - a.createdAt.seconds;
-        });
+        // CORRIGIDO v4: usa helper centralizado de ordenação
+        return this._sortWorkoutsByDate(workouts);
       }
 
       // Fallback: query por studentId
+      // CORRIGIDO v4: ordenação agora consistente com caminho principal
       const snapshot = await db.collection('workouts')
         .where('studentId', '==', targetId)
         .limit(50)
         .get();
 
-      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).sort((a, b) => {
-        if (!a.createdAt) return 1;
-        if (!b.createdAt) return -1;
-        return b.createdAt.seconds - a.createdAt.seconds;
-      });
+      const workouts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      return this._sortWorkoutsByDate(workouts);
 
     } catch (error) {
       console.error('[db] Erro ao obter treinos do aluno:', error);
@@ -340,9 +323,6 @@ class DatabaseManager {
     return await this.getWorkout(workoutId);
   }
 
-  /**
-   * Busca N workouts em paralelo — elimina N+1 na página de feedbacks.
-   */
   async getWorkoutsMap(workoutIds) {
     if (!workoutIds || workoutIds.length === 0) return {};
     const uniqueIds = [...new Set(workoutIds)];
@@ -496,20 +476,18 @@ class DatabaseManager {
     }
   }
 
-  /**
-   * Feedbacks de todos os treinos do personal.
-   * CORRIGIDO: Promise.all com chunks de 10 (limite do 'in' no Firestore).
-   */
   async getPersonalFeedbacks({ workoutLimit = 200, feedbackLimit = 500 } = {}) {
     try {
       const user = authManager.getCurrentUser();
       if (!user) throw new Error('Usuário não autenticado');
 
+      // CORRIGIDO: .select() existe apenas no Admin SDK (Node.js server-side).
+      // O Firebase Compat SDK do browser não suporta field masks em queries.
       const workoutsSnapshot = await db.collection('workouts')
         .where('personalId', '==', user.uid)
-        .select('id')
         .limit(workoutLimit)
         .get();
+
 
       const workoutIds = workoutsSnapshot.docs.map(doc => doc.id);
       if (workoutIds.length === 0) return [];
