@@ -1,20 +1,17 @@
 /**
  * js/subscriptionGuard.js
  *
- * Controla acesso baseado na assinatura do personal.
- * Exibe banners de aviso, bloqueia botões e mostra modal de upgrade.
- *
- * IMPORTANTE: Este módulo é apenas para UX.
- * O bloqueio real é feito pelas regras do Firestore e pelas Serverless Functions.
- *
- * CORREÇÃO v2:
- * - Cache com TTL de 5 minutos evita chamada à API a cada navegação de página.
- *   Antes: toda mudança de rota na SPA disparava uma nova chamada a
- *   /api/billing/subscription-status, somando 10+ calls por sessão.
- *   Agora: a primeira call é feita normalmente; as seguintes dentro
- *   de 5 minutos reutilizam o cache em memória.
- * - Se o pagamento for confirmado (status muda para 'active'), o cache
- *   é invalidado e a página recarrega automaticamente.
+ * CORREÇÕES v3:
+ * - getIdToken(true) substituído por getIdToken() — o refresh forçado
+ *   a cada verificação causava latência desnecessária e podia ser a causa
+ *   do ERR_BLOCKED_BY_CLIENT (muitas requisições ao Firebase em rápida
+ *   sucessão). O token só precisa ser refreshado quando próximo de expirar,
+ *   o que o Firebase SDK já faz automaticamente sem força.
+ * - Banner de aviso agora é removido corretamente quando a página muda
+ *   (destroy() também remove o banner do DOM).
+ * - Cache de 5 min mantido para evitar chamadas repetidas à API.
+ * - setInterval de recheck agora usa referência estável para poder ser
+ *   limpo corretamente no destroy().
  */
 
 class SubscriptionGuard {
@@ -22,28 +19,22 @@ class SubscriptionGuard {
     this.status        = null;
     this.checkInterval = null;
     this._initialized  = false;
-
-    // Cache: timestamp da última verificação bem-sucedida
     this._lastCheckAt  = 0;
-    this._cacheTTL     = 5 * 60 * 1000; // 5 minutos em ms
+    this._cacheTTL     = 5 * 60 * 1000; // 5 minutos
+    this._bannerId     = 'sub-warning-banner';
   }
 
-  // ── Verificar se o cache ainda é válido ─────────────────────────
   _isCacheValid() {
     return this.status !== null &&
       (Date.now() - this._lastCheckAt) < this._cacheTTL;
   }
 
-  // ── Invalidar cache manualmente ──────────────────────────────────
-  // Chamar após um pagamento ser confirmado ou ao fazer logout.
   invalidateCache() {
     this._lastCheckAt = 0;
     this.status = null;
   }
 
-  // ── Verificar status via API backend ────────────────────────────
   async checkStatus(forceRefresh = false) {
-    // Retornar cache se ainda válido e não forçando refresh
     if (!forceRefresh && this._isCacheValid()) {
       return this.status;
     }
@@ -52,13 +43,17 @@ class SubscriptionGuard {
       const user = authManager?.getCurrentUser?.();
       if (!user) return null;
 
-      const token = await user.getIdToken(true);
+      // Sem forceRefresh no getIdToken — o SDK gerencia a renovação automaticamente
+      const token = await user.getIdToken();
       const res   = await fetch('/api/billing/subscription-status', {
         headers: { 'Authorization': `Bearer ${token}` },
         cache:   'no-store',
       });
 
-      if (!res.ok) return null;
+      if (!res.ok) {
+        console.warn('[subscriptionGuard] API retornou', res.status);
+        return null;
+      }
 
       this.status      = await res.json();
       this._lastCheckAt = Date.now();
@@ -69,11 +64,8 @@ class SubscriptionGuard {
     }
   }
 
-  // ── Inicializar para páginas de personal ────────────────────────
   async init() {
-    // Se já inicializado e cache ainda válido, retornar sem nova call
     if (this._initialized && this._isCacheValid()) {
-      // Re-aplicar UI caso a página tenha sido recarregada
       if (this.status?.showWarning) this._showWarningBanner(this.status);
       if (!this.status?.isActive)   this._applyReadOnlyMode();
       window._subscriptionMaxStudents = this.status?.maxStudents || 0;
@@ -99,17 +91,15 @@ class SubscriptionGuard {
     window._subscriptionPlanId      = status.planId      || null;
     window._subscriptionIsActive    = status.isActive    || false;
 
-    // Recheck a cada 5 minutos — detecta pagamento confirmado
+    // Recheck a cada 5 minutos
     if (this.checkInterval) clearInterval(this.checkInterval);
     this.checkInterval = setInterval(async () => {
-      // Forçar refresh ignorando cache
       const updated = await this.checkStatus(true);
       if (!updated) return;
 
       const wasInactive = !this.status?.isActive;
       const nowActive   = updated.status === 'active';
 
-      // Se acabou de ativar → recarregar para liberar a UI
       if (wasInactive && nowActive) {
         window.location.reload();
         return;
@@ -121,9 +111,9 @@ class SubscriptionGuard {
     return status;
   }
 
-  // ── Banner de aviso no rodapé ────────────────────────────────────
   _showWarningBanner(status) {
-    if (document.getElementById('sub-warning-banner')) return;
+    // Não duplicar banner
+    if (document.getElementById(this._bannerId)) return;
 
     const colorMap = {
       info:    { bg: '#EFF6FF', border: '#BFDBFE', text: '#1E40AF', icon: 'ℹ️' },
@@ -133,7 +123,7 @@ class SubscriptionGuard {
     const c = colorMap[status.warningLevel] || colorMap.info;
 
     const banner = document.createElement('div');
-    banner.id = 'sub-warning-banner';
+    banner.id = this._bannerId;
     banner.style.cssText = `
       position:fixed; bottom:0; left:0; right:0; z-index:9999;
       background:${c.bg}; border-top:2px solid ${c.border};
@@ -155,7 +145,7 @@ class SubscriptionGuard {
           Renovar agora
         </a>
         ${status.warningLevel === 'info' ? `
-          <button onclick="document.getElementById('sub-warning-banner').style.display='none'"
+          <button onclick="document.getElementById('${this._bannerId}').style.display='none'"
             style="background:transparent;border:none;color:${c.text};cursor:pointer;font-size:1.3rem;opacity:0.6;padding:0 4px;">×</button>
         ` : ''}
       </div>
@@ -163,7 +153,6 @@ class SubscriptionGuard {
     document.body.appendChild(banner);
   }
 
-  // ── Modo somente leitura quando expirado ────────────────────────
   _applyReadOnlyMode() {
     const apply = () => {
       const selectors = [
@@ -202,7 +191,6 @@ class SubscriptionGuard {
     setTimeout(apply, 2500);
   }
 
-  // ── Modal de upgrade ─────────────────────────────────────────────
   _showUpgradeModal() {
     const existing = document.getElementById('upgrade-modal');
     if (existing) { existing.style.display = 'flex'; return; }
@@ -242,7 +230,6 @@ class SubscriptionGuard {
     document.body.appendChild(modal);
   }
 
-  // ── Verificar se pode adicionar aluno ───────────────────────────
   canAddStudent(currentCount) {
     if (!this.status) return true;
     if (!this.status.isActive) return false;
@@ -251,9 +238,14 @@ class SubscriptionGuard {
 
   destroy() {
     clearInterval(this.checkInterval);
-    this._initialized = false;
-    this._lastCheckAt = 0;
-    this.status       = null;
+    this.checkInterval = null;
+    this._initialized  = false;
+    this._lastCheckAt  = 0;
+    this.status        = null;
+
+    // Remover banner do DOM ao destruir (evita banner órfão ao trocar de página)
+    const banner = document.getElementById(this._bannerId);
+    if (banner) banner.remove();
   }
 }
 

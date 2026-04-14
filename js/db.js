@@ -1,21 +1,20 @@
 /**
- * js/db.js — v4
+ * js/db.js — v5
  *
- * CORREÇÃO v4:
+ * CORREÇÕES v5:
  *
- * getStudentWorkouts — fallback inconsistente:
- *   O caminho principal ordena por createdAt desc via sort() manual.
- *   O fallback (.where('studentId') sem orderBy) retornava documentos
- *   em ordem de inserção no Firestore, diferente do caminho principal.
- *   Ambos os caminhos agora usam o mesmo sort() manual para consistência.
- *   (orderBy no Firestore client requer índice composto; o sort manual
- *   é mais seguro para um campo que pode ser null em docs antigos.)
+ * getPersonalExercises — fallback sem orderBy:
+ *   O Firestore exige índice composto para queries com WHERE + ORDER BY.
+ *   Se o índice ainda não foi criado/deployado no projeto, a query lança erro.
+ *   Agora usa try/catch: tenta primeiro COM orderBy (usa índice quando disponível),
+ *   e se falhar por índice ausente, reexecuta SEM orderBy e faz sort manual.
+ *   Isso elimina o erro "query requires an index" na página de exercícios.
  *
- * Todas as correções v3 mantidas:
- * - getMyStudents sem sync automático do array students[]
- * - N+1 corrigido com Promise.all em chunks de 10
- * - getWorkoutsMap para feedbacks
- * - Paginação via cursor
+ * getPersonalFeedbacks — mesmo padrão de fallback por chunk:
+ *   Chunks de feedbacks com orderBy também podem falhar sem índice
+ *   workoutId+createdAt. Fallback sem orderBy + sort manual.
+ *
+ * Todas as correções v4 mantidas.
  */
 
 class DatabaseManager {
@@ -147,20 +146,47 @@ class DatabaseManager {
       const user = authManager.getCurrentUser();
       if (!user) throw new Error('Usuário não autenticado');
 
-      const ownSnap = await db.collection('exercises')
-        .where('personalId', '==', user.uid)
-        .orderBy('createdAt', 'desc')
-        .limit(200)
-        .get();
+      let docs = [];
+
+      // Tentar com orderBy (requer índice composto personalId + createdAt)
+      try {
+        const snap = await db.collection('exercises')
+          .where('personalId', '==', user.uid)
+          .orderBy('createdAt', 'desc')
+          .limit(200)
+          .get();
+        docs = snap.docs;
+      } catch (indexErr) {
+        // Índice ainda não criado/deployado — fallback sem orderBy
+        if (indexErr.code === 'failed-precondition' || (indexErr.message || '').includes('index')) {
+          console.warn('[db] Índice de exercícios ausente, usando fallback sem orderBy. Crie o índice no Firebase Console.');
+          const snap = await db.collection('exercises')
+            .where('personalId', '==', user.uid)
+            .limit(200)
+            .get();
+          docs = snap.docs;
+        } else {
+          throw indexErr;
+        }
+      }
 
       const seen      = new Set();
       const exercises = [];
 
-      ownSnap.docs.forEach(doc => {
+      docs.forEach(doc => {
         if (!seen.has(doc.id)) {
           seen.add(doc.id);
           exercises.push(doc.data());
         }
+      });
+
+      // Sort manual para garantir ordem consistente
+      exercises.sort((a, b) => {
+        if (!a.createdAt) return 1;
+        if (!b.createdAt) return -1;
+        const aSeconds = a.createdAt.seconds || 0;
+        const bSeconds = b.createdAt.seconds || 0;
+        return bSeconds - aSeconds;
       });
 
       return exercises;
@@ -262,8 +288,6 @@ class DatabaseManager {
     }
   }
 
-  // Helper de ordenação — centralizado para garantir consistência entre
-  // caminho principal (por assignedWorkouts) e fallback (query por studentId)
   _sortWorkoutsByDate(workouts) {
     return workouts.sort((a, b) => {
       if (!a.createdAt) return 1;
@@ -289,12 +313,9 @@ class DatabaseManager {
             .catch(() => null)
         );
         const workouts = (await Promise.all(workoutPromises)).filter(Boolean);
-        // CORRIGIDO v4: usa helper centralizado de ordenação
         return this._sortWorkoutsByDate(workouts);
       }
 
-      // Fallback: query por studentId
-      // CORRIGIDO v4: ordenação agora consistente com caminho principal
       const snapshot = await db.collection('workouts')
         .where('studentId', '==', targetId)
         .limit(50)
@@ -481,13 +502,10 @@ class DatabaseManager {
       const user = authManager.getCurrentUser();
       if (!user) throw new Error('Usuário não autenticado');
 
-      // CORRIGIDO: .select() existe apenas no Admin SDK (Node.js server-side).
-      // O Firebase Compat SDK do browser não suporta field masks em queries.
       const workoutsSnapshot = await db.collection('workouts')
         .where('personalId', '==', user.uid)
         .limit(workoutLimit)
         .get();
-
 
       const workoutIds = workoutsSnapshot.docs.map(doc => doc.id);
       if (workoutIds.length === 0) return [];
@@ -498,18 +516,33 @@ class DatabaseManager {
         chunks.push(workoutIds.slice(i, i + CHUNK_SIZE));
       }
 
+      // Para cada chunk, tentar com orderBy; se falhar por índice, sem orderBy
       const chunkSnapshots = await Promise.all(
-        chunks.map(chunk =>
-          db.collection('feedbacks')
-            .where('workoutId', 'in', chunk)
-            .orderBy('createdAt', 'desc')
-            .limit(Math.ceil(feedbackLimit / chunks.length))
-            .get()
-            .catch(err => {
-              console.warn('[db] Erro em chunk de feedbacks:', err.message);
-              return { docs: [] };
-            })
-        )
+        chunks.map(async chunk => {
+          try {
+            return await db.collection('feedbacks')
+              .where('workoutId', 'in', chunk)
+              .orderBy('createdAt', 'desc')
+              .limit(Math.ceil(feedbackLimit / chunks.length))
+              .get();
+          } catch (err) {
+            const isIndexError = err.code === 'failed-precondition' ||
+              (err.message || '').includes('index');
+            if (isIndexError) {
+              console.warn('[db] Índice de feedbacks ausente, usando fallback sem orderBy. Crie o índice no Firebase Console.');
+              return db.collection('feedbacks')
+                .where('workoutId', 'in', chunk)
+                .limit(Math.ceil(feedbackLimit / chunks.length))
+                .get()
+                .catch(err2 => {
+                  console.warn('[db] Erro em chunk de feedbacks:', err2.message);
+                  return { docs: [] };
+                });
+            }
+            console.warn('[db] Erro em chunk de feedbacks:', err.message);
+            return { docs: [] };
+          }
+        })
       );
 
       const seen         = new Set();
@@ -524,10 +557,13 @@ class DatabaseManager {
         });
       });
 
+      // Sort manual garante ordem mesmo sem orderBy no Firestore
       allFeedbacks.sort((a, b) => {
         if (!a.createdAt) return 1;
         if (!b.createdAt) return -1;
-        return b.createdAt.seconds - a.createdAt.seconds;
+        const aS = a.createdAt.seconds || 0;
+        const bS = b.createdAt.seconds || 0;
+        return bS - aS;
       });
 
       return allFeedbacks;

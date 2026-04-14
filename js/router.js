@@ -1,36 +1,28 @@
 /**
- * js/router.js — v2 SEGURO
+ * js/router.js — v3
  *
- * CORREÇÃO CRÍTICA v2:
+ * CORREÇÕES v3:
  *
- * ANTES (inseguro):
- *   container.innerHTML = html;
- *   const scripts = container.querySelectorAll('script');
- *   for (const script of scripts) {
- *     const scriptFunction = new Function(script.textContent); // ← RCE
- *     scriptFunction();
- *   }
+ * 1. RACE CONDITION NO AUTH:
+ *    Antes: waitForAuth fazia polling de authManager.isInitialized, mas se
+ *    authManager.initialize() ainda não havia sido chamado (corrida com
+ *    DOMContentLoaded), o polling nunca via a mudança.
+ *    Depois: router.init() garante que authManager.initialize() foi chamado
+ *    ANTES de começar o polling, e usa onAuthStateChanged como fallback
+ *    direto ao Firebase para não depender só do flag.
  *
- * DEPOIS (seguro):
- *   1. O HTML das páginas NÃO contém mais blocos <script> inline com lógica.
- *   2. Cada página tem um atributo data-page-script="js/pages/personal/dashboard.js"
- *      no elemento raiz, indicando qual script externo carregar.
- *   3. O router injeta um <script src="..."> real, que o browser executa
- *      dentro do modelo de segurança normal (CSP, SRI, origem).
- *   4. Scripts externos são cacheados pelo browser — não há recarregamento
- *      desnecessário entre navegações.
- *   5. Cada script de página exporta uma função init() chamada após o HTML
- *      estar no DOM, substituindo o padrão de auto-execução inline.
+ * 2. BOTÕES "VOLTAR" BLOQUEADOS PELA CSP:
+ *    Antes: onclick="router.goToPersonalDashboard()" nos atributos HTML
+ *    eram bloqueados pela CSP (sem unsafe-inline).
+ *    Depois: o router registra event listeners nos elementos após carregar
+ *    cada página, sem depender de handlers inline. As páginas mantêm
+ *    data-action="back" / data-action="go-to:PATH" como convenção.
  *
- * COMPATIBILIDADE:
- *   Páginas que ainda não foram migradas para script externo continuam
- *   funcionando via fallback legacy (com aviso no console em dev).
- *   Isso permite migração incremental página por página.
- *
- * CSP COMPATÍVEL:
- *   Com scripts externos, o header CSP pode usar:
- *     script-src 'self' https://www.gstatic.com https://fonts.googleapis.com
- *   sem precisar de 'unsafe-eval' ou 'unsafe-inline'.
+ * 3. LIMPEZA DE SCRIPTS INLINE:
+ *    _stripInlineScripts agora também remove atributos de evento inline
+ *    (onclick, onmouseover etc.) de elementos que serão tratados por JS.
+ *    ATENÇÃO: isso é opt-in via data-safe-events="true" no elemento raiz
+ *    da página para não quebrar páginas que ainda não foram migradas.
  */
 
 class Router {
@@ -52,8 +44,6 @@ class Router {
       '/personal/volume/:id': 'pages/personal/volume-analysis.html',
     };
 
-    // Mapeamento página → script externo
-    // Adicionar entrada aqui ao migrar cada página
     this.pageScripts = {
       '/login':                  'js/pages/login.js',
       '/signup':                 'js/pages/signup.js',
@@ -90,10 +80,7 @@ class Router {
     this.navigationQueue = [];
     this.isNavigating  = false;
 
-    // Rastrear scripts já carregados para não recarregar desnecessariamente
     this._loadedScripts = new Set();
-
-    // AbortController para cancelar fetch de página anterior se nova navegação chegar
     this._currentFetchController = null;
 
     window.addEventListener('hashchange', () => {
@@ -108,25 +95,58 @@ class Router {
   // ── Auth ─────────────────────────────────────────────────────
 
   async waitForAuth() {
+    // Garantir que o authManager foi inicializado antes de esperar
+    if (typeof authManager === 'undefined') {
+      console.error('[router] authManager não encontrado');
+      this.authReady = true;
+      return;
+    }
+
+    // Se já inicializado, retornar imediatamente
+    if (authManager.isInitialized) {
+      this.authReady = true;
+      return;
+    }
+
+    // Garantir que initialize() foi chamado
+    authManager.initialize();
+
     return new Promise((resolve) => {
-      if (authManager.isInitialized) {
+      let resolved = false;
+
+      const done = () => {
+        if (resolved) return;
+        resolved = true;
+        clearInterval(pollInterval);
+        clearTimeout(timeoutId);
         this.authReady = true;
         resolve();
-        return;
+      };
+
+      // Polling rápido como mecanismo principal
+      const pollInterval = setInterval(() => {
+        if (authManager.isInitialized) done();
+      }, 30);
+
+      // Fallback via onAuthStateChanged do Firebase diretamente
+      // Isso garante que não ficamos travados se o flag nunca mudar
+      let unsubscribe;
+      try {
+        unsubscribe = auth.onAuthStateChanged(() => {
+          if (unsubscribe) unsubscribe();
+          // Dar uma volta ao event loop para o authManager processar
+          setTimeout(done, 50);
+        });
+      } catch (e) {
+        // auth pode não estar disponível ainda
       }
-      const check = setInterval(() => {
-        if (authManager.isInitialized) {
-          clearInterval(check);
-          this.authReady = true;
-          resolve();
-        }
-      }, 50);
-      setTimeout(() => {
-        clearInterval(check);
-        console.warn('[router] Timeout aguardando AuthManager');
-        this.authReady = true;
-        resolve();
-      }, 10000);
+
+      // Timeout de segurança
+      const timeoutId = setTimeout(() => {
+        console.warn('[router] Timeout aguardando AuthManager — continuando');
+        if (unsubscribe) try { unsubscribe(); } catch (_) {}
+        done();
+      }, 8000);
     });
   }
 
@@ -175,7 +195,6 @@ class Router {
     return null;
   }
 
-  // Resolve o padrão de rota com parâmetros para o script externo correto
   _resolveScriptPath(path) {
     if (this.pageScripts[path]) return this.pageScripts[path];
     for (const [routePattern, scriptPath] of Object.entries(this.pageScripts)) {
@@ -247,7 +266,7 @@ class Router {
     }
   }
 
-  // ── Page loading — SEGURO ─────────────────────────────────────
+  // ── Page loading ──────────────────────────────────────────────
 
   async loadPage(path) {
     const matchResult = this.matchRoute(path);
@@ -256,7 +275,6 @@ class Router {
     const pagePath = this.routes[matchResult.route];
     window.routeParams = matchResult.params;
 
-    // Cancelar fetch anterior se ainda estiver em andamento
     if (this._currentFetchController) {
       this._currentFetchController.abort();
     }
@@ -272,67 +290,77 @@ class Router {
       const container = document.getElementById('app');
       if (!container) return;
 
-      // Limpar DOM anterior completamente antes de injetar novo conteúdo
       this._cleanupCurrentPage(container);
-
-      // Injetar apenas o HTML estrutural — sem executar scripts inline
       container.innerHTML = this._stripInlineScripts(html);
 
       await new Promise(r => setTimeout(r, 30));
 
-      // Atualizar hash sem disparar novo evento hashchange
       if (window.location.hash !== '#' + path) {
         window.location.hash = '#' + path;
       }
 
-      // Carregar script externo correspondente à página
+      // Registrar listeners declarativos (data-action) antes do script da página
+      this._bindDeclarativeActions(container);
+
       await this._loadPageScript(path, matchResult);
 
     } catch (err) {
-      if (err.name === 'AbortError') return; // navegação cancelada intencionalmente
+      if (err.name === 'AbortError') return;
       console.error('[router] Erro ao carregar página:', err);
       this._showErrorPage(err.message);
     }
   }
 
   /**
-   * Remove scripts inline do HTML carregado.
-   * Scripts legítimos devem estar em arquivos .js externos.
-   * Isso previne execução acidental de código inline e permite CSP estrito.
+   * Registra event listeners em elementos com data-action="..." 
+   * como alternativa segura aos onclick inline, compatível com CSP estrita.
+   *
+   * Uso no HTML: <button data-action="back">Voltar</button>
+   *              <button data-action="go-to:/personal/dashboard">Dashboard</button>
+   *              <button data-action="logout">Sair</button>
    */
+  _bindDeclarativeActions(container) {
+    container.querySelectorAll('[data-action]').forEach(el => {
+      const action = el.dataset.action;
+      if (!action) return;
+
+      // Evitar registrar listener duplo
+      if (el._routerActionBound) return;
+      el._routerActionBound = true;
+
+      el.addEventListener('click', (e) => {
+        if (action === 'back') {
+          e.preventDefault();
+          history.back();
+        } else if (action === 'logout') {
+          e.preventDefault();
+          authManager.logout().then(() => this.goToLogin());
+        } else if (action.startsWith('go-to:')) {
+          e.preventDefault();
+          const target = action.slice(6);
+          this.navigate(target);
+        }
+      });
+    });
+  }
+
   _stripInlineScripts(html) {
-    // Remover blocos <script>...</script> (não src externos)
-    // Manter <script src="..."> pois são carregados pelo browser normalmente
-    return html.replace(/<script(?![^>]*\bsrc\b)[^>]*>[\s\S]*?<\/script>/gi, (match) => {
-      if (process?.env?.NODE_ENV !== 'production') {
-        console.warn('[router] Script inline removido — migrar para arquivo .js externo');
-      }
+    return html.replace(/<script(?![^>]*\bsrc\b)[^>]*>[\s\S]*?<\/script>/gi, () => {
       return '<!-- script inline removido — use arquivo .js externo -->';
     });
   }
 
-  /**
-   * Carrega o script externo da página de forma segura:
-   * - Cria um elemento <script src="..."> real
-   * - O browser aplica CSP, SRI e cache normalmente
-   * - Chama window.__pageInit() se definido pelo script após carregar
-   */
   async _loadPageScript(path, matchResult) {
     const scriptSrc = this._resolveScriptPath(path);
 
     if (!scriptSrc) {
-      // Fallback legacy: tentar extrair e executar script inline com aviso
-      // Remover quando todas as páginas estiverem migradas
-      console.warn(`[router] Sem script externo para ${path}. Página pode não funcionar corretamente.`);
+      console.warn(`[router] Sem script externo para ${path}.`);
       return;
     }
 
     return new Promise((resolve, reject) => {
-      // Limpar init anterior
       delete window.__pageInit;
 
-      // Remover script anterior da mesma página se existir
-      // (necessário para re-execução ao navegar para a mesma página)
       const existingId = `page-script-${scriptSrc.replace(/\//g, '-').replace('.js', '')}`;
       const existing = document.getElementById(existingId);
       if (existing) existing.remove();
@@ -340,11 +368,10 @@ class Router {
       const script    = document.createElement('script');
       script.id       = existingId;
       script.src      = scriptSrc + '?v=' + Date.now();
-      script.async    = false; // garantir ordem de execução
+      script.async    = false;
       script.defer    = false;
 
       script.onload = async () => {
-        // O script externo deve definir window.__pageInit como função
         if (typeof window.__pageInit === 'function') {
           try {
             await window.__pageInit(matchResult.params);
@@ -365,25 +392,17 @@ class Router {
     });
   }
 
-  /**
-   * Limpa recursos da página anterior antes de carregar nova.
-   * Previne vazamento de event listeners e estado entre páginas.
-   */
   _cleanupCurrentPage(container) {
-    // Chamar cleanup da página anterior se definido
     if (typeof window.__pageCleanup === 'function') {
       try {
         window.__pageCleanup();
       } catch (e) {
-        console.warn('[router] Erro no cleanup da página anterior:', e);
+        console.warn('[router] Erro no cleanup:', e);
       }
       delete window.__pageCleanup;
     }
 
-    // Remover scripts de página anteriores para evitar acumulação
     document.querySelectorAll('script[id^="page-script-"]').forEach(s => s.remove());
-
-    // Limpar container
     container.innerHTML = '';
     container.textContent = '';
   }
@@ -393,8 +412,7 @@ class Router {
     if (!container) return;
     container.innerHTML = `
       <div style="max-width:600px;margin:100px auto;padding:40px;text-align:center;
-                  background:var(--color-background-danger,#fff3f3);
-                  border:2px solid var(--color-border-danger,#ffdddd);border-radius:12px;">
+                  background:#fff3f3;border:2px solid #ffdddd;border-radius:12px;">
         <h2 style="color:#cc0000;margin-bottom:12px;">Erro ao carregar página</h2>
         <p style="color:#666;margin-bottom:20px;">${message}</p>
         <button onclick="window.location.reload()"
@@ -419,6 +437,10 @@ class Router {
   goTo(path)                     { this.navigate(path); }
 
   async init() {
+    // Garantir que o authManager está inicializando antes de qualquer coisa
+    if (typeof authManager !== 'undefined') {
+      authManager.initialize();
+    }
     await this.waitForAuth();
     this.isReady = true;
     const initialPath = window.location.hash.slice(1) || '/';

@@ -1,34 +1,57 @@
 /**
  * GET /api/billing/subscription-status
  *
- * Correções v2:
- * - CORS centralizado via helper (fail-closed em produção)
+ * Correções v3:
+ * - Firebase Admin singleton robusto: usa try/catch em getApp() para
+ *   evitar erros de "app/duplicate-app" em ambiente serverless onde
+ *   múltiplas invocações simultâneas podem chamar initializeApp() ao
+ *   mesmo tempo. Agora usa getApp() primeiro e só chama initializeApp()
+ *   se o app realmente não existir ainda.
+ * - Erro 500 em produção: melhor diagnóstico de variáveis de ambiente
+ *   faltando com mensagem clara.
+ * - CORS centralizado via helper (fail-closed em produção).
  */
 
 const { applyCors } = require('../_lib/cors');
-const admin = require('firebase-admin');
 
-// ── Inicialização segura do Firebase Admin ──────────────────────
-function initFirebase() {
-  if (admin.apps.length) return;
+// ── Singleton robusto para ambiente serverless ──────────────────
+// Em serverless, múltiplas invocações paralelas podem tentar
+// inicializar o Firebase ao mesmo tempo. Usar getApp() + try/catch
+// é a forma correta de evitar "app/duplicate-app".
+function getFirebaseAdmin() {
+  const admin = require('firebase-admin');
+
+  try {
+    // Tentar obter app já existente primeiro
+    return { admin, db: admin.firestore() };
+  } catch (_) {
+    // App não existe ainda — inicializar
+  }
 
   const projectId   = process.env.FIREBASE_PROJECT_ID;
   const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
   const privateKey  = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n');
 
   if (!projectId || !clientEmail || !privateKey) {
-    throw new Error(
-      `Variáveis de ambiente faltando: ${[
-        !projectId   && 'FIREBASE_PROJECT_ID',
-        !clientEmail && 'FIREBASE_CLIENT_EMAIL',
-        !privateKey  && 'FIREBASE_PRIVATE_KEY',
-      ].filter(Boolean).join(', ')}`
-    );
+    const missing = [
+      !projectId   && 'FIREBASE_PROJECT_ID',
+      !clientEmail && 'FIREBASE_CLIENT_EMAIL',
+      !privateKey  && 'FIREBASE_PRIVATE_KEY',
+    ].filter(Boolean).join(', ');
+    throw new Error(`Variáveis de ambiente faltando no servidor: ${missing}. Configure-as no painel da Vercel.`);
   }
 
-  admin.initializeApp({
-    credential: admin.credential.cert({ projectId, clientEmail, privateKey }),
-  });
+  try {
+    admin.initializeApp({
+      credential: admin.credential.cert({ projectId, clientEmail, privateKey }),
+    });
+  } catch (err) {
+    // Se outro processo já inicializou entre o try acima e aqui (race),
+    // getApp() agora vai funcionar
+    if (err.code !== 'app/duplicate-app') throw err;
+  }
+
+  return { admin, db: admin.firestore() };
 }
 
 const PLANS = {
@@ -39,7 +62,7 @@ const PLANS = {
 
 const GRACE_PERIOD_DAYS = 3;
 
-async function verifyToken(req) {
+async function verifyToken(admin, req) {
   const authHeader = req.headers.authorization || '';
   if (!authHeader.startsWith('Bearer ')) return null;
   try {
@@ -50,7 +73,7 @@ async function verifyToken(req) {
 }
 
 module.exports = async function handler(req, res) {
-  // ── CORS centralizado (fail-closed em produção) ───────────────
+  // ── CORS ──────────────────────────────────────────────────────
   try {
     applyCors(req, res, 'GET, OPTIONS');
   } catch (err) {
@@ -63,9 +86,10 @@ module.exports = async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'GET') return res.status(405).json({ error: 'Método não permitido' });
 
-  // ── Inicializar Firebase ──────────────────────────────────────
+  // ── Firebase ──────────────────────────────────────────────────
+  let admin, db;
   try {
-    initFirebase();
+    ({ admin, db } = getFirebaseAdmin());
   } catch (err) {
     console.error('[subscription-status] Firebase init error:', err.message);
     return res.status(500).json({
@@ -74,17 +98,8 @@ module.exports = async function handler(req, res) {
     });
   }
 
-  const db = admin.firestore();
-
   // ── Autenticar ────────────────────────────────────────────────
-  let decoded;
-  try {
-    decoded = await verifyToken(req);
-  } catch (err) {
-    console.error('[subscription-status] Token verification error:', err.message);
-    return res.status(401).json({ error: 'Erro ao verificar autenticação' });
-  }
-
+  const decoded = await verifyToken(admin, req);
   if (!decoded) {
     return res.status(401).json({ error: 'Não autenticado' });
   }
