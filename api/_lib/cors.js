@@ -98,4 +98,4 @@ function applyCors(req, res, methods = 'POST, OPTIONS', useCredentials = false) 
   }
 }
 
-module.exports = { getAllowedOrigin, applyCors };
+module.exports = { getAllowedOrigin, applyCors }; 
