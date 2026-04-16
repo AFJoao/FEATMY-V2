@@ -1,67 +1,54 @@
-/**
- * GET /api/billing/subscription-status
- *
- * Correções v3:
- * - Firebase Admin singleton robusto: usa try/catch em getApp() para
- *   evitar erros de "app/duplicate-app" em ambiente serverless onde
- *   múltiplas invocações simultâneas podem chamar initializeApp() ao
- *   mesmo tempo. Agora usa getApp() primeiro e só chama initializeApp()
- *   se o app realmente não existir ainda.
- * - Erro 500 em produção: melhor diagnóstico de variáveis de ambiente
- *   faltando com mensagem clara.
- * - CORS centralizado via helper (fail-closed em produção).
- */
-
 const { applyCors } = require('../_lib/cors');
-
-// ── Singleton robusto para ambiente serverless ──────────────────
-// Em serverless, múltiplas invocações paralelas podem tentar
-// inicializar o Firebase ao mesmo tempo. Usar getApp() + try/catch
-// é a forma correta de evitar "app/duplicate-app".
+ 
+let _adminInstance = null;
+let _dbInstance    = null;
+ 
 function getFirebaseAdmin() {
-  const admin = require('firebase-admin');
-
-  try {
-    // Tentar obter app já existente primeiro
-    return { admin, db: admin.firestore() };
-  } catch (_) {
-    // App não existe ainda — inicializar
+  // Retornar instâncias já criadas (singleton real)
+  if (_adminInstance && _dbInstance) {
+    return { admin: _adminInstance, db: _dbInstance };
   }
-
+ 
+  const admin = require('firebase-admin');
+ 
+  // Verificar variáveis de ambiente ANTES de tentar inicializar
   const projectId   = process.env.FIREBASE_PROJECT_ID;
   const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
   const privateKey  = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n');
-
+ 
   if (!projectId || !clientEmail || !privateKey) {
     const missing = [
       !projectId   && 'FIREBASE_PROJECT_ID',
       !clientEmail && 'FIREBASE_CLIENT_EMAIL',
       !privateKey  && 'FIREBASE_PRIVATE_KEY',
     ].filter(Boolean).join(', ');
-    throw new Error(`Variáveis de ambiente faltando no servidor: ${missing}. Configure-as no painel da Vercel.`);
+    throw new Error(
+      `Variáveis de ambiente faltando no servidor: ${missing}. ` +
+      `Configure-as no painel da Vercel em Settings → Environment Variables.`
+    );
   }
-
-  try {
+ 
+  // Inicializar apenas se ainda não existe nenhum app
+  if (!admin.apps.length) {
     admin.initializeApp({
       credential: admin.credential.cert({ projectId, clientEmail, privateKey }),
     });
-  } catch (err) {
-    // Se outro processo já inicializou entre o try acima e aqui (race),
-    // getApp() agora vai funcionar
-    if (err.code !== 'app/duplicate-app') throw err;
   }
-
-  return { admin, db: admin.firestore() };
+ 
+  _adminInstance = admin;
+  _dbInstance    = admin.firestore();
+ 
+  return { admin: _adminInstance, db: _dbInstance };
 }
-
+ 
 const PLANS = {
   starter: { name: 'Starter', priceInCents: 990,  maxStudents: 5  },
   pro:     { name: 'Pro',     priceInCents: 1990, maxStudents: 15 },
   elite:   { name: 'Elite',   priceInCents: 4940, maxStudents: 40 },
 };
-
+ 
 const GRACE_PERIOD_DAYS = 3;
-
+ 
 async function verifyToken(admin, req) {
   const authHeader = req.headers.authorization || '';
   if (!authHeader.startsWith('Bearer ')) return null;
@@ -71,7 +58,7 @@ async function verifyToken(admin, req) {
     return null;
   }
 }
-
+ 
 module.exports = async function handler(req, res) {
   // ── CORS ──────────────────────────────────────────────────────
   try {
@@ -80,12 +67,12 @@ module.exports = async function handler(req, res) {
     console.error('[subscription-status] CORS error:', err.message);
     return res.status(403).json({ error: 'Origin não permitida' });
   }
-
+ 
   res.setHeader('Cache-Control', 'no-store');
-
+ 
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'GET') return res.status(405).json({ error: 'Método não permitido' });
-
+ 
   // ── Firebase ──────────────────────────────────────────────────
   let admin, db;
   try {
@@ -97,15 +84,15 @@ module.exports = async function handler(req, res) {
       detail: err.message,
     });
   }
-
+ 
   // ── Autenticar ────────────────────────────────────────────────
   const decoded = await verifyToken(admin, req);
   if (!decoded) {
     return res.status(401).json({ error: 'Não autenticado' });
   }
-
+ 
   const uid = decoded.uid;
-
+ 
   // ── Buscar assinatura ─────────────────────────────────────────
   let subSnap;
   try {
@@ -117,7 +104,7 @@ module.exports = async function handler(req, res) {
       detail: err.message,
     });
   }
-
+ 
   if (!subSnap.exists) {
     return res.status(200).json({
       status:          'no_subscription',
@@ -130,23 +117,23 @@ module.exports = async function handler(req, res) {
       warningLevel:    null,
     });
   }
-
+ 
   const sub = subSnap.data();
   const now = new Date();
-
+ 
   const expiresAt   = sub.expiresAt?.toDate?.() || new Date(0);
   const graceCutoff = new Date(expiresAt);
   graceCutoff.setDate(graceCutoff.getDate() + GRACE_PERIOD_DAYS);
-
+ 
   const msUntilExpiry   = expiresAt   - now;
   const msUntilGrace    = graceCutoff - now;
   const daysUntilExpiry = Math.ceil(msUntilExpiry / (1000 * 60 * 60 * 24));
-
+ 
   let computedStatus;
   if (now < expiresAt)        computedStatus = 'active';
   else if (now < graceCutoff) computedStatus = 'grace_period';
   else                        computedStatus = 'expired';
-
+ 
   // ── Sincronizar se mudou ──────────────────────────────────────
   if (sub.status !== computedStatus) {
     try {
@@ -161,14 +148,14 @@ module.exports = async function handler(req, res) {
       console.warn('[subscription-status] Sync update failed (non-critical):', err.message);
     }
   }
-
+ 
   const isActive   = ['active', 'grace_period'].includes(computedStatus);
   const planConfig = PLANS[sub.planId] || {};
-
+ 
   let showWarning    = false;
   let warningMessage = null;
   let warningLevel   = null;
-
+ 
   if (computedStatus === 'expired') {
     showWarning    = true;
     warningLevel   = 'danger';
@@ -183,7 +170,7 @@ module.exports = async function handler(req, res) {
     warningLevel   = daysUntilExpiry <= 3 ? 'warning' : 'info';
     warningMessage = `Sua assinatura vence em ${daysUntilExpiry} dia(s). Renove para não interromper o acesso dos alunos.`;
   }
-
+ 
   return res.status(200).json({
     status:          computedStatus,
     isActive,

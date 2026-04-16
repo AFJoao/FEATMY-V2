@@ -18,7 +18,6 @@
     .btn-green:hover { background: #00C853; }
     .btn-green:disabled { opacity: 0.45; cursor: not-allowed; }
 
-    /* ── Formulário de dados do cliente ── */
     .customer-form-box {
       background: #fff;
       border: 2px solid #EBEBEB;
@@ -46,7 +45,6 @@
     .cf-hint.ok  { color: #059669; }
     .cf-hint.err { color: #DC2626; }
 
-    /* ── PIX box ── */
     .pix-box { background: #fff; border: 2px solid #EBEBEB; border-radius: 16px; padding: 24px; }
     .copy-btn { background: #F4F4F4; border: none; border-radius: 10px; padding: 10px 16px; font-size: 0.82rem; font-weight: 700; cursor: pointer; font-family: inherit; width: 100%; display: flex; align-items: center; justify-content: center; gap: 6px; transition: all 0.2s; }
     .copy-btn:hover { background: #EBEBEB; }
@@ -74,13 +72,9 @@
     .tab-btn { flex: 1; padding: 10px; border: none; background: transparent; font-size: 0.82rem; font-weight: 600; color: #9CA3AF; cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.2s; font-family: inherit; }
     .tab-btn.active { color: #00C853; border-bottom-color: #00E676; font-weight: 700; }
 
-    .invoice-row { display: flex; align-items: center; justify-content: space-between; padding: 14px 0; border-bottom: 1px solid #F4F4F4; }
-    .invoice-row:last-child { border-bottom: none; }
-
     .toast-msg { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(60px); background: #111; color: #fff; padding: 10px 20px; border-radius: 10px; font-size: 0.82rem; font-weight: 600; z-index: 999; transition: transform 0.3s; white-space: nowrap; }
     .toast-msg.show { transform: translateX(-50%) translateY(0); }
 
-    /* privacidade notice */
     .privacy-note { background: #F0FDF4; border: 1px solid #A7F3D0; border-radius: 10px; padding: 10px 14px; display: flex; align-items: flex-start; gap: 8px; margin-top: 4px; }
 
     @media (max-width: 768px) {
@@ -94,7 +88,8 @@
   <header style="background:#0A0A0A;position:sticky;top:0;z-index:50;border-bottom:1px solid rgba(255,255,255,0.06);">
     <div style="max-width:1100px;margin:0 auto;padding:0 24px;height:64px;display:flex;justify-content:space-between;align-items:center;">
       <div style="display:flex;align-items:center;gap:12px;">
-        <button onclick="router.goToPersonalDashboard()" class="b-nav-btn" style="padding:8px 10px;">
+        <!-- data-action="go-to:/personal/dashboard" — sem onclick inline -->
+        <button data-action="go-to:/personal/dashboard" class="b-nav-btn" style="padding:8px 10px;">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
         </button>
         <div style="width:1px;height:24px;background:rgba(255,255,255,0.1);"></div>
@@ -141,8 +136,8 @@
 
     <!-- Tabs -->
     <div style="display:flex;border-bottom:2px solid #EBEBEB;margin-bottom:28px;">
-      <button class="tab-btn active" id="tabPlans"   onclick="showTab('plans')">💳 Planos</button>
-      <button class="tab-btn"        id="tabHistory" onclick="showTab('history')">📄 Histórico</button>
+      <button class="tab-btn active" id="tabPlans"   data-tab="plans">💳 Planos</button>
+      <button class="tab-btn"        id="tabHistory" data-tab="history">📄 Histórico</button>
     </div>
 
     <!-- TAB: PLANOS -->
@@ -152,7 +147,6 @@
         <p style="font-size:0.875rem;color:#6B7280;margin:0;">Pague via PIX e ative imediatamente. Cobrança mensal.</p>
       </div>
 
-      <!-- Grid de planos -->
       <div class="plans-grid" id="plansGrid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:32px;"></div>
 
       <!-- ETAPA 1: Formulário de dados do cliente -->
@@ -169,13 +163,11 @@
           </div>
 
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
-            <!-- CPF -->
             <div>
               <label style="display:block;font-size:0.72rem;font-weight:700;color:#374151;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:7px;">CPF</label>
               <input type="text" id="inputCpf" class="cf-input" placeholder="000.000.000-00" maxlength="14" inputmode="numeric" autocomplete="off">
               <div id="hintCpf" class="cf-hint" style="display:none;"></div>
             </div>
-            <!-- Telefone -->
             <div>
               <label style="display:block;font-size:0.72rem;font-weight:700;color:#374151;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:7px;">Telefone (com DDD)</label>
               <input type="text" id="inputPhone" class="cf-input" placeholder="(00) 00000-0000" maxlength="15" inputmode="numeric" autocomplete="off">
@@ -183,7 +175,6 @@
             </div>
           </div>
 
-          <!-- Aviso de privacidade -->
           <div class="privacy-note">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2" style="flex-shrink:0;margin-top:1px;"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
             <p style="font-size:0.72rem;color:#047857;margin:0;line-height:1.5;">
@@ -194,10 +185,10 @@
           <div id="cfError" style="display:none;background:#FFF1F2;border:1px solid #FECDD3;border-radius:8px;padding:10px 13px;margin-top:14px;font-size:0.82rem;color:#BE123C;font-weight:500;"></div>
 
           <div style="display:flex;gap:10px;margin-top:18px;">
-            <button onclick="cancelCustomerForm()" style="flex:1;padding:11px;background:#F4F4F4;border:none;border-radius:10px;font-size:0.82rem;font-weight:700;color:#374151;cursor:pointer;font-family:inherit;">
+            <button id="cancelCustomerBtn" style="flex:1;padding:11px;background:#F4F4F4;border:none;border-radius:10px;font-size:0.82rem;font-weight:700;color:#374151;cursor:pointer;font-family:inherit;">
               ← Voltar
             </button>
-            <button id="confirmCustomerBtn" onclick="confirmCustomerData()" style="flex:2;padding:11px;background:#00E676;border:none;border-radius:10px;font-size:0.875rem;font-weight:800;color:#0A0A0A;cursor:pointer;font-family:inherit;transition:all 0.2s;">
+            <button id="confirmCustomerBtn" style="flex:2;padding:11px;background:#00E676;border:none;border-radius:10px;font-size:0.875rem;font-weight:800;color:#0A0A0A;cursor:pointer;font-family:inherit;transition:all 0.2s;">
               Gerar PIX →
             </button>
           </div>
@@ -229,13 +220,13 @@
               <div style="background:#F8F9FA;border-radius:12px;padding:14px;margin-bottom:12px;">
                 <p style="font-size:0.7rem;font-weight:700;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.06em;margin:0 0 8px;">PIX Copia e Cola</p>
                 <p id="pixCodeText" style="font-size:0.68rem;color:#374151;word-break:break-all;margin:0 0 10px;line-height:1.5;font-family:'DM Mono',monospace;background:#fff;padding:10px;border-radius:8px;border:1px solid #EBEBEB;max-height:80px;overflow:hidden;"></p>
-                <button class="copy-btn" id="copyPixBtn" onclick="copyPix()">
+                <button class="copy-btn" id="copyPixBtn">
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
                   Copiar código PIX
                 </button>
               </div>
 
-              <button class="sim-btn" id="simPayBtn" onclick="simulatePayment()">
+              <button class="sim-btn" id="simPayBtn">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                 🧪 Simular pagamento PIX (Dev Mode)
               </button>
@@ -253,7 +244,7 @@
           </div>
         </div>
 
-        <button onclick="cancelPix()" style="margin-top:12px;background:none;border:none;color:#9CA3AF;font-size:0.82rem;cursor:pointer;font-family:inherit;width:100%;padding:8px;">
+        <button id="cancelPixBtn" style="margin-top:12px;background:none;border:none;color:#9CA3AF;font-size:0.82rem;cursor:pointer;font-family:inherit;width:100%;padding:8px;">
           ← Escolher outro plano
         </button>
       </div>

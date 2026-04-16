@@ -1,6 +1,6 @@
 /**
  * js/pages/personal/feedbacks.js
- * Migrado de script inline em pages/personal/feedbacks.html
+ * Corrigido: filterToggleBtn listener adicionado aqui (era onclick inline no HTML)
  */
 window.__pageInit = async function() {
   const daysMap = {
@@ -18,13 +18,16 @@ window.__pageInit = async function() {
 
   let allFeedbacks = [], allStudents = [], allWorkouts = {};
 
-  // ── Filter toggle mobile ─────────────────────────────────────
+  // ── Filter toggle mobile — event listener (não onclick inline) ──────
   let filtersOpen = false;
-  window.toggleFilters = function() {
+
+  function toggleFilters() {
     filtersOpen = !filtersOpen;
     document.getElementById('filterCollapsible')?.classList.toggle('open', filtersOpen);
     document.getElementById('filterToggleBtn')?.classList.toggle('open', filtersOpen);
-  };
+  }
+
+  document.getElementById('filterToggleBtn')?.addEventListener('click', toggleFilters);
 
   function applyDesktopLayout() {
     const isMobile   = window.innerWidth <= 768;

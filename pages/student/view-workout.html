@@ -65,7 +65,8 @@
   <header class="vw-header">
     <div class="vw-header-inner">
       <div style="display:flex;align-items:center;gap:12px;">
-        <button onclick="router.goToStudentDashboard()" class="vw-back-btn">
+        <!-- data-action em vez de onclick inline -->
+        <button data-action="go-to:/student/dashboard" class="vw-back-btn">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
           Voltar
         </button>

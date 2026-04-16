@@ -1,6 +1,6 @@
 /**
  * js/pages/personal/billing.js
- * Migrado de script inline em pages/personal/billing.html
+ * Corrigido: todos os event handlers via addEventListener (sem onclick inline / globals)
  */
 window.__pageInit = async function() {
   await new Promise(r => document.readyState === 'loading'
@@ -24,8 +24,25 @@ window.__pageInit = async function() {
   let validatedCpf        = '';
   let validatedPhone      = '';
 
-  document.getElementById('logoutBtn').onclick = async () => { await authManager.logout(); router.goToLogin(); };
+  // ── Logout ───────────────────────────────────────────────────
+  document.getElementById('logoutBtn').addEventListener('click', async () => {
+    await authManager.logout(); router.goToLogin();
+  });
 
+  // ── Tab buttons ───────────────────────────────────────────────
+  document.getElementById('tabPlans').addEventListener('click', () => showTab('plans'));
+  document.getElementById('tabHistory').addEventListener('click', () => showTab('history'));
+
+  // ── Customer form buttons ─────────────────────────────────────
+  document.getElementById('cancelCustomerBtn').addEventListener('click', cancelCustomerForm);
+  document.getElementById('confirmCustomerBtn').addEventListener('click', confirmCustomerData);
+
+  // ── PIX buttons ───────────────────────────────────────────────
+  document.getElementById('copyPixBtn').addEventListener('click', copyPix);
+  document.getElementById('simPayBtn').addEventListener('click', simulatePayment);
+  document.getElementById('cancelPixBtn').addEventListener('click', cancelPix);
+
+  // ── Helpers ───────────────────────────────────────────────────
   function toast(msg, ms = 2500) {
     const el = document.getElementById('toastEl');
     if (!el) return;
@@ -36,7 +53,7 @@ window.__pageInit = async function() {
   async function getToken() {
     const user = authManager.getCurrentUser();
     if (!user) return null;
-    return user.getIdToken(); // sem forçar refresh desnecessário
+    return user.getIdToken();
   }
 
   async function apiFetch(path, options = {}) {
@@ -83,7 +100,7 @@ window.__pageInit = async function() {
     } else { inputPhone.className = 'cf-input'; if (hintPhone) hintPhone.style.display='none'; }
   });
 
-  window.confirmCustomerData = function() {
+  function confirmCustomerData() {
     const errDiv = document.getElementById('cfError');
     if (errDiv) errDiv.style.display = 'none';
     if (!validateCPF(inputCpf?.value || '')) { if(errDiv){errDiv.textContent='CPF inválido.';errDiv.style.display='block';} inputCpf?.focus(); return; }
@@ -93,9 +110,9 @@ window.__pageInit = async function() {
     const customerFormSection = document.getElementById('customerFormSection');
     if (customerFormSection) customerFormSection.style.display = 'none';
     generatePix();
-  };
+  }
 
-  window.cancelCustomerForm = function() {
+  function cancelCustomerForm() {
     validatedCpf = ''; validatedPhone = '';
     if (inputCpf)   { inputCpf.value = '';   inputCpf.className   = 'cf-input'; }
     if (inputPhone) { inputPhone.value = ''; inputPhone.className = 'cf-input'; }
@@ -107,7 +124,7 @@ window.__pageInit = async function() {
     if (cfs)    cfs.style.display    = 'none';
     selectedPlan = null;
     renderPlans();
-  };
+  }
 
   async function loadStatus() {
     try {
@@ -148,7 +165,9 @@ window.__pageInit = async function() {
     const colorMap = { info:{cls:'warn-info',icon:'ℹ️',tc:'#1E40AF'}, warning:{cls:'warn-warning',icon:'⚠️',tc:'#92400E'}, danger:{cls:'warn-danger',icon:'🔒',tc:'#BE123C'} };
     const { cls, icon, tc } = colorMap[sub.warningLevel] || colorMap.info;
     el.className = `warn-banner ${cls}`; el.style.display = 'flex';
-    el.innerHTML = `<span style="font-size:1.3rem;flex-shrink:0;">${icon}</span><div style="flex:1;"><p style="font-size:0.875rem;font-weight:700;color:${tc};margin:0 0 4px;">${sub.warningMessage}</p><button onclick="showTab('plans')" style="font-size:0.78rem;font-weight:700;color:${tc};background:none;border:none;cursor:pointer;text-decoration:underline;padding:0;font-family:inherit;">Renovar agora →</button></div>`;
+    // Usar botão com data-action em vez de onclick inline
+    el.innerHTML = `<span style="font-size:1.3rem;flex-shrink:0;">${icon}</span><div style="flex:1;"><p style="font-size:0.875rem;font-weight:700;color:${tc};margin:0 0 4px;">${sub.warningMessage}</p><button id="warningRenewBtn" style="font-size:0.78rem;font-weight:700;color:${tc};background:none;border:none;cursor:pointer;text-decoration:underline;padding:0;font-family:inherit;">Renovar agora →</button></div>`;
+    document.getElementById('warningRenewBtn')?.addEventListener('click', () => showTab('plans'));
   }
 
   function renderPlans() {
@@ -159,21 +178,35 @@ window.__pageInit = async function() {
     grid.innerHTML = PLANS.map(p => {
       const isCurrent = curPlan === p.id && isActive;
       const isSel     = selectedPlan === p.id;
-      return `<div class="plan-card${p.popular?' popular':''}${isSel?' selected':''}" onclick="selectPlan('${p.id}')">
+      return `<div class="plan-card${p.popular?' popular':''}${isSel?' selected':''}" data-plan="${p.id}" style="cursor:pointer;">
         ${p.popular ? '<div class="popular-badge">Mais escolhido</div>' : ''}
         <div style="margin-bottom:16px;"><h3 style="font-size:1.05rem;font-weight:800;color:#0A0A0A;margin:0 0 2px;">${p.name}</h3><p style="font-size:0.78rem;color:#6B7280;margin:0;">Até ${p.maxStudents} alunos</p></div>
         <div style="margin-bottom:18px;"><span style="font-size:1.9rem;font-weight:800;color:#0A0A0A;letter-spacing:-0.04em;">${p.price}</span><span style="font-size:0.82rem;color:#9CA3AF;">${p.period}</span></div>
         <ul style="list-style:none;margin:0 0 18px;padding:0;display:flex;flex-direction:column;gap:7px;">${p.features.map(f=>`<li style="font-size:0.78rem;color:#374151;display:flex;align-items:center;gap:6px;"><span style="color:#00C853;">✓</span>${f}</li>`).join('')}</ul>
-        <button onclick="event.stopPropagation();openCustomerForm('${p.id}')" style="width:100%;padding:11px;border:2px solid ${isSel?'#00E676':'#E5E7EB'};background:${isSel?'#00E676':'#fff'};color:${isSel?'#0A0A0A':'#374151'};border-radius:10px;font-size:0.85rem;font-weight:700;cursor:pointer;transition:all 0.2s;font-family:inherit;">
+        <button class="open-form-btn" data-plan="${p.id}" style="width:100%;padding:11px;border:2px solid ${isSel?'#00E676':'#E5E7EB'};background:${isSel?'#00E676':'#fff'};color:${isSel?'#0A0A0A':'#374151'};border-radius:10px;font-size:0.85rem;font-weight:700;cursor:pointer;transition:all 0.2s;font-family:inherit;">
           ${isCurrent ? '✓ Plano atual — Renovar' : 'Assinar agora'}
         </button>
       </div>`;
     }).join('');
+
+    // Bind plan card clicks
+    grid.querySelectorAll('[data-plan]').forEach(card => {
+      card.addEventListener('click', () => {
+        selectedPlan = card.dataset.plan;
+        renderPlans();
+      });
+    });
+
+    // Bind "Assinar agora" buttons — stopPropagation to avoid double-trigger
+    grid.querySelectorAll('.open-form-btn').forEach(btn => {
+      btn.addEventListener('click', e => {
+        e.stopPropagation();
+        openCustomerForm(btn.dataset.plan);
+      });
+    });
   }
 
-  window.selectPlan = function(planId) { selectedPlan = planId; renderPlans(); };
-
-  window.openCustomerForm = function(planId) {
+  function openCustomerForm(planId) {
     selectedPlan = planId; renderPlans();
     if (inputCpf)   { inputCpf.value   = ''; inputCpf.className   = 'cf-input'; }
     if (inputPhone) { inputPhone.value = ''; inputPhone.className = 'cf-input'; }
@@ -186,7 +219,7 @@ window.__pageInit = async function() {
     if (px)     px.style.display     = 'none';
     if (cfs)    { cfs.style.display  = 'block'; cfs.scrollIntoView({ behavior:'smooth', block:'start' }); }
     setTimeout(() => inputCpf?.focus(), 300);
-  };
+  }
 
   async function generatePix() {
     const plan = PLANS.find(p => p.id === selectedPlan);
@@ -234,7 +267,7 @@ window.__pageInit = async function() {
     if (simPayBtn)   simPayBtn.disabled       = true;
   }
 
-  window.simulatePayment = async function() {
+  async function simulatePayment() {
     if (!currentGatewayPixId) return;
     const btn = document.getElementById('simPayBtn');
     if (!btn) return;
@@ -257,7 +290,7 @@ window.__pageInit = async function() {
       btn.innerHTML = '🧪 Simular pagamento PIX (Dev Mode)'; btn.disabled = false;
       toast('Erro ao simular: ' + e.message);
     }
-  };
+  }
 
   function startPolling() {
     clearInterval(pixPollingInterval);
@@ -284,7 +317,7 @@ window.__pageInit = async function() {
     toast('🎉 Pagamento confirmado! Plano ativado.', 5000);
   }
 
-  window.cancelPix = function() {
+  function cancelPix() {
     clearInterval(pixPollingInterval);
     validatedCpf = ''; validatedPhone = '';
     const ps  = document.getElementById('pixSection');
@@ -292,9 +325,9 @@ window.__pageInit = async function() {
     if (ps)  ps.style.display  = 'none';
     if (cfs) cfs.style.display = 'none';
     selectedPlan = null; renderPlans();
-  };
+  }
 
-  window.copyPix = function() {
+  function copyPix() {
     if (!pixCopyPaste) return;
     navigator.clipboard.writeText(pixCopyPaste).then(() => {
       const btn = document.getElementById('copyPixBtn');
@@ -302,9 +335,9 @@ window.__pageInit = async function() {
       btn.innerHTML = '✓ Copiado!'; btn.classList.add('copied');
       setTimeout(() => { btn.innerHTML = '📋 Copiar código PIX'; btn.classList.remove('copied'); }, 3000);
     });
-  };
+  }
 
-  window.showTab = function(tab) {
+  function showTab(tab) {
     const cp  = document.getElementById('contentPlans');
     const ch  = document.getElementById('contentHistory');
     const tp  = document.getElementById('tabPlans');
@@ -314,7 +347,7 @@ window.__pageInit = async function() {
     if (tp) tp.className = 'tab-btn' + (tab === 'plans'   ? ' active' : '');
     if (th) th.className = 'tab-btn' + (tab === 'history' ? ' active' : '');
     if (tab === 'history') loadHistory();
-  };
+  }
 
   async function loadHistory() {
     const list = document.getElementById('historyList');
@@ -341,12 +374,5 @@ window.__pageInit = async function() {
 };
 
 window.__pageCleanup = function() {
-  delete window.confirmCustomerData;
-  delete window.cancelCustomerForm;
-  delete window.selectPlan;
-  delete window.openCustomerForm;
-  delete window.simulatePayment;
-  delete window.cancelPix;
-  delete window.copyPix;
-  delete window.showTab;
+  // sem globals para limpar — tudo via addEventListener local
 };
