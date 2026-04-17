@@ -1,6 +1,12 @@
 /**
  * js/pages/student/view-workout.js
- * Migrado de script inline em pages/student/view-workout.html
+ *
+ * CORREÇÕES CSP:
+ * - renderTabs(): botões de dia usam data-day em vez de onclick="switchDay(...)"
+ * - renderDay(): botão "Marcar como feito" usa data-day + data-idx em vez de onclick="toggleCheck(...)"
+ * - renderFbCta(): botão "Enviar Feedback" usa data-day em vez de onclick="openFeedback(...)"
+ * - Event delegation no mainContent para capturar todos esses cliques
+ * - effortRange: addEventListener('input') em vez de oninput inline no HTML
  */
 window.__pageInit = async function() {
   const esc = window.esc || function(v) {
@@ -68,6 +74,19 @@ window.__pageInit = async function() {
       <div id="dayExercises"></div>
       <div id="fbCta" style="margin-top:28px;"></div>`;
 
+    // Event delegation no mainContent para switchDay, toggleCheck, openFeedback
+    main.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-action]');
+      if (!btn) return;
+      const action  = btn.dataset.action;
+      const dayKey  = btn.dataset.day;
+      const idx     = btn.dataset.idx !== undefined ? parseInt(btn.dataset.idx, 10) : undefined;
+
+      if (action === 'switch-day' && dayKey)         switchDay(dayKey);
+      else if (action === 'toggle-check' && dayKey)  toggleCheck(dayKey, idx);
+      else if (action === 'open-feedback' && dayKey) openFeedback(dayKey);
+    });
+
     renderTabs(activeDays, days);
     renderDay(currentDay, days);
   }
@@ -75,6 +94,7 @@ window.__pageInit = async function() {
   function renderTabs(activeDays, days) {
     const tabsEl = document.getElementById('dayTabs');
     if (!tabsEl) return;
+    // Botões usam data-action="switch-day" data-day="..." em vez de onclick inline
     tabsEl.innerHTML = DAYS_ORDER.map(d => {
       const hasWorkout = days[d]?.length > 0;
       const isToday    = d === todayKey;
@@ -83,8 +103,13 @@ window.__pageInit = async function() {
       if (!hasWorkout) cls += ' rest';
       if (isToday)     cls += ' today';
       if (isActive)    cls += ' active';
-      return `<button class="${cls}" ${hasWorkout ? `onclick="switchDay('${d}')"` : 'disabled'}>
-        ${DAYS_SHORT[d]}${isToday ? '<span style="font-size:0.6rem;display:block;margin-top:1px;">hoje</span>' : ''}
+      if (hasWorkout) {
+        return `<button class="${cls}" data-action="switch-day" data-day="${d}">
+          ${DAYS_SHORT[d]}${isToday ? '<span style="font-size:0.6rem;display:block;margin-top:1px;">hoje</span>' : ''}
+        </button>`;
+      }
+      return `<button class="${cls}" disabled>
+        ${DAYS_SHORT[d]}
       </button>`;
     }).join('');
   }
@@ -138,6 +163,7 @@ window.__pageInit = async function() {
       cardEl.className = `ex-card${isDone ? ' done' : ''}`;
       cardEl.id        = `ex-card-${idx}`;
       cardEl.style.marginBottom = '12px';
+      // Botão usa data-action + data-day + data-idx em vez de onclick inline
       cardEl.innerHTML = `
         <div class="ex-card-body">
           <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:12px;">
@@ -154,7 +180,9 @@ window.__pageInit = async function() {
           ${exObs ? `<div style="background:#FFFBEB;border:1px solid #FDE68A;border-radius:8px;padding:9px 12px;margin-bottom:12px;display:flex;gap:7px;align-items:flex-start;"><span style="font-size:0.85rem;flex-shrink:0;">💡</span><p style="font-size:0.8rem;color:#92400E;margin:0;line-height:1.5;">${exObs}</p></div>` : ''}
           ${exVideo ? `<div style="position:relative;width:100%;padding-bottom:56.25%;border-radius:10px;overflow:hidden;background:#000;margin-top:14px;"><iframe src="${exVideo}" allow="accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture" allowfullscreen loading="lazy" sandbox="allow-scripts allow-same-origin allow-presentation" style="position:absolute;inset:0;width:100%;height:100%;border:none;"></iframe></div>` : ''}
           <div style="margin-top:14px;">
-            <button class="${isDone ? 'check-btn check-btn-done' : 'check-btn check-btn-todo'}" onclick="toggleCheck('${dayKey}',${idx})" style="width:100%;padding:12px;border:none;border-radius:10px;font-size:0.875rem;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:all 0.25s;font-family:inherit;${isDone?'background:#D1FAE5;color:#065F46;':'background:#0A0A0A;color:#fff;'}">
+            <button class="${isDone ? 'check-btn check-btn-done' : 'check-btn check-btn-todo'}"
+              data-action="toggle-check" data-day="${dayKey}" data-idx="${idx}"
+              style="width:100%;padding:12px;border:none;border-radius:10px;font-size:0.875rem;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:all 0.25s;font-family:inherit;${isDone?'background:#D1FAE5;color:#065F46;':'background:#0A0A0A;color:#fff;'}">
               ${isDone ? '✓ Concluído' : '◷ Marcar como feito'}
             </button>
           </div>
@@ -168,32 +196,34 @@ window.__pageInit = async function() {
   function renderFbCta(dayKey, done, total) {
     const ctaEl = document.getElementById('fbCta');
     if (!ctaEl || total === 0) { if (ctaEl) ctaEl.innerHTML = ''; return; }
+    // Botão usa data-action="open-feedback" data-day="..." em vez de onclick inline
     ctaEl.innerHTML = `
       <div style="background:#fff;border:1px solid #EBEBEB;border-radius:16px;padding:20px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;">
         <div>
           <p style="font-size:0.95rem;font-weight:700;color:#0A0A0A;margin:0 0 3px;">${done === total ? '🎉 Treino concluído!' : `${esc(String(done))} de ${esc(String(total))} exercícios feitos`}</p>
           <p style="font-size:0.82rem;color:#6B7280;margin:0;">Envie seu feedback para o personal</p>
         </div>
-        <button onclick="openFeedback('${dayKey}')" style="padding:12px 22px;background:#00E676;color:#0A0A0A;border:none;border-radius:12px;font-size:0.875rem;font-weight:800;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:7px;white-space:nowrap;">
+        <button data-action="open-feedback" data-day="${dayKey}"
+          style="padding:12px 22px;background:#00E676;color:#0A0A0A;border:none;border-radius:12px;font-size:0.875rem;font-weight:800;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:7px;white-space:nowrap;">
           💬 Enviar Feedback
         </button>
       </div>`;
   }
 
-  window.switchDay = function(dayKey) {
+  function switchDay(dayKey) {
     currentDay = dayKey;
     renderTabs(DAYS_ORDER.filter(d => workout.days[d]?.length > 0), workout.days);
     renderDay(dayKey, workout.days);
-  };
+  }
 
-  window.toggleCheck = function(dayKey, idx) {
+  function toggleCheck(dayKey, idx) {
     if (!checkedExercises[dayKey]) checkedExercises[dayKey] = new Set();
     const set = checkedExercises[dayKey];
     if (set.has(idx)) set.delete(idx); else set.add(idx);
     renderDay(dayKey, workout.days);
-  };
+  }
 
-  window.openFeedback = function(dayKey) {
+  function openFeedback(dayKey) {
     currentFbDay = dayKey;
     const slider = document.getElementById('effortRange');
     if (slider) { slider.value = 5; updateSliderGradient(slider); }
@@ -211,7 +241,7 @@ window.__pageInit = async function() {
     if (comment) comment.value        = '';
     if (errDiv)  errDiv.style.display = 'none';
     document.getElementById('fbOverlay')?.classList.add('open');
-  };
+  }
 
   function closeFeedback() { document.getElementById('fbOverlay')?.classList.remove('open'); }
 
@@ -221,6 +251,7 @@ window.__pageInit = async function() {
     if (e.target === document.getElementById('fbOverlay')) closeFeedback();
   });
 
+  // effortRange: addEventListener em vez de oninput inline no HTML
   const effortRangeEl = document.getElementById('effortRange');
   effortRangeEl?.addEventListener('input', e => {
     document.getElementById('effortVal').textContent = e.target.value;
@@ -293,15 +324,13 @@ window.__pageInit = async function() {
     renderPage();
     if (effortRangeEl) updateSliderGradient(effortRangeEl);
   } catch (e) {
-    const esc2 = window.esc || String;
-    document.getElementById('mainContent').innerHTML = `<p style="text-align:center;color:#BE123C;padding:80px;">Erro: ${esc2(e.message)}</p>`;
+    document.getElementById('mainContent').innerHTML = `<p style="text-align:center;color:#BE123C;padding:80px;">Erro: ${esc(e.message)}</p>`;
   }
 
   document.addEventListener('keydown', e => { if (e.key === 'Escape') closeFeedback(); });
 };
 
 window.__pageCleanup = function() {
-  delete window.switchDay;
-  delete window.toggleCheck;
-  delete window.openFeedback;
+  // globals expostos globalmente para compatibilidade
+  // (não há mais, tudo via delegation)
 };

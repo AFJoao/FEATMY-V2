@@ -1,294 +1,448 @@
 /**
- * js/pages/personal/volume-analysis.js
- * Corrigido:
- * - vpBackBtn agora usa addEventListener (não mais onclick inline no HTML)
- * - switchMode exposto via window para compatibilidade com innerHTML gerado
- * - Botões de toggle (auto/manual) no render() usam data-mode em vez de onclick inline
+ * js/pages/personal/create-workout.js
+ *
+ * CORREÇÕES CSP:
+ * - cardHtml(): removidos onclick e oncontextmenu inline → data-attributes
+ * - renderBoard(): removidos onclick inline dos botões copiar-dia, placeholder, add
+ * - Tabs do modal (tabSearch/tabManual): removidos onclick inline → addEventListener
+ * - Event delegation centralizado em bindCardEvents() e bindBoardEvents()
  */
-window.__pageInit = async function(params) {
-  const MUSCLES = ['Peito','Costas','Ombros','Bíceps','Tríceps','Quadríceps','Posterior','Glúteos','Panturrilhas','Abdômen','Lombar'];
-  const MUSCLE_ALIAS = { 'Peito':'Peito','Costas':'Costas','Ombros':'Ombros','Bíceps':'Bíceps','Tríceps':'Tríceps','Pernas':'Quadríceps','Quadríceps':'Quadríceps','Posterior de coxa':'Posterior','Posterior':'Posterior','Glúteos':'Glúteos','Panturrilhas':'Panturrilhas','Panturrilha':'Panturrilhas','Abdômen':'Abdômen','Lombar':'Lombar','Funcional':'Costas','Cardio':'Abdômen','Full Body':'Costas' };
-  const MUSCLE_COLOR = { 'Peito':'#3B82F6','Costas':'#10B981','Ombros':'#8B5CF6','Bíceps':'#F59E0B','Tríceps':'#EF4444','Quadríceps':'#06B6D4','Posterior':'#EC4899','Glúteos':'#84CC16','Panturrilhas':'#F97316','Abdômen':'#6366F1','Lombar':'#14B8A6' };
-  const VOLUME_REF   = { 'Peito':10,'Costas':12,'Ombros':10,'Bíceps':8,'Tríceps':8,'Quadríceps':12,'Posterior':10,'Glúteos':10,'Panturrilhas':8,'Abdômen':8,'Lombar':8 };
+window.__pageInit = async function() {
+  await new Promise(r => document.readyState === 'loading'
+    ? document.addEventListener('DOMContentLoaded', r) : r());
+  await new Promise(r => setTimeout(r, 120));
 
-  let studentId = params?.id || window.routeParams?.id || (() => {
-    const hash  = window.location.hash || '';
-    const parts = hash.replace('#','').split('/').filter(Boolean);
-    const idx   = parts.indexOf('volume');
-    return (idx !== -1 && parts[idx+1]) ? parts[idx+1] : '';
-  })();
+  const esc = window.esc || function(v) {
+    if (v === null || v === undefined) return '';
+    return String(v).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#x27;')
+      .replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\//g,'&#x2F;');
+  };
 
-  window._vpStudentId = studentId;
+  const DAYS = [
+    { key:'monday',    short:'SEG', full:'Segunda' },
+    { key:'tuesday',   short:'TER', full:'Terça'   },
+    { key:'wednesday', short:'QUA', full:'Quarta'  },
+    { key:'thursday',  short:'QUI', full:'Quinta'  },
+    { key:'friday',    short:'SEX', full:'Sexta'   },
+    { key:'saturday',  short:'SÁB', full:'Sábado'  },
+    { key:'sunday',    short:'DOM', full:'Domingo' },
+  ];
 
-  let studentName        = '';
-  let workouts           = [];
-  let allExercises       = {};
-  let manualPercentages  = {};
-  let mode               = 'auto';
-  let volumeData         = {};
+  const MC = {
+    Peito:'#2563EB|#EFF6FF', Costas:'#059669|#ECFDF5', Pernas:'#D97706|#FEF3C7',
+    Ombros:'#7C3AED|#F5F3FF', Bíceps:'#EA580C|#FFF7ED', Tríceps:'#BE185D|#FDF2F8',
+    Abdômen:'#0891B2|#ECFEFF', Glúteos:'#16A34A|#F0FDF4', Cardio:'#DC2626|#FEF2F2',
+    'Full Body':'#6B7280|#F3F4F6',
+  };
+  function mStyle(m) { const p=(MC[m]||'#6B7280|#F3F4F6').split('|'); return `color:${p[0]};background:${p[1]};`; }
 
-  // ── Logout ────────────────────────────────────────────────
-  document.getElementById('vpLogout').addEventListener('click', async () => {
-    await authManager.logout(); router.goToLogin();
-  });
+  function E(name,muscle,sets,reps,rest,obs='') { return { id:uid(), name, muscle, sets:String(sets), reps:String(reps), rest:String(rest), obs }; }
+  function uid() { return Math.random().toString(36).slice(2,9); }
 
-  // ── Botão Voltar — addEventListener (não onclick inline) ──
-  document.getElementById('vpBackBtn')?.addEventListener('click', () => {
-    if (studentId) router.goToStudentDetails(studentId);
-    else router.goToPersonalDashboard();
-  });
+  const PRESETS = {
+    abc:{ monday:[E('Supino Reto','Peito',4,'10','90s'),E('Crucifixo','Peito',3,'12','60s'),E('Tríceps Pulley','Tríceps',3,'15','60s')], wednesday:[E('Puxada Frontal','Costas',4,'10','90s'),E('Remada Curvada','Costas',3,'12','90s'),E('Rosca Direta','Bíceps',3,'12','60s')], friday:[E('Agachamento','Pernas',4,'10','120s'),E('Leg Press','Pernas',3,'12','90s'),E('Panturrilha','Pernas',4,'20','45s')] },
+    abcd:{ monday:[E('Supino Reto','Peito',4,'10','90s'),E('Supino Inclinado','Peito',3,'12','90s'),E('Tríceps Pulley','Tríceps',3,'15','60s')], tuesday:[E('Puxada Frontal','Costas',4,'10','90s'),E('Remada Curvada','Costas',4,'10','90s'),E('Rosca Direta','Bíceps',3,'12','60s')], thursday:[E('Agachamento','Pernas',4,'10','120s'),E('Leg Press','Pernas',3,'12','90s'),E('Mesa Flexora','Pernas',3,'12','60s')], friday:[E('Desenvolvimento','Ombros',4,'10','90s'),E('Elevação Lateral','Ombros',3,'15','60s'),E('Panturrilha','Pernas',4,'20','45s')] },
+    upper_lower:{ monday:[E('Supino Reto','Peito',4,'8','120s'),E('Remada Curvada','Costas',4,'8','120s'),E('Desenvolvimento','Ombros',3,'10','90s'),E('Rosca Direta','Bíceps',3,'12','60s'),E('Tríceps Pulley','Tríceps',3,'12','60s')], tuesday:[E('Agachamento','Pernas',4,'8','120s'),E('Leg Press','Pernas',3,'12','90s'),E('Mesa Flexora','Pernas',3,'12','60s'),E('Panturrilha','Pernas',4,'20','45s')], thursday:[E('Supino Inclinado','Peito',4,'10','90s'),E('Puxada Frontal','Costas',4,'10','90s'),E('Elevação Lateral','Ombros',3,'15','60s'),E('Rosca Martelo','Bíceps',3,'12','60s')], friday:[E('Levantamento Terra','Costas',4,'6','180s'),E('Cadeira Extensora','Pernas',3,'15','60s'),E('Afundo','Pernas',3,'12','60s')] },
+    fullbody:{ monday:[E('Agachamento','Pernas',3,'10','120s'),E('Supino Reto','Peito',3,'10','90s'),E('Remada Curvada','Costas',3,'10','90s'),E('Desenvolvimento','Ombros',3,'10','90s')], wednesday:[E('Levantamento Terra','Costas',3,'8','180s'),E('Supino Inclinado','Peito',3,'10','90s'),E('Puxada Frontal','Costas',3,'10','90s'),E('Elevação Lateral','Ombros',3,'15','60s')], friday:[E('Afundo','Pernas',3,'10','90s'),E('Crucifixo','Peito',3,'12','60s'),E('Remada Unilateral','Costas',3,'10','90s'),E('Prancha','Abdômen',3,'45s','30s')] },
+    ppl:{ monday:[E('Supino Reto','Peito',4,'8','120s'),E('Supino Inclinado','Peito',3,'10','90s'),E('Desenvolvimento','Ombros',3,'10','90s'),E('Elevação Lateral','Ombros',3,'15','60s'),E('Tríceps Pulley','Tríceps',3,'15','60s')], tuesday:[E('Puxada Frontal','Costas',4,'10','90s'),E('Remada Curvada','Costas',4,'10','90s'),E('Rosca Direta','Bíceps',3,'12','60s'),E('Rosca Martelo','Bíceps',3,'12','60s')], wednesday:[E('Agachamento','Pernas',4,'10','120s'),E('Leg Press','Pernas',3,'12','90s'),E('Cadeira Extensora','Pernas',3,'15','60s'),E('Panturrilha','Pernas',4,'20','45s')], thursday:[E('Supino Inclinado','Peito',4,'10','90s'),E('Crucifixo','Peito',3,'12','60s'),E('Elevação Frontal','Ombros',3,'15','60s'),E('Tríceps Testa','Tríceps',3,'12','60s')], friday:[E('Levantamento Terra','Costas',4,'6','180s'),E('Puxada Neutra','Costas',3,'12','90s'),E('Rosca Concentrada','Bíceps',3,'12','60s')], saturday:[E('Agachamento Búlgaro','Pernas',3,'10','90s'),E('Afundo','Pernas',3,'12','90s'),E('Prancha','Abdômen',3,'45s','30s')] },
+  };
 
-  function showEmpty(msg) {
-    const root = document.getElementById('vpRoot');
-    if (root) root.innerHTML = `
-      <div style="min-height:calc(100vh - 64px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;color:#9CA3AF;text-align:center;padding:40px;">
-        <p style="font-size:1rem;font-weight:600;color:rgba(0,0,0,0.55);">${msg}</p>
-        <button id="vpEmptyBack" style="background:transparent;border:none;color:#9CA3AF;cursor:pointer;padding:8px;font-family:inherit;">Voltar</button>
-      </div>`;
-    document.getElementById('vpEmptyBack')?.addEventListener('click', () => {
-      if (studentId) router.goToStudentDetails(studentId);
-      else router.goToPersonalDashboard();
-    });
+  let board        = {};
+  let allExercises = [];
+  let targetDay    = null;
+  let selectedEx   = null;
+  let clipboard    = null;
+  let dragSrc      = null;
+  let ctxTarget    = null;
+  let currentTab   = 'search';
+  let editingId    = null;
+
+  DAYS.forEach(d => board[d.key] = []);
+
+  document.getElementById('logoutBtn').onclick = async () => { await authManager.logout(); router.goToLogin(); };
+
+  // Lógica do botão sair em mobile
+  const logoutSvg = document.querySelector('#logoutBtn svg');
+  if (logoutSvg) {
+    const updateLogout = () => {
+      const isMobile = window.innerWidth <= 768;
+      logoutSvg.style.display = isMobile ? 'block' : 'none';
+      const label = document.querySelector('#logoutBtn .cw-nav-label');
+      if (label) label.style.display = isMobile ? 'none' : 'block';
+    };
+    window.addEventListener('resize', updateLogout);
+    updateLogout();
   }
 
-  function toast(msg) {
-    const el = document.getElementById('vpToast');
+  try {
+    const students = await dbManager.getMyStudents();
+    const sel      = document.getElementById('studentSelect');
+    if (sel) {
+      students.forEach(s => {
+        const o = document.createElement('option');
+        o.value = s.uid; o.textContent = s.name;
+        sel.appendChild(o);
+      });
+      const preSelected = sessionStorage.getItem('preSelectedStudent');
+      if (preSelected) { sel.value = preSelected; sessionStorage.removeItem('preSelectedStudent'); }
+    }
+    const editId = sessionStorage.getItem('editWorkoutId');
+    if (editId) { sessionStorage.removeItem('editWorkoutId'); await loadWorkout(editId); }
+  } catch (e) { console.warn('Alunos:', e); }
+
+  try { allExercises = await dbManager.getPersonalExercises() || []; }
+  catch { allExercises = []; }
+
+  async function loadWorkout(id) {
+    try {
+      const w = await dbManager.getWorkout(id);
+      if (!w) return;
+      editingId = id;
+      const nameEl = document.getElementById('workoutName');
+      const selEl  = document.getElementById('studentSelect');
+      if (nameEl) nameEl.value = w.name || '';
+      if (selEl)  selEl.value  = w.studentId || '';
+      DAYS.forEach(d => {
+        board[d.key] = (w.days?.[d.key] || []).map(e => ({
+          id: uid(), name: e.exerciseName || e.name || '', muscle: e.muscleGroup || e.muscle || '',
+          sets: String(e.sets||3), reps: String(e.reps||12), rest: String(e.rest||'60s'), obs: e.obs || '',
+        }));
+      });
+      renderBoard(); toast('Rotina carregada ✓');
+    } catch (e) { console.warn(e); }
+  }
+
+  function toast(msg, ms = 2200) {
+    const el = document.getElementById('toast');
     if (!el) return;
     el.textContent = msg; el.classList.add('show');
-    setTimeout(() => el.classList.remove('show'), 2200);
+    setTimeout(() => el.classList.remove('show'), ms);
   }
 
-  function normalizeExName(ex) { return (ex.exerciseName || ex.name || '—').toLowerCase().trim(); }
-
-  function getDefaultPercentages(ex) {
-    if (ex.muscles?.length > 0) {
-      const obj = {};
-      ex.muscles.forEach(m => { const mapped = MUSCLE_ALIAS[m.group]||m.group; if (mapped) obj[mapped] = m.percentage||0; });
-      return obj;
-    }
-    const name   = (ex.exerciseName||ex.name||'').toLowerCase().trim();
-    const dbEx   = allExercises[name];
-    const mg     = dbEx?.muscleGroup || ex.muscleGroup || ex.muscle || '';
-    const mapped = MUSCLE_ALIAS[mg] || null;
-    return mapped ? { [mapped]: 100 } : {};
-  }
-
-  function initManualPercentages() {
-    workouts.forEach(w => {
-      Object.values(w.days||{}).forEach(exs => {
-        (exs||[]).forEach(ex => {
-          const key = normalizeExName(ex);
-          if (!manualPercentages[key]) manualPercentages[key] = getDefaultPercentages(ex);
-        });
-      });
-    });
-  }
-
-  function calculate() {
-    volumeData = {};
-    MUSCLES.forEach(m => volumeData[m] = 0);
-    workouts.forEach(w => {
-      Object.values(w.days||{}).forEach(exs => {
-        (exs||[]).forEach(ex => {
-          const sets = parseFloat(ex.sets) || 0;
-          if (sets === 0) return;
-          const pcts = mode === 'manual' ? (manualPercentages[normalizeExName(ex)] || getDefaultPercentages(ex)) : getDefaultPercentages(ex);
-          Object.entries(pcts).forEach(([muscle, pct]) => {
-            if (MUSCLES.includes(muscle) && pct > 0) volumeData[muscle] += sets * (pct/100);
-          });
-        });
-      });
-    });
-  }
-
-  function drawRadar() {
-    const svg = document.getElementById('radarSvg');
-    if (!svg) return;
-    const cx = 200, cy = 195, R = 150, n = MUSCLES.length;
-    const maxV = Math.max(...MUSCLES.map(m => volumeData[m]||0), 1);
-    function getGridPoint(i, r) { const angle = (Math.PI*2*i/n)-Math.PI/2; return [cx+r*Math.cos(angle), cy+r*Math.sin(angle)]; }
-    let svgContent = '';
-    [0.25,0.5,0.75,1].forEach(ratio => { const pts=MUSCLES.map((_,i)=>getGridPoint(i,R*ratio).join(',')); svgContent+=`<polygon points="${pts.join(' ')}" fill="none" stroke="rgba(0,0,0,0.07)" stroke-width="1"/>`; });
-    MUSCLES.forEach((_,i) => { const [x,y]=getGridPoint(i,R); svgContent+=`<line x1="${cx}" y1="${cy}" x2="${x}" y2="${y}" stroke="rgba(0,0,0,0.05)" stroke-width="1"/>`; });
-    const volPts = MUSCLES.map((m,i) => { const val=volumeData[m]||0; return getGridPoint(i, R*Math.min(val/maxV, 1)).join(','); });
-    svgContent += `<polygon points="${volPts.join(' ')}" fill="rgba(0,230,118,0.12)" stroke="#00C853" stroke-width="2"/>`;
-    MUSCLES.forEach((m,i) => { const val=volumeData[m]||0; const [x,y]=getGridPoint(i,R*Math.min(val/maxV,1)); svgContent+=`<circle cx="${x}" cy="${y}" r="5" fill="${MUSCLE_COLOR[m]||'#00C853'}" stroke="#FFFFFF" stroke-width="2"/>`; });
-    MUSCLES.forEach((m,i) => { const [lx,ly]=getGridPoint(i,R+22); const val=volumeData[m]||0; svgContent+=`<text x="${lx}" y="${ly}" text-anchor="middle" dominant-baseline="middle" font-size="9.5" font-family="DM Sans,sans-serif" font-weight="700" fill="${val>0?MUSCLE_COLOR[m]||'#888':'rgba(0,0,0,0.2)'}">${m.toUpperCase()}</text>`; });
-    svg.innerHTML = svgContent;
-  }
-
-  // ── switchMode exposta globalmente (usada pelos botões data-mode) ──
-  function switchMode(m) { mode = m; calculate(); render(); }
-  window.switchMode = switchMode;
-
-  function render() {
-    const totalSets    = Object.values(volumeData).reduce((a,b)=>a+b,0);
-    const totalEx      = workouts.reduce((s,w)=>s+Object.values(w.days||{}).reduce((ss,exs)=>ss+(exs?.length||0),0),0);
-    const activeDays   = new Set();
-    workouts.forEach(w => Object.keys(w.days||{}).forEach(d => { if (w.days[d]?.length>0) activeDays.add(d); }));
-    const activeMuscles = MUSCLES.filter(m => volumeData[m]>0).length;
-    const maxVol        = Math.max(...Object.values(volumeData), 1);
-
-    const root = document.getElementById('vpRoot');
-    if (!root) return;
-
-    root.innerHTML = `
-      <div class="vp-hero"><div class="vp-hero-label">Análise Semanal</div><h1 class="vp-hero-title">${studentName}</h1><p class="vp-hero-sub">Volume calculado com base nos treinos atribuídos</p></div>
-      <div class="vp-stats-row">
-        <div class="vp-stat"><div class="vp-stat-label">Séries Totais</div><div class="vp-stat-value" style="color:var(--green);">${Math.round(totalSets)}</div><div class="vp-stat-sub">ponderadas por músculo</div></div>
-        <div class="vp-stat"><div class="vp-stat-label">Exercícios</div><div class="vp-stat-value">${totalEx}</div><div class="vp-stat-sub">na semana</div></div>
-        <div class="vp-stat"><div class="vp-stat-label">Dias Ativos</div><div class="vp-stat-value">${activeDays.size}</div><div class="vp-stat-sub">de 7 dias</div></div>
-        <div class="vp-stat"><div class="vp-stat-label">Músculos</div><div class="vp-stat-value">${activeMuscles}</div><div class="vp-stat-sub">estimulados</div></div>
+  // cardHtml: sem onclick/oncontextmenu inline — usa data-attributes
+  function cardHtml(e, day, idx) {
+    return `<div class="ex-card" draggable="true" data-day="${day}" data-idx="${idx}" data-ctx-day="${day}" data-ctx-idx="${idx}">
+      <div class="ex-card-name">${esc(e.name)}</div>
+      <div class="ex-card-meta">
+        <span class="ex-badge" style="background:#111827;color:#fff;">${esc(e.sets)}×${esc(e.reps)}</span>
+        ${e.muscle ? `<span class="ex-badge" style="${mStyle(e.muscle)}">${esc(e.muscle)}</span>` : ''}
+        ${e.rest ? `<span class="ex-badge" style="background:#F3F4F6;color:#6B7280;">⏱${esc(e.rest)}</span>` : ''}
       </div>
-      <div class="vp-mode-row">
-        <div><div class="vp-mode-label">Modo de cálculo</div><div style="font-size:0.75rem;color:var(--text-muted);margin-top:2px;">${mode==='auto'?'Usando percentuais padrão':'Percentuais configurados manualmente'}</div></div>
-        <div class="vp-toggle">
-          <button class="vp-toggle-btn${mode==='auto'?' active':''}" data-mode="auto">⚡ Automático</button>
-          <button class="vp-toggle-btn${mode==='manual'?' active':''}" data-mode="manual">✏️ Manual</button>
+      ${e.obs ? `<div style="font-size:0.62rem;color:#9CA3AF;margin-top:3px;font-style:italic;">${esc(e.obs)}</div>` : ''}
+      <button class="ex-delete-btn" data-action="remove-card" data-day="${day}" data-idx="${idx}">
+        🗑 Remover
+      </button>
+    </div>`;
+  }
+
+  function renderBoard() {
+    const b = document.getElementById('kanbanBoard');
+    if (!b) return;
+    b.innerHTML = '';
+    DAYS.forEach(d => {
+      const col = document.createElement('div');
+      col.className = 'day-column';
+      col.dataset.day = d.key;
+      const hasClip   = !!(clipboard?.data?.length > 0);
+      const exHtml    = board[d.key].map((e, i) => cardHtml(e, d.key, i)).join('');
+      // Botões usam data-action + data-day em vez de onclick inline
+      col.innerHTML = `
+        <div class="day-header">
+          <div class="day-label-short">${d.short}</div>
+          <div class="day-label-full">${d.full}</div>
+          <div class="day-ex-count">${board[d.key].length} exerc.</div>
+          <button class="copy-day-btn${hasClip?' has-clipboard':''}" data-action="copy-day" data-day="${d.key}" title="${hasClip?'Colar dia copiado':'Copiar este dia'}">
+            ${hasClip ? '📋 Colar' : '📄 Copiar'}
+          </button>
         </div>
-      </div>
-      <div class="vp-main">
-        <div>
-          <div class="vp-bars-card">
-            <div class="vp-bars-title">Estímulo por Grupo Muscular</div>
-            ${MUSCLES.map(m => {
-              const val   = volumeData[m]||0;
-              const pct   = Math.min((val/maxVol)*100, 100);
-              const ref   = VOLUME_REF[m]||10;
-              const ratio = val/ref;
-              let status, statusColor;
-              if (val===0)       { status='ZERO'; statusColor='rgba(0,0,0,0.25)'; }
-              else if(ratio<0.5) { status='BAIXO'; statusColor='#EF4444'; }
-              else if(ratio<0.85){ status='OK';   statusColor='#F59E0B'; }
-              else if(ratio<=1.3){ status='IDEAL'; statusColor='#00E676'; }
-              else               { status='ALTO'; statusColor='#EF4444'; }
-              return `<div class="vp-bar-row">
-                <div class="vp-bar-muscle">${m}</div>
-                <div class="vp-bar-track"><div class="vp-bar-fill" style="width:0%;background:${MUSCLE_COLOR[m]||'#888'};" data-target="${pct}"></div></div>
-                <div class="vp-bar-val" style="color:${MUSCLE_COLOR[m]||'#888'};">${val.toFixed(1)}</div>
-              </div>`;
-            }).join('')}
-          </div>
-          <div class="vp-visual-card" style="margin-top:20px;">
-            <div class="vp-visual-title">Mapa de Equilíbrio Muscular</div>
-            <div style="display:flex;align-items:center;justify-content:center;">
-              <svg id="radarSvg" viewBox="0 0 400 380" width="100%" style="max-width:420px;"></svg>
-            </div>
-          </div>
-        </div>
-        <div id="sidePanel"></div>
-      </div>
-      <div style="max-width:1100px;margin:0 auto 60px;padding:0 28px;" id="insightsGrid"></div>`;
-
-    requestAnimationFrame(() => {
-      setTimeout(() => {
-        document.querySelectorAll('.vp-bar-fill[data-target]').forEach(el => { el.style.width = el.dataset.target + '%'; });
-      }, 80);
+        <div class="drop-zone" id="zone-${d.key}" data-day="${d.key}">
+          ${board[d.key].length === 0 ? `<div class="drop-placeholder" data-action="open-modal" data-day="${d.key}"><span>+ Adicionar</span></div>` : ''}
+          ${exHtml}
+          <button class="add-ex-btn" data-action="open-modal" data-day="${d.key}">+ Adicionar</button>
+        </div>`;
+      b.appendChild(col);
     });
-
-    drawRadar();
-    renderSidePanel();
-    renderInsights();
-
-    // Botões de modo — addEventListener via event delegation (sem onclick inline)
-    root.addEventListener('click', (e) => {
-      const modeBtn = e.target.closest('[data-mode]');
-      if (modeBtn) switchMode(modeBtn.dataset.mode);
-    });
-
-    if (mode === 'manual') {
-      document.getElementById('vpReset')?.addEventListener('click', () => {
-        manualPercentages={}; initManualPercentages(); calculate(); render(); toast('Percentuais resetados');
-      });
-      document.getElementById('vpRecalc')?.addEventListener('click', () => {
-        document.querySelectorAll('.vp-pct-input[data-key]').forEach(input => {
-          const key = input.dataset.key; const muscle = input.dataset.muscle;
-          if (!key||!muscle) return;
-          if (!manualPercentages[key]) manualPercentages[key]={};
-          manualPercentages[key][muscle] = parseFloat(input.value)||0;
-        });
-        calculate(); render(); toast('✓ Recalculado');
-      });
-    }
+    bindCardEvents();
+    bindDrag();
+    bindDrop();
   }
 
-  function renderSidePanel() {
-    const panel = document.getElementById('sidePanel');
-    if (!panel) return;
-    if (mode === 'manual') {
-      const seen = new Set(); const uniqueEx = [];
-      workouts.forEach(w => {
-        Object.entries(w.days||{}).forEach(([day, exs]) => {
-          (exs||[]).forEach(ex => {
-            const key = normalizeExName(ex);
-            if (!seen.has(key)) { seen.add(key); uniqueEx.push({ key, ex, days:[] }); }
-            const entry = uniqueEx.find(e => e.key === key);
-            const dayShort = { monday:'Seg',tuesday:'Ter',wednesday:'Qua',thursday:'Qui',friday:'Sex',saturday:'Sáb',sunday:'Dom' }[day];
-            if (entry && dayShort && !entry.days.includes(dayShort)) entry.days.push(dayShort);
-          });
-        });
-      });
+  // Event delegation centralizado para o kanban board
+  function bindCardEvents() {
+    const b = document.getElementById('kanbanBoard');
+    if (!b) return;
 
-      let html = `<div class="vp-manual-card"><div class="vp-manual-header"><div class="vp-manual-title">Ajustar Percentuais</div><button class="vp-manual-reset" id="vpReset">Resetar</button></div><div class="vp-manual-body">`;
-      uniqueEx.forEach(({ key, ex, days: exDays }) => {
-        const pcts = manualPercentages[key] || getDefaultPercentages(ex);
-        const name = ex.exerciseName || ex.name || '—';
-        const sets = ex.sets || '?';
-        html += `<div class="vp-ex-item"><div class="vp-ex-name">${name} <span style="font-size:0.6rem;color:var(--text-muted);">${sets} séries · ${exDays.join(' ')}</span></div><div class="vp-ex-muscles">`;
-        Object.keys(pcts).forEach(m => {
-          html += `<div class="vp-muscle-row"><div class="vp-muscle-name" style="color:${MUSCLE_COLOR[m]||'rgba(0,0,0,0.4)'};">${m}</div><input type="number" class="vp-pct-input" min="0" max="100" value="${pcts[m]||0}" data-key="${key}" data-muscle="${m}"><span class="vp-pct-label">%</span></div>`;
-        });
-        html += `</div></div>`;
-      });
-      html += `</div><button class="vp-recalc" id="vpRecalc">↻ Recalcular Volume</button></div>`;
-      panel.innerHTML = html;
+    // Usar um único listener no board (re-bind após cada render)
+    // Remover listener anterior se existir
+    if (b._boardClickHandler) b.removeEventListener('click', b._boardClickHandler);
+    if (b._boardCtxHandler)   b.removeEventListener('contextmenu', b._boardCtxHandler);
+
+    b._boardClickHandler = (e) => {
+      const target = e.target.closest('[data-action]');
+      if (!target) return;
+      const action = target.dataset.action;
+      const day    = target.dataset.day;
+      const idx    = parseInt(target.dataset.idx, 10);
+
+      if (action === 'remove-card') {
+        e.stopPropagation();
+        removeCard(day, idx);
+      } else if (action === 'copy-day') {
+        e.stopPropagation();
+        copyDayHandler(e, day);
+      } else if (action === 'open-modal') {
+        openModal(day);
+      }
+    };
+
+    b._boardCtxHandler = (e) => {
+      const card = e.target.closest('.ex-card[data-ctx-day]');
+      if (!card) return;
+      e.preventDefault(); e.stopPropagation();
+      ctxShow(e, card.dataset.ctxDay, parseInt(card.dataset.ctxIdx, 10));
+    };
+
+    b.addEventListener('click', b._boardClickHandler);
+    b.addEventListener('contextmenu', b._boardCtxHandler);
+  }
+
+  function copyDayHandler(e, day) {
+    if (e && e.stopPropagation) e.stopPropagation();
+    if (clipboard?.data?.length > 0) {
+      const count = clipboard.data.length;
+      clipboard.data.forEach(ex => board[day].push({ ...ex, id: uid() }));
+      clipboard = null;
+      renderBoard(); toast(`✓ ${count} exerc. colados`);
     } else {
-      panel.innerHTML = `<div class="vp-manual-card" style="border-radius:18px;"><div class="vp-manual-header"><div class="vp-manual-title">Exercícios da Semana</div></div><div class="vp-manual-body" style="max-height:620px;">${workouts.map(w => {
-        const days = w.days||{};
-        const dayOrder = ['monday','tuesday','wednesday','thursday','friday','saturday','sunday'];
-        const dPt      = { monday:'Seg',tuesday:'Ter',wednesday:'Qua',thursday:'Qui',friday:'Sex',saturday:'Sáb',sunday:'Dom' };
-        return `<div style="margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid var(--border);"><div style="font-size:0.78rem;font-weight:700;margin-bottom:10px;">${w.name}</div>${dayOrder.map(d => { const exs=days[d]; if(!exs?.length) return ''; return `<div style="margin-bottom:8px;"><div style="font-size:0.65rem;font-weight:700;color:var(--green);text-transform:uppercase;margin-bottom:5px;">${dPt[d]}</div>${exs.map(ex=>`<div style="display:flex;align-items:flex-start;gap:8px;padding:5px 0;"><span style="font-size:0.62rem;color:var(--text-muted);min-width:28px;">${ex.sets||'?'}s</span><div><div style="font-size:0.75rem;font-weight:600;">${ex.exerciseName||ex.name||'—'}</div></div></div>`).join('')}</div>`; }).join('')}</div>`;
-      }).join('')}</div></div>`;
+      if (board[day].length === 0) return toast('⚠ Dia vazio, nada para copiar');
+      clipboard = { type:'day', data: board[day].map(ex => ({ ...ex })) };
+      renderBoard(); toast(`✓ ${board[day].length} exerc. copiados — clique Colar em outro dia`);
     }
   }
 
-  function renderInsights() {
-    const el = document.getElementById('insightsGrid');
-    if (!el) return;
-    let topMuscle='Nenhum', topVal=0;
-    MUSCLES.forEach(m => { if(volumeData[m]>topVal){topVal=volumeData[m];topMuscle=m;} });
-    const neglected = MUSCLES.filter(m => volumeData[m]>0 && volumeData[m]<(VOLUME_REF[m]||10)*0.5);
-    const push = (volumeData['Peito']||0)+(volumeData['Ombros']||0)+(volumeData['Tríceps']||0);
-    const pull = (volumeData['Costas']||0)+(volumeData['Bíceps']||0);
-    const ppRatio = pull>0 ? push/pull : 999;
-    let ppInsight, ppColor;
-    if (pull===0&&push===0) { ppInsight='Sem dados de push/pull'; ppColor='rgba(0,0,0,0.04)'; }
-    else if(ppRatio<0.7)   { ppInsight=`Pull dominante (${pull.toFixed(1)} vs ${push.toFixed(1)})`; ppColor='rgba(245,158,11,0.08)'; }
-    else if(ppRatio>1.5)   { ppInsight=`Push dominante (${push.toFixed(1)} vs ${pull.toFixed(1)})`; ppColor='rgba(239,68,68,0.08)'; }
-    else                   { ppInsight=`Equilibrado (${push.toFixed(1)} push / ${pull.toFixed(1)} pull)`; ppColor='rgba(0,230,118,0.08)'; }
-    el.style.cssText='max-width:1100px;margin:0 auto 60px;padding:0 28px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;';
-    el.innerHTML = `
-      <div style="background:rgba(0,230,118,0.06);border:1px solid rgba(0,230,118,0.2);border-radius:14px;padding:16px;"><div style="font-size:1.3rem;margin-bottom:6px;">🏆</div><div style="font-size:0.72rem;font-weight:700;color:var(--green);margin-bottom:3px;">Mais estimulado</div><div style="font-size:0.7rem;color:var(--text-muted);line-height:1.5;">${topMuscle} com <strong style="color:#111;">${topVal.toFixed(1)} séries</strong>.</div></div>
-      <div style="background:${ppColor};border:1px solid rgba(0,0,0,0.1);border-radius:14px;padding:16px;"><div style="font-size:1.3rem;margin-bottom:6px;">⚖️</div><div style="font-size:0.72rem;font-weight:700;color:#F59E0B;margin-bottom:3px;">Balanço Push/Pull</div><div style="font-size:0.7rem;color:var(--text-muted);line-height:1.5;">${ppInsight}</div></div>
-      <div style="background:${neglected.length>0?'rgba(239,68,68,0.06)':'rgba(0,230,118,0.06)'};border:1px solid rgba(0,0,0,0.1);border-radius:14px;padding:16px;"><div style="font-size:1.3rem;margin-bottom:6px;">${neglected.length>0?'⚠️':'✅'}</div><div style="font-size:0.72rem;font-weight:700;color:${neglected.length>0?'#EF4444':'var(--green)'};margin-bottom:3px;">${neglected.length>0?'Atenção necessária':'Volume equilibrado'}</div><div style="font-size:0.7rem;color:var(--text-muted);line-height:1.5;">${neglected.length>0?`${neglected.join(', ')} abaixo do ideal.`:'Todos os grupos dentro da faixa.'}</div></div>`;
+  function bindDrag() {
+    document.querySelectorAll('.ex-card').forEach(c => {
+      c.addEventListener('dragstart', e => {
+        dragSrc = { day: c.dataset.day, idx: parseInt(c.dataset.idx) };
+        e.dataTransfer.effectAllowed = 'move';
+        setTimeout(() => c.classList.add('dragging'), 0);
+      });
+      c.addEventListener('dragend', () => {
+        c.classList.remove('dragging');
+        document.querySelectorAll('.day-column').forEach(col => col.classList.remove('drag-over'));
+        dragSrc = null;
+      });
+    });
   }
 
-  if (!studentId) { showEmpty('ID do aluno não encontrado.'); return; }
-  try {
-    const [student, wks, exList] = await Promise.all([
-      dbManager.getUserData(studentId),
-      dbManager.getStudentWorkouts(studentId),
-      dbManager.getPersonalExercises(),
-    ]);
-    studentName = student?.name || 'Aluno';
-    workouts    = wks || [];
-    (exList||[]).forEach(ex => { const key=(ex.name||'').toLowerCase().trim(); allExercises[key]=ex; });
-    if (workouts.length === 0) { showEmpty('Este aluno não possui treinos cadastrados.'); return; }
-    initManualPercentages(); calculate(); render();
-  } catch (e) { showEmpty('Erro ao carregar dados: ' + e.message); }
+  function bindDrop() {
+    document.querySelectorAll('.drop-zone').forEach(zone => {
+      const day = zone.dataset.day;
+      zone.addEventListener('dragover', e => { e.preventDefault(); zone.closest('.day-column').classList.add('drag-over'); });
+      zone.addEventListener('dragleave', e => { if (!zone.contains(e.relatedTarget)) zone.closest('.day-column').classList.remove('drag-over'); });
+      zone.addEventListener('drop', e => {
+        e.preventDefault();
+        zone.closest('.day-column').classList.remove('drag-over');
+        if (!dragSrc) return;
+        const { day: srcDay, idx: srcIdx } = dragSrc;
+        const cards    = [...zone.querySelectorAll('.ex-card')];
+        let dropIdx    = board[day].length;
+        for (let i = 0; i < cards.length; i++) {
+          const r = cards[i].getBoundingClientRect();
+          if (e.clientY < r.top + r.height / 2) { dropIdx = i; break; }
+        }
+        const moved = board[srcDay].splice(srcIdx, 1)[0];
+        if (srcDay === day) board[day].splice(dropIdx > srcIdx ? dropIdx - 1 : dropIdx, 0, moved);
+        else board[day].splice(dropIdx, 0, moved);
+        renderBoard(); toast('✓ Exercício movido');
+      });
+    });
+  }
+
+  function removeCard(day, idx) { board[day].splice(idx, 1); renderBoard(); }
+
+  function openModal(day) {
+    targetDay  = day; selectedEx = null;
+    const si   = document.getElementById('exSearchInput');
+    const sets = document.getElementById('exSets');
+    const reps = document.getElementById('exReps');
+    const rest = document.getElementById('exRest');
+    const sei  = document.getElementById('selectedExInfo');
+    if (si)   si.value   = '';
+    if (sets) sets.value = '3';
+    if (reps) reps.value = '12';
+    if (rest) rest.value = '60s';
+    if (sei)  sei.style.display = 'none';
+    renderExList(''); switchTab('search');
+    document.getElementById('exModal')?.classList.add('open');
+    setTimeout(() => document.getElementById('exSearchInput')?.focus(), 80);
+  }
+
+  function switchTab(tab) {
+    currentTab = tab;
+    document.getElementById('contentSearch').style.display = tab === 'search' ? 'block' : 'none';
+    document.getElementById('contentManual').style.display = tab === 'manual' ? 'block' : 'none';
+    document.getElementById('tabSearch').className = 'tab-btn' + (tab === 'search' ? ' active' : '');
+    document.getElementById('tabManual').className = 'tab-btn' + (tab === 'manual' ? ' active' : '');
+  }
+
+  // Tabs do modal — addEventListener em vez de onclick inline no HTML
+  document.getElementById('tabSearch')?.addEventListener('click', () => switchTab('search'));
+  document.getElementById('tabManual')?.addEventListener('click', () => switchTab('manual'));
+
+  function renderExList(q) {
+    const list = document.getElementById('exSearchList');
+    if (!list) return;
+    let items = allExercises;
+    if (q) items = items.filter(e => (e.name||'').toLowerCase().includes(q.toLowerCase()) || (e.muscleGroup||e.muscle||'').toLowerCase().includes(q.toLowerCase()));
+    if (items.length === 0) { list.innerHTML = `<div style="padding:14px;text-align:center;color:#9CA3AF;font-size:0.8rem;">Nenhum resultado. Use a aba Manual.</div>`; return; }
+    list.innerHTML = items.slice(0,60).map((e,i) => `
+      <div class="ex-search-item${selectedEx?.name===e.name?' selected':''}" data-ex-idx="${i}">
+        <div class="ex-search-name">${esc(e.name||'?')}</div>
+        <div class="ex-search-muscle">${esc(e.muscleGroup||e.muscle||'—')}</div>
+      </div>`).join('');
+
+    // Event delegation para seleção de exercício
+    list.querySelectorAll('.ex-search-item').forEach(item => {
+      item.addEventListener('click', () => {
+        const idx = parseInt(item.dataset.exIdx, 10);
+        const ex  = items[idx];
+        if (ex) selEx(ex.name||'', ex.muscleGroup||ex.muscle||'');
+      });
+    });
+  }
+
+  function selEx(name, muscle) {
+    selectedEx = { name, muscle };
+    const sei = document.getElementById('selectedExInfo');
+    if (sei) sei.style.display = 'block';
+    renderExList(document.getElementById('exSearchInput')?.value || '');
+  }
+
+  document.getElementById('exSearchInput')?.addEventListener('input', e => renderExList(e.target.value));
+  document.getElementById('closeExModal')?.addEventListener('click',  () => document.getElementById('exModal')?.classList.remove('open'));
+  document.getElementById('cancelExModal')?.addEventListener('click', () => document.getElementById('exModal')?.classList.remove('open'));
+  document.getElementById('exModal')?.addEventListener('click', e => { if (e.target === document.getElementById('exModal')) document.getElementById('exModal').classList.remove('open'); });
+
+  document.getElementById('confirmAddEx')?.addEventListener('click', () => {
+    if (currentTab === 'search') {
+      if (!selectedEx) return toast('⚠ Selecione um exercício');
+      board[targetDay].push({ id:uid(), name:selectedEx.name, muscle:selectedEx.muscle, sets:document.getElementById('exSets')?.value||'3', reps:document.getElementById('exReps')?.value||'12', rest:document.getElementById('exRest')?.value||'60s', obs:'' });
+    } else {
+      const name = document.getElementById('manualName')?.value.trim();
+      if (!name) return toast('⚠ Insira o nome');
+      board[targetDay].push({ id:uid(), name, muscle:document.getElementById('manualMuscle')?.value||'', sets:document.getElementById('manualSets')?.value||'3', reps:document.getElementById('manualReps')?.value||'12', rest:document.getElementById('manualRest')?.value||'60s', obs:document.getElementById('manualObs')?.value||'' });
+      const mn = document.getElementById('manualName'); const mo = document.getElementById('manualObs');
+      if (mn) mn.value = ''; if (mo) mo.value = '';
+    }
+    document.getElementById('exModal')?.classList.remove('open');
+    renderBoard();
+    toast(`✓ Adicionado em ${DAYS.find(d => d.key === targetDay)?.full}`);
+  });
+
+  document.getElementById('loadPresetBtn')?.addEventListener('click', () => {
+    const v = document.getElementById('presetSelect')?.value;
+    if (!v) return toast('Selecione um preset');
+    DAYS.forEach(d => board[d.key] = []);
+    Object.entries(PRESETS[v]).forEach(([day, list]) => { board[day] = list.map(e => ({ ...e, id:uid() })); });
+    renderBoard(); toast('✓ Preset carregado!');
+    const ps = document.getElementById('presetSelect'); if (ps) ps.value = '';
+  });
+
+  document.getElementById('clearBoardBtn')?.addEventListener('click', () => document.getElementById('confirmClearModal')?.classList.add('open'));
+  document.getElementById('cancelClear')?.addEventListener('click',   () => document.getElementById('confirmClearModal')?.classList.remove('open'));
+  document.getElementById('confirmClear')?.addEventListener('click',  () => {
+    DAYS.forEach(d => board[d.key] = []); clipboard = null;
+    renderBoard(); document.getElementById('confirmClearModal')?.classList.remove('open'); toast('Quadro limpo');
+  });
+
+  function ctxShow(e, day, idx) {
+    ctxTarget = { day, idx };
+    const menu     = document.getElementById('ctxMenu');
+    const hasCb    = !!(clipboard?.data?.length > 0);
+    const ctxPaste = document.getElementById('ctxPaste');
+    if (ctxPaste) { ctxPaste.style.opacity = hasCb ? '1' : '0.4'; ctxPaste.style.pointerEvents = hasCb ? 'auto' : 'none'; }
+    if (menu) { menu.style.left = Math.min(e.clientX, window.innerWidth-180)+'px'; menu.style.top = Math.min(e.clientY, window.innerHeight-140)+'px'; menu.classList.add('open'); }
+  }
+
+  document.addEventListener('click', () => document.getElementById('ctxMenu')?.classList.remove('open'));
+
+  document.getElementById('ctxEdit')?.addEventListener('click', () => {
+    if (!ctxTarget) return;
+    const ex = board[ctxTarget.day][ctxTarget.idx];
+    const s  = prompt('Séries:', ex.sets); if (s === null) return;
+    const r  = prompt('Reps/Tempo:', ex.reps); if (r === null) return;
+    const rs = prompt('Descanso:', ex.rest); if (rs === null) return;
+    const o  = prompt('Observações:', ex.obs);
+    board[ctxTarget.day][ctxTarget.idx] = { ...ex, sets:s, reps:r, rest:rs, obs:o||'' };
+    renderBoard(); toast('✓ Atualizado');
+  });
+
+  document.getElementById('ctxPaste')?.addEventListener('click', () => {
+    if (!ctxTarget || !clipboard) return;
+    const count    = clipboard.data.length;
+    const dayName  = DAYS.find(d => d.key === ctxTarget.day)?.full;
+    clipboard.data.forEach(ex => board[ctxTarget.day].push({ ...ex, id:uid() }));
+    clipboard = null;
+    document.getElementById('pasteBadge')?.classList.remove('visible');
+    renderBoard(); toast(`✓ ${count} exerc. colados em ${dayName}`);
+  });
+
+  document.getElementById('ctxDelete')?.addEventListener('click', () => {
+    if (ctxTarget) { removeCard(ctxTarget.day, ctxTarget.idx); toast('Exercício removido'); }
+  });
+
+  document.getElementById('saveWorkoutBtn')?.addEventListener('click', async () => {
+    const studentId = document.getElementById('studentSelect')?.value;
+    const name      = document.getElementById('workoutName')?.value.trim();
+    if (!studentId) return toast('⚠ Selecione um aluno');
+    if (!name)      return toast('⚠ Insira o nome da rotina');
+    const total = DAYS.reduce((a, d) => a + board[d.key].length, 0);
+    if (total === 0) return toast('⚠ Adicione pelo menos um exercício');
+
+    const saveBtn = document.getElementById('saveWorkoutBtn');
+    const origHtml = saveBtn.innerHTML;
+    saveBtn.innerHTML = '<div class="spinner" style="border-top-color:#0A0A0A;"></div>';
+    saveBtn.disabled  = true;
+
+    const daysData = {};
+    DAYS.forEach(d => {
+      if (board[d.key].length > 0) {
+        daysData[d.key] = board[d.key].map(e => ({ exerciseName:e.name||'', muscleGroup:e.muscle||'', sets:parseInt(e.sets)||3, reps:e.reps||'12', rest:e.rest||'60s', obs:e.obs||'' }));
+      }
+    });
+
+    try {
+      let result;
+      if (editingId) result = await dbManager.updateWorkout(editingId, { name, studentId, days: daysData });
+      else           result = await dbManager.createWorkout({ name, studentId, description:'', days: daysData });
+      if (result && result.success !== false) {
+        toast(`✓ Rotina "${name}" salva!`, 3000);
+        setTimeout(() => router.goToPersonalDashboard(), 1800);
+      } else { toast('Erro: ' + (result?.error || 'Tente novamente')); }
+    } catch { toast('Erro ao salvar. Veja o console.'); }
+    finally {
+      saveBtn.innerHTML = origHtml;
+      saveBtn.disabled  = false;
+    }
+  });
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+      document.getElementById('exModal')?.classList.remove('open');
+      document.getElementById('confirmClearModal')?.classList.remove('open');
+      document.getElementById('ctxMenu')?.classList.remove('open');
+    }
+  });
+
+  renderBoard(); renderExList('');
 };
 
 window.__pageCleanup = function() {
-  delete window.switchMode;
-  delete window._vpStudentId;
+  // Limpar listeners do board
+  const b = document.getElementById('kanbanBoard');
+  if (b) {
+    if (b._boardClickHandler) b.removeEventListener('click', b._boardClickHandler);
+    if (b._boardCtxHandler)   b.removeEventListener('contextmenu', b._boardCtxHandler);
+  }
 };

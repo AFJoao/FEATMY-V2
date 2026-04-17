@@ -1,6 +1,11 @@
 /**
  * js/pages/personal/student-details.js
- * Migrado de script inline em pages/personal/student-details.html
+ *
+ * CORREÇÕES CSP:
+ * - Botões de treino (Volume, Editar, Remover) gerados via innerHTML agora usam
+ *   data-action / data-workout-id em vez de onclick inline.
+ * - Fallback "Criar Treino" no estado vazio usa addEventListener.
+ * - Event delegation no workoutsList para capturar todos os cliques.
  */
 window.__pageInit = async function(params) {
   const DAYS_PT    = { monday:'Segunda', tuesday:'Terça', wednesday:'Quarta', thursday:'Quinta', friday:'Sexta', saturday:'Sábado', sunday:'Domingo' };
@@ -41,12 +46,43 @@ window.__pageInit = async function(params) {
     } catch (e) { console.error('Erro ao carregar aluno:', e); }
   }
 
+  // Funções de ação expostas para event delegation
+  function editWorkout(workoutId) {
+    sessionStorage.setItem('editWorkoutId', workoutId);
+    router.goTo('/personal/create-workout');
+  }
+
+  async function deleteWorkout(workoutId, workoutName) {
+    if (!confirm(`Remover o treino "${workoutName}"? Esta ação não pode ser desfeita.`)) return;
+    try { await dbManager.deleteWorkout(workoutId); await loadWorkouts(); }
+    catch (e) { alert('Erro ao remover: ' + e.message); }
+  }
+
+  // Event delegation no container de treinos
+  const list = document.getElementById('workoutsList');
+  list.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-action]');
+    if (!btn) return;
+    const action     = btn.dataset.action;
+    const workoutId  = btn.dataset.workoutId;
+    const workoutName = btn.dataset.workoutName || '';
+
+    if (action === 'volume')        router.goToVolumeAnalysis(studentId);
+    else if (action === 'edit')     editWorkout(workoutId);
+    else if (action === 'delete')   deleteWorkout(workoutId, workoutName);
+    else if (action === 'create-workout') {
+      if (studentId) sessionStorage.setItem('preSelectedStudent', studentId);
+      router.goTo('/personal/create-workout');
+    }
+  });
+
   async function loadWorkouts() {
-    const list = document.getElementById('workoutsList');
     if (!studentId) {
       list.innerHTML = `<div style="text-align:center;padding:48px;color:#BE123C;">ID do aluno não encontrado.</div>`;
       return;
     }
+
+    list.innerHTML = `<div style="text-align:center;padding:64px 20px;"><div class="spinner" style="margin:0 auto 16px;"></div><p style="color:#9CA3AF;font-size:0.875rem;margin:0;">Carregando treinos...</p></div>`;
 
     try {
       const workouts = await dbManager.getStudentWorkouts(studentId) || [];
@@ -57,7 +93,7 @@ window.__pageInit = async function(params) {
           <div style="padding:48px 32px;background:#FAFAFA;border-radius:16px;border:2px dashed #E5E7EB;text-align:center;">
             <p style="font-size:1rem;font-weight:600;color:#374151;margin:0 0 6px;">Nenhum treino cadastrado</p>
             <p style="font-size:0.85rem;color:#9CA3AF;margin:0 0 18px;">Crie o primeiro treino para este aluno</p>
-            <button onclick="document.getElementById('createWorkoutBtn').click()" class="nav-link-accent" style="margin:0 auto;">+ Criar Treino</button>
+            <button data-action="create-workout" class="nav-link-accent" style="margin:0 auto;">+ Criar Treino</button>
           </div>`;
         return;
       }
@@ -90,6 +126,7 @@ window.__pageInit = async function(params) {
 
         const card = document.createElement('div');
         card.className = 'workout-card';
+        // Botões usam data-action + data-workout-id em vez de onclick inline
         card.innerHTML = `
           <div style="padding:20px 22px 16px;">
             <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;gap:12px;">
@@ -102,9 +139,18 @@ window.__pageInit = async function(params) {
                 </div>
               </div>
               <div style="display:flex;gap:8px;flex-shrink:0;">
-                <button onclick="router.goToVolumeAnalysis('${esc(studentId)}')" style="padding:7px 14px;background:rgba(0,230,118,0.12);border:1px solid rgba(0,230,118,0.3);border-radius:8px;font-size:0.78rem;font-weight:600;color:#00A843;cursor:pointer;font-family:inherit;">📊 Volume</button>
-                <button onclick="editWorkout('${esc(w.id)}')" style="padding:7px 14px;background:#F4F4F4;border:none;border-radius:8px;font-size:0.78rem;font-weight:600;color:#374151;cursor:pointer;font-family:inherit;">✏️ Editar</button>
-                <button onclick="deleteWorkout('${esc(w.id)}','${(w.name||'').replace(/'/g,"\\'")}')" style="padding:7px 14px;background:#FEF2F2;border:none;border-radius:8px;font-size:0.78rem;font-weight:600;color:#DC2626;cursor:pointer;font-family:inherit;">🗑️ Remover</button>
+                <button data-action="volume" data-workout-id="${esc(w.id)}"
+                  style="padding:7px 14px;background:rgba(0,230,118,0.12);border:1px solid rgba(0,230,118,0.3);border-radius:8px;font-size:0.78rem;font-weight:600;color:#00A843;cursor:pointer;font-family:inherit;">
+                  📊 Volume
+                </button>
+                <button data-action="edit" data-workout-id="${esc(w.id)}"
+                  style="padding:7px 14px;background:#F4F4F4;border:none;border-radius:8px;font-size:0.78rem;font-weight:600;color:#374151;cursor:pointer;font-family:inherit;">
+                  ✏️ Editar
+                </button>
+                <button data-action="delete" data-workout-id="${esc(w.id)}" data-workout-name="${esc(w.name)}"
+                  style="padding:7px 14px;background:#FEF2F2;border:none;border-radius:8px;font-size:0.78rem;font-weight:600;color:#DC2626;cursor:pointer;font-family:inherit;">
+                  🗑️ Remover
+                </button>
               </div>
             </div>
             ${activeDays.length > 0
@@ -118,17 +164,6 @@ window.__pageInit = async function(params) {
       list.innerHTML = `<div style="text-align:center;padding:48px;color:#BE123C;">Erro: ${esc(e.message)}</div>`;
     }
   }
-
-  window.editWorkout = function(workoutId) {
-    sessionStorage.setItem('editWorkoutId', workoutId);
-    router.goTo('/personal/create-workout');
-  };
-
-  window.deleteWorkout = async function(workoutId, workoutName) {
-    if (!confirm(`Remover o treino "${workoutName}"? Esta ação não pode ser desfeita.`)) return;
-    try { await dbManager.deleteWorkout(workoutId); await loadWorkouts(); }
-    catch (e) { alert('Erro ao remover: ' + e.message); }
-  };
 
   await Promise.all([loadStudent(), loadWorkouts()]);
 };

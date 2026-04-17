@@ -1,6 +1,11 @@
 /**
  * js/pages/personal/create-workout.js
- * Migrado de script inline em pages/personal/create-workout.html
+ *
+ * CORREÇÕES CSP:
+ * - cardHtml(): removidos onclick e oncontextmenu inline → data-attributes
+ * - renderBoard(): removidos onclick inline dos botões copiar-dia, placeholder, add
+ * - Tabs do modal (tabSearch/tabManual): removidos onclick inline → addEventListener
+ * - Event delegation centralizado em bindCardEvents() e bindBoardEvents()
  */
 window.__pageInit = async function() {
   await new Promise(r => document.readyState === 'loading'
@@ -114,8 +119,9 @@ window.__pageInit = async function() {
     setTimeout(() => el.classList.remove('show'), ms);
   }
 
+  // cardHtml: sem onclick/oncontextmenu inline — usa data-attributes
   function cardHtml(e, day, idx) {
-    return `<div class="ex-card" draggable="true" data-day="${day}" data-idx="${idx}" oncontextmenu="ctxShow(event,'${day}',${idx})">
+    return `<div class="ex-card" draggable="true" data-day="${day}" data-idx="${idx}" data-ctx-day="${day}" data-ctx-idx="${idx}">
       <div class="ex-card-name">${esc(e.name)}</div>
       <div class="ex-card-meta">
         <span class="ex-badge" style="background:#111827;color:#fff;">${esc(e.sets)}×${esc(e.reps)}</span>
@@ -123,7 +129,7 @@ window.__pageInit = async function() {
         ${e.rest ? `<span class="ex-badge" style="background:#F3F4F6;color:#6B7280;">⏱${esc(e.rest)}</span>` : ''}
       </div>
       ${e.obs ? `<div style="font-size:0.62rem;color:#9CA3AF;margin-top:3px;font-style:italic;">${esc(e.obs)}</div>` : ''}
-      <button class="ex-delete-btn" onclick="event.stopPropagation(); removeCard('${day}',${idx})">
+      <button class="ex-delete-btn" data-action="remove-card" data-day="${day}" data-idx="${idx}">
         🗑 Remover
       </button>
     </div>`;
@@ -139,37 +145,80 @@ window.__pageInit = async function() {
       col.dataset.day = d.key;
       const hasClip   = !!(clipboard?.data?.length > 0);
       const exHtml    = board[d.key].map((e, i) => cardHtml(e, d.key, i)).join('');
+      // Botões usam data-action + data-day em vez de onclick inline
       col.innerHTML = `
         <div class="day-header">
           <div class="day-label-short">${d.short}</div>
           <div class="day-label-full">${d.full}</div>
           <div class="day-ex-count">${board[d.key].length} exerc.</div>
-          <button class="copy-day-btn${hasClip?' has-clipboard':''}" onclick="copyDayHandler(event,'${d.key}')" title="${hasClip?'Colar dia copiado':'Copiar este dia'}">
+          <button class="copy-day-btn${hasClip?' has-clipboard':''}" data-action="copy-day" data-day="${d.key}" title="${hasClip?'Colar dia copiado':'Copiar este dia'}">
             ${hasClip ? '📋 Colar' : '📄 Copiar'}
           </button>
         </div>
         <div class="drop-zone" id="zone-${d.key}" data-day="${d.key}">
-          ${board[d.key].length === 0 ? `<div class="drop-placeholder" onclick="openModal('${d.key}')"><span>+ Adicionar</span></div>` : ''}
+          ${board[d.key].length === 0 ? `<div class="drop-placeholder" data-action="open-modal" data-day="${d.key}"><span>+ Adicionar</span></div>` : ''}
           ${exHtml}
-          <button class="add-ex-btn" onclick="openModal('${d.key}')">+ Adicionar</button>
+          <button class="add-ex-btn" data-action="open-modal" data-day="${d.key}">+ Adicionar</button>
         </div>`;
       b.appendChild(col);
     });
-    bindDrag(); bindDrop();
+    bindCardEvents();
+    bindDrag();
+    bindDrop();
   }
 
-  window.copyDayHandler = function(e, day) {
-    e.stopPropagation();
+  // Event delegation centralizado para o kanban board
+  function bindCardEvents() {
+    const b = document.getElementById('kanbanBoard');
+    if (!b) return;
+
+    // Usar um único listener no board (re-bind após cada render)
+    // Remover listener anterior se existir
+    if (b._boardClickHandler) b.removeEventListener('click', b._boardClickHandler);
+    if (b._boardCtxHandler)   b.removeEventListener('contextmenu', b._boardCtxHandler);
+
+    b._boardClickHandler = (e) => {
+      const target = e.target.closest('[data-action]');
+      if (!target) return;
+      const action = target.dataset.action;
+      const day    = target.dataset.day;
+      const idx    = parseInt(target.dataset.idx, 10);
+
+      if (action === 'remove-card') {
+        e.stopPropagation();
+        removeCard(day, idx);
+      } else if (action === 'copy-day') {
+        e.stopPropagation();
+        copyDayHandler(e, day);
+      } else if (action === 'open-modal') {
+        openModal(day);
+      }
+    };
+
+    b._boardCtxHandler = (e) => {
+      const card = e.target.closest('.ex-card[data-ctx-day]');
+      if (!card) return;
+      e.preventDefault(); e.stopPropagation();
+      ctxShow(e, card.dataset.ctxDay, parseInt(card.dataset.ctxIdx, 10));
+    };
+
+    b.addEventListener('click', b._boardClickHandler);
+    b.addEventListener('contextmenu', b._boardCtxHandler);
+  }
+
+  function copyDayHandler(e, day) {
+    if (e && e.stopPropagation) e.stopPropagation();
     if (clipboard?.data?.length > 0) {
+      const count = clipboard.data.length;
       clipboard.data.forEach(ex => board[day].push({ ...ex, id: uid() }));
       clipboard = null;
-      renderBoard(); toast(`✓ ${clipboard?.data?.length || '?'} exerc. colados`);
+      renderBoard(); toast(`✓ ${count} exerc. colados`);
     } else {
       if (board[day].length === 0) return toast('⚠ Dia vazio, nada para copiar');
       clipboard = { type:'day', data: board[day].map(ex => ({ ...ex })) };
       renderBoard(); toast(`✓ ${board[day].length} exerc. copiados — clique Colar em outro dia`);
     }
-  };
+  }
 
   function bindDrag() {
     document.querySelectorAll('.ex-card').forEach(c => {
@@ -210,9 +259,9 @@ window.__pageInit = async function() {
     });
   }
 
-  window.removeCard = function(day, idx) { board[day].splice(idx, 1); renderBoard(); };
+  function removeCard(day, idx) { board[day].splice(idx, 1); renderBoard(); }
 
-  window.openModal = function(day) {
+  function openModal(day) {
     targetDay  = day; selectedEx = null;
     const si   = document.getElementById('exSearchInput');
     const sets = document.getElementById('exSets');
@@ -227,15 +276,19 @@ window.__pageInit = async function() {
     renderExList(''); switchTab('search');
     document.getElementById('exModal')?.classList.add('open');
     setTimeout(() => document.getElementById('exSearchInput')?.focus(), 80);
-  };
+  }
 
-  window.switchTab = function(tab) {
+  function switchTab(tab) {
     currentTab = tab;
     document.getElementById('contentSearch').style.display = tab === 'search' ? 'block' : 'none';
     document.getElementById('contentManual').style.display = tab === 'manual' ? 'block' : 'none';
     document.getElementById('tabSearch').className = 'tab-btn' + (tab === 'search' ? ' active' : '');
     document.getElementById('tabManual').className = 'tab-btn' + (tab === 'manual' ? ' active' : '');
-  };
+  }
+
+  // Tabs do modal — addEventListener em vez de onclick inline no HTML
+  document.getElementById('tabSearch')?.addEventListener('click', () => switchTab('search'));
+  document.getElementById('tabManual')?.addEventListener('click', () => switchTab('manual'));
 
   function renderExList(q) {
     const list = document.getElementById('exSearchList');
@@ -244,19 +297,27 @@ window.__pageInit = async function() {
     if (q) items = items.filter(e => (e.name||'').toLowerCase().includes(q.toLowerCase()) || (e.muscleGroup||e.muscle||'').toLowerCase().includes(q.toLowerCase()));
     if (items.length === 0) { list.innerHTML = `<div style="padding:14px;text-align:center;color:#9CA3AF;font-size:0.8rem;">Nenhum resultado. Use a aba Manual.</div>`; return; }
     list.innerHTML = items.slice(0,60).map((e,i) => `
-      <div class="ex-search-item${selectedEx?.name===e.name?' selected':''}"
-           onclick="selEx(${i},'${(e.name||'').replace(/'/g,"\\'")}','${((e.muscleGroup||e.muscle)||'').replace(/'/g,"\\'")}')">
+      <div class="ex-search-item${selectedEx?.name===e.name?' selected':''}" data-ex-idx="${i}">
         <div class="ex-search-name">${esc(e.name||'?')}</div>
         <div class="ex-search-muscle">${esc(e.muscleGroup||e.muscle||'—')}</div>
       </div>`).join('');
+
+    // Event delegation para seleção de exercício
+    list.querySelectorAll('.ex-search-item').forEach(item => {
+      item.addEventListener('click', () => {
+        const idx = parseInt(item.dataset.exIdx, 10);
+        const ex  = items[idx];
+        if (ex) selEx(ex.name||'', ex.muscleGroup||ex.muscle||'');
+      });
+    });
   }
 
-  window.selEx = function(i, name, muscle) {
+  function selEx(name, muscle) {
     selectedEx = { name, muscle };
     const sei = document.getElementById('selectedExInfo');
     if (sei) sei.style.display = 'block';
     renderExList(document.getElementById('exSearchInput')?.value || '');
-  };
+  }
 
   document.getElementById('exSearchInput')?.addEventListener('input', e => renderExList(e.target.value));
   document.getElementById('closeExModal')?.addEventListener('click',  () => document.getElementById('exModal')?.classList.remove('open'));
@@ -295,15 +356,14 @@ window.__pageInit = async function() {
     renderBoard(); document.getElementById('confirmClearModal')?.classList.remove('open'); toast('Quadro limpo');
   });
 
-  window.ctxShow = function(e, day, idx) {
-    e.preventDefault(); e.stopPropagation();
+  function ctxShow(e, day, idx) {
     ctxTarget = { day, idx };
     const menu     = document.getElementById('ctxMenu');
     const hasCb    = !!(clipboard?.data?.length > 0);
     const ctxPaste = document.getElementById('ctxPaste');
     if (ctxPaste) { ctxPaste.style.opacity = hasCb ? '1' : '0.4'; ctxPaste.style.pointerEvents = hasCb ? 'auto' : 'none'; }
     if (menu) { menu.style.left = Math.min(e.clientX, window.innerWidth-180)+'px'; menu.style.top = Math.min(e.clientY, window.innerHeight-140)+'px'; menu.classList.add('open'); }
-  };
+  }
 
   document.addEventListener('click', () => document.getElementById('ctxMenu')?.classList.remove('open'));
 
@@ -379,10 +439,10 @@ window.__pageInit = async function() {
 };
 
 window.__pageCleanup = function() {
-  delete window.copyDayHandler;
-  delete window.openModal;
-  delete window.switchTab;
-  delete window.selEx;
-  delete window.ctxShow;
-  delete window.removeCard;
+  // Limpar listeners do board
+  const b = document.getElementById('kanbanBoard');
+  if (b) {
+    if (b._boardClickHandler) b.removeEventListener('click', b._boardClickHandler);
+    if (b._boardCtxHandler)   b.removeEventListener('contextmenu', b._boardCtxHandler);
+  }
 };

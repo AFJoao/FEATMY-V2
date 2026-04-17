@@ -45,8 +45,54 @@
     .rs-btn:active { transform: translateY(0); }
     .rs-btn:disabled { opacity: 0.55; cursor: not-allowed; transform: none; box-shadow: none; }
 
+    /* Botão secundário — hover via CSS, sem onmouseover inline */
+    .rs-btn-secondary {
+      width: 100%;
+      padding: 14px;
+      background: #F4F4F4;
+      color: #374151;
+      border: none;
+      border-radius: 12px;
+      font-size: 0.9rem;
+      font-weight: 800;
+      cursor: pointer;
+      transition: background 0.2s;
+      font-family: inherit;
+    }
+    .rs-btn-secondary:hover { background: #EBEBEB; }
+
+    /* Link "Voltar ao login" — hover via CSS, sem onmouseover inline */
+    .rs-back-link {
+      display: block;
+      text-align: center;
+      padding: 14px;
+      background: #0A0A0A;
+      color: #fff;
+      border-radius: 12px;
+      font-size: 0.9rem;
+      font-weight: 700;
+      text-decoration: none;
+      transition: background 0.2s;
+    }
+    .rs-back-link:hover { background: #1a1a1a; }
+
     .rs-link { color: #0A0A0A; font-weight: 700; text-decoration: none; }
     .rs-link:hover { text-decoration: underline; }
+
+    /* Botão "Primeiro acesso" — hover via CSS, sem onmouseover inline */
+    .primeiro-acesso-btn {
+      background: #F59E0B;
+      color: #fff;
+      font-size: 0.78rem;
+      font-weight: 700;
+      padding: 8px 14px;
+      border-radius: 8px;
+      text-decoration: none;
+      white-space: nowrap;
+      flex-shrink: 0;
+      transition: background 0.2s;
+    }
+    .primeiro-acesso-btn:hover { background: #D97706; }
 
     .spinner {
       width: 22px;
@@ -194,12 +240,8 @@
             <p style="font-size:0.78rem;font-weight:700;color:#92400E;margin:0 0 2px;">É aluno e nunca acessou?</p>
             <p style="font-size:0.75rem;color:#B45309;margin:0;">Use o primeiro acesso</p>
           </div>
-          <a href="#/primeiro-acesso"
-             style="background:#F59E0B;color:#fff;font-size:0.78rem;font-weight:700;padding:8px 14px;border-radius:8px;text-decoration:none;white-space:nowrap;flex-shrink:0;transition:background 0.2s;"
-             onmouseover="this.style.background='#D97706'"
-             onmouseout="this.style.background='#F59E0B'">
-            Primeiro acesso →
-          </a>
+          <!-- Hover via CSS (.primeiro-acesso-btn) — sem onmouseover/onmouseout inline -->
+          <a href="#/primeiro-acesso" class="primeiro-acesso-btn">Primeiro acesso →</a>
         </div>
 
       </div><!-- /form-box -->
@@ -232,10 +274,12 @@
         </div>
 
         <div style="display:flex;flex-direction:column;gap:10px;">
-          <button id="reTryBtn" class="rs-btn" style="background:#F4F4F4;color:#374151;" onmouseover="this.style.background='#EBEBEB';this.style.transform='none';this.style.boxShadow='none'" onmouseout="this.style.background='#F4F4F4'">
+          <!-- Hover via CSS (.rs-btn-secondary) — sem onmouseover/onmouseout inline -->
+          <button id="reTryBtn" class="rs-btn-secondary">
             Tentar outro e-mail
           </button>
-          <a href="#/login" style="display:block;text-align:center;padding:14px;background:#0A0A0A;color:#fff;border-radius:12px;font-size:0.9rem;font-weight:700;text-decoration:none;transition:all 0.2s;" onmouseover="this.style.background='#1a1a1a'" onmouseout="this.style.background='#0A0A0A'">
+          <!-- Hover via CSS (.rs-back-link) — sem onmouseover/onmouseout inline -->
+          <a href="#/login" class="rs-back-link">
             Voltar ao login →
           </a>
         </div>
