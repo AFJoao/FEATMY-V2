@@ -1,122 +1,290 @@
-<div class="primeiro-acesso-page" style="font-family: 'DM Sans', system-ui, sans-serif; background: #FFFFFF; min-height: 100vh; display: flex;">
+<div class="recuperar-senha-page" style="font-family: 'DM Sans', system-ui, sans-serif; background: #FFFFFF; min-height: 100vh; display: flex;">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 
   <style>
-    .pa-input {
-      width: 100%; padding: 13px 16px; border: 2px solid #EBEBEB; border-radius: 12px;
-      font-size: 0.9rem; outline: none; transition: all 0.2s ease; box-sizing: border-box;
-      font-family: inherit; background: #FAFAFA; color: #0A0A0A;
+    .rs-input {
+      width: 100%;
+      padding: 13px 16px;
+      border: 2px solid #EBEBEB;
+      border-radius: 12px;
+      font-size: 0.9rem;
+      outline: none;
+      transition: all 0.2s ease;
+      box-sizing: border-box;
+      font-family: inherit;
+      background: #FAFAFA;
+      color: #0A0A0A;
     }
-    .pa-input:focus { border-color: #0A0A0A; background: #fff; box-shadow: 0 0 0 4px rgba(0,0,0,0.04); }
-    .pa-input::placeholder { color: #9CA3AF; }
-    .pa-btn {
-      width: 100%; padding: 14px; background: #00E676; color: #0A0A0A; border: none;
-      border-radius: 12px; font-size: 0.95rem; font-weight: 800; cursor: pointer;
-      transition: all 0.25s cubic-bezier(0.4,0,0.2,1); font-family: inherit;
+    .rs-input:focus {
+      border-color: #0A0A0A;
+      background: #fff;
+      box-shadow: 0 0 0 4px rgba(0,0,0,0.04);
     }
-    .pa-btn:hover { background: #00C853; transform: translateY(-1px); box-shadow: 0 8px 24px rgba(0,230,118,0.35); }
-    .pa-btn:disabled { opacity: 0.55; cursor: not-allowed; transform: none; box-shadow: none; }
-    .spinner { width: 22px; height: 22px; border: 3px solid rgba(0,0,0,0.08); border-top-color: #00E676; border-radius: 50%; animation: spin 0.8s linear infinite; display: inline-block; vertical-align: middle; }
+    .rs-input::placeholder { color: #9CA3AF; }
+
+    .rs-btn {
+      width: 100%;
+      padding: 14px;
+      background: #00E676;
+      color: #0A0A0A;
+      border: none;
+      border-radius: 12px;
+      font-size: 0.95rem;
+      font-weight: 800;
+      cursor: pointer;
+      transition: all 0.25s cubic-bezier(0.4,0,0.2,1);
+      font-family: inherit;
+      letter-spacing: 0.01em;
+    }
+    .rs-btn:hover {
+      background: #00C853;
+      transform: translateY(-1px);
+      box-shadow: 0 8px 24px rgba(0,230,118,0.35);
+    }
+    .rs-btn:active { transform: translateY(0); }
+    .rs-btn:disabled { opacity: 0.55; cursor: not-allowed; transform: none; box-shadow: none; }
+
+    /* Botão secundário (tentar outro email) — hover via CSS, sem onmouseover inline */
+    .rs-btn-secondary {
+      width: 100%;
+      padding: 14px;
+      background: #F4F4F4;
+      color: #374151;
+      border: none;
+      border-radius: 12px;
+      font-size: 0.9rem;
+      font-weight: 800;
+      cursor: pointer;
+      transition: background 0.2s;
+      font-family: inherit;
+    }
+    .rs-btn-secondary:hover { background: #EBEBEB; }
+
+    .rs-link { color: #0A0A0A; font-weight: 700; text-decoration: none; }
+    .rs-link:hover { text-decoration: underline; }
+
+    /* Link "Voltar ao login" dentro do bloco de sucesso */
+    .rs-back-link {
+      display: block;
+      text-align: center;
+      padding: 14px;
+      background: #0A0A0A;
+      color: #fff;
+      border-radius: 12px;
+      font-size: 0.9rem;
+      font-weight: 700;
+      text-decoration: none;
+      transition: background 0.2s;
+    }
+    .rs-back-link:hover { background: #1a1a1a; }
+
+    /* Botão "Primeiro acesso" — hover via CSS, sem onmouseover inline */
+    .primeiro-acesso-btn {
+      background: #F59E0B;
+      color: #fff;
+      font-size: 0.78rem;
+      font-weight: 700;
+      padding: 8px 14px;
+      border-radius: 8px;
+      text-decoration: none;
+      white-space: nowrap;
+      flex-shrink: 0;
+      transition: background 0.2s;
+    }
+    .primeiro-acesso-btn:hover { background: #D97706; }
+
+    .spinner {
+      width: 22px;
+      height: 22px;
+      border: 3px solid rgba(0,0,0,0.1);
+      border-top-color: #0A0A0A;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      display: inline-block;
+      vertical-align: middle;
+    }
     @keyframes spin { to { transform: rotate(360deg); } }
-    .step { display: none; }
-    .step.active { display: block; }
-    .pa-left {
-      width: 44%; background: #0A0A0A; display: flex; flex-direction: column;
-      justify-content: space-between; padding: 48px; position: relative; overflow: hidden; flex-shrink: 0;
+
+    /* ── Left Panel ── */
+    .rs-left {
+      width: 45%;
+      background: #0A0A0A;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 48px;
+      position: relative;
+      overflow: hidden;
+      flex-shrink: 0;
     }
-    .pa-right {
-      flex: 1; display: flex; align-items: center; justify-content: center;
-      padding: 48px 56px; overflow-y: auto;
+
+    /* ── Right Panel ── */
+    .rs-right {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 48px;
     }
+
+    /* ── Mobile logo bar ── */
     .mobile-logo-bar {
-      display: none; width: 100%; background: #0A0A0A; padding: 20px 24px;
-      align-items: center; justify-content: center; flex-shrink: 0;
+      display: none;
+      width: 100%;
+      background: #0A0A0A;
+      padding: 20px 24px;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
     }
+
+    /* ── Success state ── */
+    .success-box {
+      display: none;
+      text-align: center;
+      padding: 8px 0;
+    }
+    .success-box.visible { display: block; }
+    .form-box.hidden { display: none; }
+
     @media (max-width: 768px) {
-      .primeiro-acesso-page { flex-direction: column !important; }
-      .pa-left { display: none !important; }
+      .recuperar-senha-page { flex-direction: column !important; }
+      .rs-left { display: none !important; }
       .mobile-logo-bar { display: flex !important; }
-      .pa-right { padding: 32px 24px 48px !important; align-items: flex-start !important; }
+      .rs-right {
+        padding: 32px 24px 40px !important;
+        align-items: flex-start !important;
+      }
     }
   </style>
 
+  <!-- Mobile Logo Bar -->
   <div class="mobile-logo-bar">
     <img src="assets/branca_larga.png" alt="Featym" style="height:28px;object-fit:contain;" onerror="this.style.display='none'">
   </div>
 
-  <div class="pa-left">
-    <div style="position:absolute;inset:0;background:radial-gradient(ellipse at 25% 75%,rgba(0,230,118,0.08) 0%,transparent 55%);pointer-events:none;"></div>
+  <!-- Left Panel (desktop only) -->
+  <div class="rs-left">
+    <div style="position:absolute;inset:0;background:radial-gradient(ellipse at 20% 80%,rgba(0,230,118,0.08) 0%,transparent 60%),radial-gradient(ellipse at 80% 20%,rgba(255,255,255,0.03) 0%,transparent 60%);pointer-events:none;"></div>
+
     <div style="position:relative;flex:1;display:flex;align-items:center;justify-content:center;">
-      <img src="assets/branca_larga.png" alt="Featym" style="width:72%;max-width:320px;object-fit:contain;" onerror="this.style.display='none'">
+      <img src="assets/branca_larga.png" alt="Featym" style="width:72%;max-width:320px;object-fit:contain;filter:drop-shadow(0 0 40px rgba(0,230,118,0.12));" onerror="this.style.display='none'">
     </div>
+
     <div style="position:relative;">
-      <p style="color:rgba(0,230,118,0.75);font-size:0.72rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;margin:0 0 14px;">Primeiro acesso</p>
-      <h2 style="color:#fff;font-size:2rem;font-weight:800;margin:0 0 16px;line-height:1.2;letter-spacing:-0.03em;">Bem-vindo à<br>sua jornada<br>fitness.</h2>
-      <p style="color:rgba(255,255,255,0.4);font-size:0.85rem;line-height:1.7;margin:0;max-width:300px;">Seu personal trainer já criou sua conta. Defina uma senha para começar a acessar seus treinos.</p>
+      <p style="color:rgba(0,230,118,0.7);font-size:0.72rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;margin:0 0 14px;">Recuperação de acesso</p>
+      <h2 style="color:#fff;font-size:2rem;font-weight:800;margin:0 0 14px;line-height:1.2;letter-spacing:-0.03em;">Esqueceu sua senha?<br>Sem problema.</h2>
+      <p style="color:rgba(255,255,255,0.4);font-size:0.875rem;line-height:1.7;margin:0;max-width:320px;">Enviaremos um link seguro para o seu e-mail. Clique nele e crie uma nova senha em segundos.</p>
+
+      <!-- Steps -->
+      <div style="margin-top:32px;display:flex;flex-direction:column;gap:14px;">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <div style="width:28px;height:28px;border-radius:8px;background:rgba(0,230,118,0.12);border:1px solid rgba(0,230,118,0.2);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+            <span style="color:#00E676;font-size:0.7rem;font-weight:800;">1</span>
+          </div>
+          <span style="color:rgba(255,255,255,0.5);font-size:0.82rem;">Informe o e-mail cadastrado</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;">
+          <div style="width:28px;height:28px;border-radius:8px;background:rgba(0,230,118,0.12);border:1px solid rgba(0,230,118,0.2);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+            <span style="color:#00E676;font-size:0.7rem;font-weight:800;">2</span>
+          </div>
+          <span style="color:rgba(255,255,255,0.5);font-size:0.82rem;">Receba o link no seu e-mail</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;">
+          <div style="width:28px;height:28px;border-radius:8px;background:rgba(0,230,118,0.12);border:1px solid rgba(0,230,118,0.2);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+            <span style="color:#00E676;font-size:0.7rem;font-weight:800;">3</span>
+          </div>
+          <span style="color:rgba(255,255,255,0.5);font-size:0.82rem;">Crie sua nova senha e acesse</span>
+        </div>
+      </div>
     </div>
   </div>
 
-  <div class="pa-right">
-    <div style="width:100%;max-width:380px;">
+  <!-- Right Panel -->
+  <div class="rs-right">
+    <div style="width:100%;max-width:400px;">
 
-      <!-- STEP: loading (verificando token) -->
-      <div id="stepLoading" class="step active">
-        <div style="text-align:center;padding:40px 0;">
-          <div class="spinner" style="margin:0 auto 16px;"></div>
-          <p style="color:#9CA3AF;font-size:0.875rem;">Verificando seu link de ativação...</p>
-        </div>
-      </div>
+      <!-- FORM STATE -->
+      <div class="form-box" id="formBox">
 
-      <!-- STEP: token inválido / expirado / já usado -->
-      <div id="stepInvalid" class="step">
-        <div style="text-align:center;padding:20px 0;">
-          <div style="width:56px;height:56px;background:#FFF1F2;border-radius:16px;margin:0 auto 18px;display:flex;align-items:center;justify-content:center;">
-            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#BE123C" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-          </div>
-          <h2 style="font-size:1.3rem;font-weight:800;color:#0A0A0A;margin:0 0 10px;">Link inválido</h2>
-          <p id="invalidMsg" style="color:#6B7280;font-size:0.875rem;margin:0 0 20px;line-height:1.6;">
-            Este link de ativação é inválido ou já foi utilizado.<br>
-            Solicite um novo link ao seu personal trainer.
-          </p>
-          <a href="#/login" style="color:#0A0A0A;font-weight:700;font-size:0.875rem;">Já tenho senha → Fazer login</a>
-        </div>
-      </div>
-
-      <!-- STEP: definir senha (token válido) -->
-      <div id="stepPassword" class="step">
-        <div style="background:#ECFDF5;border:1px solid #A7F3D0;border-radius:12px;padding:14px 16px;margin-bottom:24px;display:flex;align-items:center;gap:12px;">
-          <div style="width:36px;height:36px;background:#00E676;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0A0A0A" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-          </div>
-          <div>
-            <p style="font-size:0.78rem;font-weight:700;color:#047857;margin:0 0 2px;">Conta encontrada!</p>
-            <p id="welcomeName" style="font-size:0.875rem;font-weight:600;color:#0A0A0A;margin:0;"></p>
-          </div>
+        <div style="margin-bottom:32px;">
+          <h1 style="font-size:1.8rem;font-weight:800;color:#0A0A0A;margin:0 0 8px;letter-spacing:-0.03em;">Recuperar senha</h1>
+          <p style="color:#6B7280;font-size:0.9rem;margin:0;line-height:1.5;">Informe o e-mail da sua conta e enviaremos um link para redefinir a senha.</p>
         </div>
 
-        <div style="margin-bottom:24px;">
-          <h1 style="font-size:1.7rem;font-weight:800;color:#0A0A0A;margin:0 0 6px;letter-spacing:-0.03em;">Defina sua senha</h1>
-          <p style="color:#6B7280;font-size:0.875rem;margin:0;">Crie uma senha para acessar sua conta</p>
-        </div>
+        <!-- Error -->
+        <div id="rsError" style="display:none;background:#FFF1F2;border:1px solid #FECDD3;border-radius:10px;padding:12px 16px;margin-bottom:20px;font-size:0.83rem;color:#BE123C;font-weight:500;line-height:1.5;"></div>
 
-        <div id="stepError" style="display:none;background:#FFF1F2;border:1px solid #FECDD3;border-radius:10px;padding:11px 14px;margin-bottom:16px;font-size:0.83rem;color:#BE123C;font-weight:500;"></div>
-
+        <!-- Form -->
         <div style="display:flex;flex-direction:column;gap:16px;">
           <div>
-            <label style="display:block;font-size:0.78rem;font-weight:700;color:#374151;margin-bottom:7px;">Nova senha</label>
-            <input type="password" id="passwordInput" class="pa-input" placeholder="Mínimo 6 caracteres" autocomplete="new-password" minlength="6">
+            <label style="display:block;font-size:0.78rem;font-weight:700;color:#374151;margin-bottom:7px;letter-spacing:0.01em;">E-mail cadastrado</label>
+            <input type="email" id="rsEmail" class="rs-input" placeholder="seu@email.com" autocomplete="email" spellcheck="false" required>
           </div>
-          <div>
-            <label style="display:block;font-size:0.78rem;font-weight:700;color:#374151;margin-bottom:7px;">Confirmar senha</label>
-            <input type="password" id="passwordConfirmInput" class="pa-input" placeholder="Repita a senha" autocomplete="new-password" minlength="6">
-          </div>
-          <button id="activateBtn" class="pa-btn">Ativar minha conta</button>
-          <p style="text-align:center;font-size:0.82rem;color:#9CA3AF;margin:0;">
-            Já tem senha? <a href="#/login" style="color:#0A0A0A;font-weight:700;">Fazer login</a>
-          </p>
+
+          <button id="rsSubmitBtn" class="rs-btn">Enviar link de recuperação</button>
         </div>
-      </div>
+
+        <!-- Back to login -->
+        <p style="text-align:center;margin-top:24px;font-size:0.875rem;color:#6B7280;">
+          Lembrou a senha? <a href="#/login" class="rs-link">Voltar ao login →</a>
+        </p>
+
+        <!-- Divider -->
+        <div style="border-top:1px solid #F4F4F4;margin:20px 0;"></div>
+
+        <!-- Student hint -->
+        <div style="background:#FFFBEB;border:1px solid #FDE68A;border-radius:12px;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;">
+          <div>
+            <p style="font-size:0.78rem;font-weight:700;color:#92400E;margin:0 0 2px;">É aluno e nunca acessou?</p>
+            <p style="font-size:0.75rem;color:#B45309;margin:0;">Use o primeiro acesso</p>
+          </div>
+          <!-- Hover via CSS (.primeiro-acesso-btn) — sem onmouseover/onmouseout inline -->
+          <a href="#/primeiro-acesso" class="primeiro-acesso-btn">Primeiro acesso →</a>
+        </div>
+
+      </div><!-- /form-box -->
+
+      <!-- SUCCESS STATE -->
+      <div class="success-box" id="successBox">
+
+        <!-- Animated checkmark -->
+        <div style="width:72px;height:72px;background:linear-gradient(135deg,#00E676,#00C853);border-radius:20px;margin:0 auto 24px;display:flex;align-items:center;justify-content:center;box-shadow:0 12px 32px rgba(0,230,118,0.35);">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#0A0A0A" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12"/>
+          </svg>
+        </div>
+
+        <h2 style="font-size:1.6rem;font-weight:800;color:#0A0A0A;margin:0 0 10px;letter-spacing:-0.03em;">E-mail enviado!</h2>
+
+        <p style="color:#6B7280;font-size:0.9rem;line-height:1.6;margin:0 0 6px;">Enviamos um link de recuperação para:</p>
+        <p id="successEmail" style="font-size:0.95rem;font-weight:700;color:#0A0A0A;margin:0 0 24px;word-break:break-all;"></p>
+
+        <div style="background:#F8F9FA;border:1px solid #EBEBEB;border-radius:12px;padding:16px 18px;text-align:left;margin-bottom:28px;">
+          <p style="font-size:0.8rem;font-weight:700;color:#374151;margin:0 0 8px;display:flex;align-items:center;gap:6px;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            Não recebeu o e-mail?
+          </p>
+          <ul style="font-size:0.78rem;color:#6B7280;margin:0;padding-left:16px;line-height:1.8;">
+            <li>Verifique a pasta de spam/lixo eletrônico</li>
+            <li>Confira se o e-mail digitado está correto</li>
+            <li>Aguarde até 2 minutos para a entrega</li>
+          </ul>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <!-- Hover via CSS (.rs-btn-secondary) — sem onmouseover/onmouseout inline -->
+          <button id="reTryBtn" class="rs-btn-secondary">
+            Tentar outro e-mail
+          </button>
+          <!-- Hover via CSS (.rs-back-link) — sem onmouseover/onmouseout inline -->
+          <a href="#/login" class="rs-back-link">
+            Voltar ao login →
+          </a>
+        </div>
+
+      </div><!-- /success-box -->
 
     </div>
   </div>

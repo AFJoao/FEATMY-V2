@@ -44,6 +44,7 @@
     .sensation-opt.selected-ideal { border-color: #2563EB; background: #EFF6FF; color: #2563EB; }
     .sensation-opt.selected-pesado { border-color: #DC2626; background: #FEF2F2; color: #DC2626; }
 
+    /* Slider de esforço — sem oninput inline, o JS externo cuida */
     .effort-slider { width: 100%; accent-color: #0A0A0A; }
 
     .toast { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%) translateY(60px); background: #111827; color: #fff; padding: 10px 18px; border-radius: 10px; font-size: 0.8rem; font-weight: 600; z-index: 999; transition: transform 0.3s; white-space: nowrap; }
@@ -78,11 +79,12 @@
         <span class="header-badge">Aluno</span>
       </div>
       <nav style="display:flex;gap:6px;align-items:center;">
-        <button class="s-nav-btn active" id="tabWorkout" onclick="showTab('workout')">
+        <!-- data-tab em vez de onclick inline — o JS externo (dashboard.js) usa addEventListener -->
+        <button class="s-nav-btn active" id="tabWorkout" data-tab="workout">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 4v6a6 6 0 0 0 12 0V4"/><line x1="4" y1="20" x2="20" y2="20"/></svg>
           <span class="nav-label">Treinos</span>
         </button>
-        <button class="s-nav-btn" id="tabHistory" onclick="showTab('history')">
+        <button class="s-nav-btn" id="tabHistory" data-tab="history">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
           <span class="nav-label">Histórico</span>
         </button>
@@ -143,6 +145,7 @@
   </main>
 
   <!-- FEEDBACK MODAL -->
+  <!-- Todos os handlers (selSensation, selPain, oninput do slider) estão em dashboard.js -->
   <div id="feedbackModal" class="modal-overlay">
     <div class="modal-box">
       <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:20px;">
@@ -157,14 +160,16 @@
       <div style="margin-bottom:16px;">
         <label class="modal-label">Como foi a intensidade?</label>
         <div style="display:flex;gap:8px;">
-          <button class="sensation-opt" data-val="leve" onclick="selSensation('leve')">😌 Leve</button>
-          <button class="sensation-opt" data-val="ideal" onclick="selSensation('ideal')">🎯 Ideal</button>
-          <button class="sensation-opt" data-val="pesado" onclick="selSensation('pesado')">🔥 Pesado</button>
+          <!-- data-sensation em vez de onclick inline -->
+          <button class="sensation-opt" data-sensation="leve">😌 Leve</button>
+          <button class="sensation-opt" data-sensation="ideal">🎯 Ideal</button>
+          <button class="sensation-opt" data-sensation="pesado">🔥 Pesado</button>
         </div>
       </div>
       <div style="margin-bottom:16px;">
         <label class="modal-label">Nível de esforço: <span id="effortDisplay" style="color:#0A0A0A;font-size:1rem;">7</span>/10</label>
-        <input type="range" id="effortSlider" class="effort-slider" min="1" max="10" value="7" oninput="document.getElementById('effortDisplay').textContent=this.value">
+        <!-- sem oninput inline — JS externo usa addEventListener -->
+        <input type="range" id="effortSlider" class="effort-slider" min="1" max="10" value="7">
         <div style="display:flex;justify-content:space-between;margin-top:4px;">
           <span style="font-size:0.65rem;color:#9CA3AF;">Muito fácil</span>
           <span style="font-size:0.65rem;color:#9CA3AF;">Exaustivo</span>
@@ -173,8 +178,9 @@
       <div style="margin-bottom:16px;">
         <label class="modal-label">Sentiu alguma dor ou desconforto?</label>
         <div style="display:flex;gap:8px;">
-          <button class="sensation-opt" id="painNo" onclick="selPain(false)" style="flex:1;">✓ Não</button>
-          <button class="sensation-opt" id="painYes" onclick="selPain(true)" style="flex:1;">⚠ Sim</button>
+          <!-- data-pain em vez de onclick inline -->
+          <button class="sensation-opt" id="painNo" data-pain="false" style="flex:1;">✓ Não</button>
+          <button class="sensation-opt" id="painYes" data-pain="true" style="flex:1;">⚠ Sim</button>
         </div>
       </div>
       <div id="painLocationWrap" style="display:none;margin-bottom:16px;">

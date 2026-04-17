@@ -1,6 +1,11 @@
 /**
  * js/pages/student/dashboard.js
- * Migrado de script inline em pages/student/dashboard.html
+ * Corrigido: todos os event handlers via addEventListener (sem onclick/oninput inline)
+ * - data-tab nos botões de tab
+ * - data-sensation nos botões de sensação
+ * - data-pain nos botões de dor
+ * - effortSlider sem oninput inline
+ * - toggleDone via event delegation no exercisesList
  */
 window.__pageInit = async function() {
   await new Promise(r => setTimeout(r, 100));
@@ -46,18 +51,84 @@ window.__pageInit = async function() {
   let sensation      = null;
   let hasPain        = false;
 
-  document.getElementById('logoutBtn').onclick = async () => {
+  // ── Logout ───────────────────────────────────────────────
+  document.getElementById('logoutBtn').addEventListener('click', async () => {
     await authManager.logout(); router.goToLogin();
-  };
+  });
 
-  window.showTab = function(tab) {
+  // ── Tabs (data-tab, sem onclick inline) ──────────────────
+  function showTab(tab) {
     document.getElementById('mainWorkout').style.display = tab === 'workout' ? 'block' : 'none';
     document.getElementById('mainHistory').style.display = tab === 'history' ? 'block' : 'none';
     document.getElementById('tabWorkout').classList.toggle('active', tab === 'workout');
     document.getElementById('tabHistory').classList.toggle('active', tab === 'history');
     if (tab === 'history') loadHistory();
-  };
+  }
 
+  document.getElementById('tabWorkout').addEventListener('click', () => showTab('workout'));
+  document.getElementById('tabHistory').addEventListener('click', () => showTab('history'));
+
+  // Mantém compatibilidade com código gerado dinamicamente que chama window.showTab
+  window.showTab = showTab;
+
+  // ── Esforço slider — addEventListener, sem oninput inline ─
+  const effortSlider = document.getElementById('effortSlider');
+  const effortDisplay = document.getElementById('effortDisplay');
+  if (effortSlider && effortDisplay) {
+    effortSlider.addEventListener('input', () => {
+      effortDisplay.textContent = effortSlider.value;
+    });
+  }
+
+  // ── Botões de sensação (data-sensation, sem onclick inline) ─
+  document.addEventListener('click', (e) => {
+    const sensBtn = e.target.closest('[data-sensation]');
+    if (sensBtn) {
+      sensation = sensBtn.dataset.sensation;
+      document.querySelectorAll('[data-sensation]').forEach(b => {
+        b.className = 'sensation-opt';
+        if (b.dataset.sensation === sensation) {
+          b.className = `sensation-opt selected-${sensation}`;
+        }
+      });
+    }
+  });
+
+  // ── Botões de dor (data-pain, sem onclick inline) ─────────
+  document.addEventListener('click', (e) => {
+    const painBtn = e.target.closest('[data-pain]');
+    if (!painBtn) return;
+    hasPain = painBtn.dataset.pain === 'true';
+    document.getElementById('painNo')?.classList.toggle('sensation-opt selected-ideal', !hasPain);
+    document.getElementById('painNo')?.classList.toggle('sensation-opt', hasPain);
+    document.getElementById('painYes')?.classList.toggle('sensation-opt selected-pesado', hasPain);
+    document.getElementById('painYes')?.classList.toggle('sensation-opt', !hasPain);
+    const wrap = document.getElementById('painLocationWrap');
+    if (wrap) wrap.style.display = hasPain ? 'block' : 'none';
+  });
+
+  // ── Toggle exercício feito — event delegation ─────────────
+  // O exercisesList é recriado a cada renderização, então usamos delegation
+  // O JS expõe toggleDone para compatibilidade com o HTML gerado em renderExercises()
+  function toggleDone(idx) {
+    if (doneExercises.has(idx)) {
+      doneExercises.delete(idx);
+      document.getElementById(`ex-${idx}`)?.classList.remove('done');
+      document.getElementById(`check-${idx}`)?.classList.remove('checked');
+      const icon = document.getElementById(`check-icon-${idx}`);
+      if (icon) icon.style.display = 'none';
+    } else {
+      doneExercises.add(idx);
+      document.getElementById(`ex-${idx}`)?.classList.add('done');
+      document.getElementById(`check-${idx}`)?.classList.add('checked');
+      const icon = document.getElementById(`check-icon-${idx}`);
+      if (icon) icon.style.display = 'block';
+    }
+    updateProgress();
+  }
+  window.toggleDone = toggleDone;
+
+  // ── Carregar treinos ──────────────────────────────────────
   try { allWorkouts = await dbManager.getStudentWorkouts() || []; }
   catch { allWorkouts = []; }
 
@@ -79,11 +150,11 @@ window.__pageInit = async function() {
       const btn = document.createElement('button');
       btn.className = 'workout-pill' + (i === 0 ? ' active' : '');
       btn.textContent = w.name || `Rotina ${i+1}`;
-      btn.onclick = () => {
+      btn.addEventListener('click', () => {
         document.querySelectorAll('.workout-pill').forEach(p => p.classList.remove('active'));
         btn.classList.add('active');
         selectWorkout(w);
-      };
+      });
       pills?.appendChild(btn);
     });
   }
@@ -110,7 +181,7 @@ window.__pageInit = async function() {
       btn.className = 'day-tab' + (d.key === currentDay ? ' active' : '') + (hasEx ? ' has-workout' : '');
       btn.textContent = d.short;
       if (hasEx) { const dot = document.createElement('span'); dot.className = 'day-tab-dot'; btn.appendChild(dot); }
-      btn.onclick = () => selectDay(d.key);
+      btn.addEventListener('click', () => selectDay(d.key));
       if (!hasEx) btn.style.opacity = '0.45';
       tabs.appendChild(btn);
     });
@@ -160,6 +231,7 @@ window.__pageInit = async function() {
       const card = document.createElement('div');
       card.className = 'ex-card';
       card.id = `ex-${idx}`;
+      // check-btn usa data-idx em vez de onclick="toggleDone(N)" inline
       card.innerHTML = `
         <div style="display:flex;justify-content:space-between;align-items:start;gap:10px;">
           <div style="flex:1;min-width:0;">
@@ -171,7 +243,7 @@ window.__pageInit = async function() {
             </div>
             ${ex.obs ? `<p style="font-size:0.78rem;color:#6B7280;margin:8px 0 0;font-style:italic;">${esc(ex.obs)}</p>` : ''}
           </div>
-          <button class="check-btn" id="check-${idx}" onclick="toggleDone(${idx})">
+          <button class="check-btn" id="check-${idx}" data-idx="${idx}">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" style="display:none;" id="check-icon-${idx}"><polyline points="20 6 9 17 4 12"/></svg>
           </button>
         </div>`;
@@ -179,24 +251,13 @@ window.__pageInit = async function() {
     });
     frag.appendChild(grid);
     list.appendChild(frag);
-  }
 
-  window.toggleDone = function(idx) {
-    if (doneExercises.has(idx)) {
-      doneExercises.delete(idx);
-      document.getElementById(`ex-${idx}`)?.classList.remove('done');
-      document.getElementById(`check-${idx}`)?.classList.remove('checked');
-      const icon = document.getElementById(`check-icon-${idx}`);
-      if (icon) icon.style.display = 'none';
-    } else {
-      doneExercises.add(idx);
-      document.getElementById(`ex-${idx}`)?.classList.add('done');
-      document.getElementById(`check-${idx}`)?.classList.add('checked');
-      const icon = document.getElementById(`check-icon-${idx}`);
-      if (icon) icon.style.display = 'block';
-    }
-    updateProgress();
-  };
+    // Event delegation para os check-btns (sem onclick inline)
+    list.addEventListener('click', (e) => {
+      const btn = e.target.closest('.check-btn[data-idx]');
+      if (btn) toggleDone(parseInt(btn.dataset.idx, 10));
+    }, { once: false });
+  }
 
   function updateProgress() {
     const exs   = currentWorkout.days?.[currentDay] || [];
@@ -209,24 +270,7 @@ window.__pageInit = async function() {
     if (pfEl) pfEl.style.width      = `${pct}%`;
   }
 
-  window.selSensation = function(val) {
-    sensation = val;
-    document.querySelectorAll('.sensation-opt[data-val]').forEach(b => {
-      b.className = 'sensation-opt';
-      if (b.dataset.val === val) b.className = `sensation-opt selected-${val}`;
-    });
-  };
-
-  window.selPain = function(val) {
-    hasPain = val;
-    document.getElementById('painNo')?.classList.toggle('sensation-opt selected-ideal', !val);
-    document.getElementById('painNo')?.classList.toggle('sensation-opt', val);
-    document.getElementById('painYes')?.classList.toggle('sensation-opt selected-pesado', val);
-    document.getElementById('painYes')?.classList.toggle('sensation-opt', !val);
-    const wrap = document.getElementById('painLocationWrap');
-    if (wrap) wrap.style.display = val ? 'block' : 'none';
-  };
-
+  // ── Feedback modal ────────────────────────────────────────
   document.getElementById('openFeedbackBtn')?.addEventListener('click', () => {
     sensation = null; hasPain = false;
     document.getElementById('feedbackComment').value = '';
@@ -234,7 +278,9 @@ window.__pageInit = async function() {
     document.getElementById('effortSlider').value    = 7;
     document.getElementById('effortDisplay').textContent = '7';
     document.getElementById('painLocationWrap').style.display = 'none';
-    document.querySelectorAll('.sensation-opt').forEach(b => b.className = 'sensation-opt');
+    document.querySelectorAll('[data-sensation]').forEach(b => b.className = 'sensation-opt');
+    document.getElementById('painNo')?.classList.add('sensation-opt');
+    document.getElementById('painYes')?.classList.add('sensation-opt');
     const dayName = DAYS.find(d => d.key === currentDay)?.full || '';
     document.getElementById('feedbackModalSub').textContent = `${currentWorkout.name} · ${dayName}`;
     document.getElementById('feedbackModal').classList.add('open');
@@ -308,6 +354,4 @@ window.__pageInit = async function() {
 window.__pageCleanup = function() {
   delete window.showTab;
   delete window.toggleDone;
-  delete window.selSensation;
-  delete window.selPain;
 };

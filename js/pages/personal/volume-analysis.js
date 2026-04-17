@@ -1,6 +1,9 @@
 /**
  * js/pages/personal/volume-analysis.js
- * Migrado de script inline em pages/personal/volume-analysis.html
+ * Corrigido:
+ * - vpBackBtn agora usa addEventListener (não mais onclick inline no HTML)
+ * - switchMode exposto via window para compatibilidade com innerHTML gerado
+ * - Botões de toggle (auto/manual) no render() usam data-mode em vez de onclick inline
  */
 window.__pageInit = async function(params) {
   const MUSCLES = ['Peito','Costas','Ombros','Bíceps','Tríceps','Quadríceps','Posterior','Glúteos','Panturrilhas','Abdômen','Lombar'];
@@ -8,7 +11,7 @@ window.__pageInit = async function(params) {
   const MUSCLE_COLOR = { 'Peito':'#3B82F6','Costas':'#10B981','Ombros':'#8B5CF6','Bíceps':'#F59E0B','Tríceps':'#EF4444','Quadríceps':'#06B6D4','Posterior':'#EC4899','Glúteos':'#84CC16','Panturrilhas':'#F97316','Abdômen':'#6366F1','Lombar':'#14B8A6' };
   const VOLUME_REF   = { 'Peito':10,'Costas':12,'Ombros':10,'Bíceps':8,'Tríceps':8,'Quadríceps':12,'Posterior':10,'Glúteos':10,'Panturrilhas':8,'Abdômen':8,'Lombar':8 };
 
-  let studentId   = params?.id || window.routeParams?.id || (() => {
+  let studentId = params?.id || window.routeParams?.id || (() => {
     const hash  = window.location.hash || '';
     const parts = hash.replace('#','').split('/').filter(Boolean);
     const idx   = parts.indexOf('volume');
@@ -24,12 +27,30 @@ window.__pageInit = async function(params) {
   let mode               = 'auto';
   let volumeData         = {};
 
-  document.getElementById('vpLogout').onclick = async () => { await authManager.logout(); router.goToLogin(); };
+  // ── Logout ────────────────────────────────────────────────
+  document.getElementById('vpLogout').addEventListener('click', async () => {
+    await authManager.logout(); router.goToLogin();
+  });
+
+  // ── Botão Voltar — addEventListener (não onclick inline) ──
+  document.getElementById('vpBackBtn')?.addEventListener('click', () => {
+    if (studentId) router.goToStudentDetails(studentId);
+    else router.goToPersonalDashboard();
+  });
 
   function showEmpty(msg) {
     const root = document.getElementById('vpRoot');
-    if (root) root.innerHTML = `<div style="min-height:calc(100vh - 64px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;color:#9CA3AF;text-align:center;padding:40px;"><p style="font-size:1rem;font-weight:600;color:rgba(0,0,0,0.55);">${msg}</p><button onclick="router.goToStudentDetails(window._vpStudentId)" style="background:transparent;border:none;color:#9CA3AF;cursor:pointer;padding:8px;font-family:inherit;">Voltar</button></div>`;
+    if (root) root.innerHTML = `
+      <div style="min-height:calc(100vh - 64px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;color:#9CA3AF;text-align:center;padding:40px;">
+        <p style="font-size:1rem;font-weight:600;color:rgba(0,0,0,0.55);">${msg}</p>
+        <button id="vpEmptyBack" style="background:transparent;border:none;color:#9CA3AF;cursor:pointer;padding:8px;font-family:inherit;">Voltar</button>
+      </div>`;
+    document.getElementById('vpEmptyBack')?.addEventListener('click', () => {
+      if (studentId) router.goToStudentDetails(studentId);
+      else router.goToPersonalDashboard();
+    });
   }
+
   function toast(msg) {
     const el = document.getElementById('vpToast');
     if (!el) return;
@@ -96,6 +117,10 @@ window.__pageInit = async function(params) {
     svg.innerHTML = svgContent;
   }
 
+  // ── switchMode exposta globalmente (usada pelos botões data-mode) ──
+  function switchMode(m) { mode = m; calculate(); render(); }
+  window.switchMode = switchMode;
+
   function render() {
     const totalSets    = Object.values(volumeData).reduce((a,b)=>a+b,0);
     const totalEx      = workouts.reduce((s,w)=>s+Object.values(w.days||{}).reduce((ss,exs)=>ss+(exs?.length||0),0),0);
@@ -118,8 +143,8 @@ window.__pageInit = async function(params) {
       <div class="vp-mode-row">
         <div><div class="vp-mode-label">Modo de cálculo</div><div style="font-size:0.75rem;color:var(--text-muted);margin-top:2px;">${mode==='auto'?'Usando percentuais padrão':'Percentuais configurados manualmente'}</div></div>
         <div class="vp-toggle">
-          <button class="vp-toggle-btn${mode==='auto'?' active':''}" onclick="switchMode('auto')">⚡ Automático</button>
-          <button class="vp-toggle-btn${mode==='manual'?' active':''}" onclick="switchMode('manual')">✏️ Manual</button>
+          <button class="vp-toggle-btn${mode==='auto'?' active':''}" data-mode="auto">⚡ Automático</button>
+          <button class="vp-toggle-btn${mode==='manual'?' active':''}" data-mode="manual">✏️ Manual</button>
         </div>
       </div>
       <div class="vp-main">
@@ -165,9 +190,16 @@ window.__pageInit = async function(params) {
     renderSidePanel();
     renderInsights();
 
-    window.switchMode = function(m) { mode = m; calculate(); render(); };
+    // Botões de modo — addEventListener via event delegation (sem onclick inline)
+    root.addEventListener('click', (e) => {
+      const modeBtn = e.target.closest('[data-mode]');
+      if (modeBtn) switchMode(modeBtn.dataset.mode);
+    });
+
     if (mode === 'manual') {
-      document.getElementById('vpReset')?.addEventListener('click', () => { manualPercentages={}; initManualPercentages(); calculate(); render(); toast('Percentuais resetados'); });
+      document.getElementById('vpReset')?.addEventListener('click', () => {
+        manualPercentages={}; initManualPercentages(); calculate(); render(); toast('Percentuais resetados');
+      });
       document.getElementById('vpRecalc')?.addEventListener('click', () => {
         document.querySelectorAll('.vp-pct-input[data-key]').forEach(input => {
           const key = input.dataset.key; const muscle = input.dataset.muscle;
