@@ -45,54 +45,8 @@
     .rs-btn:active { transform: translateY(0); }
     .rs-btn:disabled { opacity: 0.55; cursor: not-allowed; transform: none; box-shadow: none; }
 
-    /* Botão secundário — hover via CSS, sem onmouseover inline */
-    .rs-btn-secondary {
-      width: 100%;
-      padding: 14px;
-      background: #F4F4F4;
-      color: #374151;
-      border: none;
-      border-radius: 12px;
-      font-size: 0.9rem;
-      font-weight: 800;
-      cursor: pointer;
-      transition: background 0.2s;
-      font-family: inherit;
-    }
-    .rs-btn-secondary:hover { background: #EBEBEB; }
-
-    /* Link "Voltar ao login" — hover via CSS, sem onmouseover inline */
-    .rs-back-link {
-      display: block;
-      text-align: center;
-      padding: 14px;
-      background: #0A0A0A;
-      color: #fff;
-      border-radius: 12px;
-      font-size: 0.9rem;
-      font-weight: 700;
-      text-decoration: none;
-      transition: background 0.2s;
-    }
-    .rs-back-link:hover { background: #1a1a1a; }
-
     .rs-link { color: #0A0A0A; font-weight: 700; text-decoration: none; }
     .rs-link:hover { text-decoration: underline; }
-
-    /* Botão "Primeiro acesso" — hover via CSS, sem onmouseover inline */
-    .primeiro-acesso-btn {
-      background: #F59E0B;
-      color: #fff;
-      font-size: 0.78rem;
-      font-weight: 700;
-      padding: 8px 14px;
-      border-radius: 8px;
-      text-decoration: none;
-      white-space: nowrap;
-      flex-shrink: 0;
-      transition: background 0.2s;
-    }
-    .primeiro-acesso-btn:hover { background: #D97706; }
 
     .spinner {
       width: 22px;
@@ -147,6 +101,52 @@
     }
     .success-box.visible { display: block; }
     .form-box.hidden { display: none; }
+
+    /* ── Botão "Primeiro acesso" — hover via CSS, sem onmouseover inline ── */
+    .primeiro-acesso-btn {
+      background: #F59E0B;
+      color: #fff;
+      font-size: 0.78rem;
+      font-weight: 700;
+      padding: 8px 14px;
+      border-radius: 8px;
+      text-decoration: none;
+      white-space: nowrap;
+      flex-shrink: 0;
+      transition: background 0.2s;
+    }
+    .primeiro-acesso-btn:hover { background: #D97706; }
+
+    /* ── Botão "Tentar outro email" — hover via CSS, sem onmouseover inline ── */
+    .rs-btn-secondary {
+      width: 100%;
+      padding: 14px;
+      background: #F4F4F4;
+      color: #374151;
+      border: none;
+      border-radius: 12px;
+      font-size: 0.9rem;
+      font-weight: 800;
+      cursor: pointer;
+      transition: background 0.2s;
+      font-family: inherit;
+    }
+    .rs-btn-secondary:hover { background: #EBEBEB; }
+
+    /* ── Link "Voltar ao login" — hover via CSS, sem onmouseover inline ── */
+    .rs-back-link {
+      display: block;
+      text-align: center;
+      padding: 14px;
+      background: #0A0A0A;
+      color: #fff;
+      border-radius: 12px;
+      font-size: 0.9rem;
+      font-weight: 700;
+      text-decoration: none;
+      transition: background 0.2s;
+    }
+    .rs-back-link:hover { background: #1a1a1a; }
 
     @media (max-width: 768px) {
       .recuperar-senha-page { flex-direction: column !important; }

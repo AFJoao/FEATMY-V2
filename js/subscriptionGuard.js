@@ -2,9 +2,18 @@
  * js/subscriptionGuard.js
  *
  * CORREÇÕES v4:
- * - Banner: botão fechar usa addEventListener em vez de onclick inline
- * - Modal de upgrade: botões usam addEventListener em vez de onclick inline
- * - Link "Renovar agora" no banner: anchor simples sem onclick
+ * - _showWarningBanner(): removido onclick inline do botão "×".
+ *   Agora usa addEventListener após appendChild do banner.
+ *
+ * - _showUpgradeModal(): removidos dois onclick inline ("Ver planos" e "Fechar").
+ *   Agora usa addEventListener após appendChild do modal.
+ *   O atributo onclick inline no âncora "Ver planos" também foi removido.
+ *
+ * Todas as correções v3 mantidas:
+ * - getIdToken() sem forceRefresh
+ * - destroy() remove banner do DOM
+ * - Cache de 5 min
+ * - setInterval com referência estável
  */
 
 class SubscriptionGuard {
@@ -36,6 +45,7 @@ class SubscriptionGuard {
       const user = authManager?.getCurrentUser?.();
       if (!user) return null;
 
+      // Sem forceRefresh no getIdToken — o SDK gerencia a renovação automaticamente
       const token = await user.getIdToken();
       const res   = await fetch('/api/billing/subscription-status', {
         headers: { 'Authorization': `Bearer ${token}` },
@@ -125,8 +135,7 @@ class SubscriptionGuard {
       box-shadow:0 -4px 20px rgba(0,0,0,0.08);
     `;
 
-    // Construir o HTML interno sem onclick inline
-    const closeId = `${this._bannerId}-close`;
+    // innerHTML sem onclick inline — o listener será adicionado após appendChild
     banner.innerHTML = `
       <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;">
         <span style="font-size:1.1rem;flex-shrink:0;">${c.icon}</span>
@@ -140,7 +149,7 @@ class SubscriptionGuard {
           Renovar agora
         </a>
         ${status.warningLevel === 'info' ? `
-          <button id="${closeId}"
+          <button id="${this._bannerId}-close"
             style="background:transparent;border:none;color:${c.text};cursor:pointer;font-size:1.3rem;opacity:0.6;padding:0 4px;">×</button>
         ` : ''}
       </div>
@@ -148,12 +157,14 @@ class SubscriptionGuard {
 
     document.body.appendChild(banner);
 
-    // Bind do botão fechar via addEventListener (sem onclick inline)
-    const closeBtn = document.getElementById(closeId);
-    if (closeBtn) {
-      closeBtn.addEventListener('click', () => {
-        banner.style.display = 'none';
-      });
+    // Listener do botão fechar — adicionado APÓS appendChild, sem onclick inline
+    if (status.warningLevel === 'info') {
+      const closeBtn = document.getElementById(`${this._bannerId}-close`);
+      if (closeBtn) {
+        closeBtn.addEventListener('click', () => {
+          banner.style.display = 'none';
+        });
+      }
     }
   }
 
@@ -207,6 +218,8 @@ class SubscriptionGuard {
       display:flex; align-items:center; justify-content:center; padding:20px;
       font-family:'DM Sans',system-ui,sans-serif;
     `;
+
+    // innerHTML sem onclick inline — listeners adicionados após appendChild
     modal.innerHTML = `
       <div style="background:#fff;border-radius:20px;padding:32px;max-width:380px;width:100%;text-align:center;">
         <div style="width:56px;height:56px;background:#FFF1F2;border-radius:14px;margin:0 auto 16px;display:flex;align-items:center;justify-content:center;font-size:1.6rem;">🔒</div>
@@ -216,11 +229,11 @@ class SubscriptionGuard {
         </p>
         <p style="font-size:0.78rem;color:#9CA3AF;margin:0 0 20px;">Os dados dos seus alunos estão preservados.</p>
         <div style="display:flex;flex-direction:column;gap:10px;">
-          <a href="#/personal/billing" id="upgrade-modal-billing-link"
+          <a id="upgrade-modal-plans-link" href="#/personal/billing"
             style="display:block;padding:13px;background:#00E676;color:#0A0A0A;border-radius:12px;font-size:0.9rem;font-weight:800;text-decoration:none;">
             Ver planos e renovar
           </a>
-          <button id="upgrade-modal-close"
+          <button id="upgrade-modal-close-btn"
             style="padding:11px;background:#F4F4F4;border:none;border-radius:12px;font-size:0.85rem;font-weight:600;color:#374151;cursor:pointer;font-family:inherit;">
             Fechar
           </button>
@@ -228,21 +241,19 @@ class SubscriptionGuard {
       </div>
     `;
 
-    // Fechar ao clicar no overlay
-    modal.addEventListener('click', e => {
-      if (e.target === modal) modal.style.display = 'none';
-    });
-
     document.body.appendChild(modal);
 
-    // Fechar ao clicar no botão "Fechar" — addEventListener, sem onclick inline
-    document.getElementById('upgrade-modal-close')?.addEventListener('click', () => {
+    // Listeners adicionados APÓS appendChild — sem onclick inline
+    document.getElementById('upgrade-modal-plans-link')?.addEventListener('click', () => {
       modal.style.display = 'none';
     });
 
-    // Fechar ao clicar no link "Ver planos" (navega para billing)
-    document.getElementById('upgrade-modal-billing-link')?.addEventListener('click', () => {
+    document.getElementById('upgrade-modal-close-btn')?.addEventListener('click', () => {
       modal.style.display = 'none';
+    });
+
+    modal.addEventListener('click', e => {
+      if (e.target === modal) modal.style.display = 'none';
     });
   }
 
@@ -259,7 +270,7 @@ class SubscriptionGuard {
     this._lastCheckAt  = 0;
     this.status        = null;
 
-    // Remover banner do DOM ao destruir
+    // Remover banner do DOM ao destruir (evita banner órfão ao trocar de página)
     const banner = document.getElementById(this._bannerId);
     if (banner) banner.remove();
   }
