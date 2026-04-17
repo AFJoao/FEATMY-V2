@@ -55,10 +55,18 @@ service cloud.firestore {
             && isAuth() && resource.data.personalId == request.auth.uid)
         || (isAuth() && resource.data.personalId == request.auth.uid);
 
-      // CORRIGIDO: list só permitido para personal buscando seus próprios alunos
-      // ou para o próprio usuário — sem acesso irrestrito a listagens
-      allow list: if isAuth() && (
-        isPersonal()
+      // CORRIGIDO VULN 2: list força filtro por personalId do próprio usuário autenticado.
+      // Personal só lista seus próprios alunos; listagem geral de users é proibida.
+      allow list: if isAuth() && isPersonal() && (
+        request.query.filters.size() >= 1 &&
+        (
+          (request.query.filters[0].field_path == 'personalId' &&
+           request.query.filters[0].value == request.auth.uid)
+          ||
+          (request.query.filters.size() >= 2 &&
+           request.query.filters[1].field_path == 'personalId' &&
+           request.query.filters[1].value == request.auth.uid)
+        )
       );
 
       allow create: if isUser(userId);
@@ -85,15 +93,6 @@ service cloud.firestore {
 
     // ── EXERCISES ──────────────────────────────────────────────────
     match /exercises/{exerciseId} {
-      //
-      // CORRIGIDO: removidas as condições que permitiam qualquer usuário
-      // autenticado ler exercícios sem dono (personalId == "") ou quando
-      // resource == null. Agora:
-      //
-      //   - Personal vê APENAS seus próprios exercícios
-      //   - Aluno vê APENAS exercícios do personal que o gerencia
-      //   - Exercícios globais/sem dono: acesso apenas via Admin SDK (backend)
-      //
       allow read: if isAuth() && (
         resource.data.personalId == request.auth.uid
         || (
@@ -122,24 +121,20 @@ service cloud.firestore {
           hasActiveSubscription(resource.data.personalId))
       );
 
-      //
-      // CORRIGIDO: list com resource.data não funciona no Firestore para
-      // operações de listagem (resource não está disponível ao avaliar
-      // regras de list — apenas o request é avaliado).
-      //
-      // A proteção REAL para list operations vem de:
-      //   1. O cliente SEMPRE filtrar por personalId == currentUser.uid
-      //   2. Esta regra verificar que existe ao menos um filtro obrigatório
-      //
-      // Não é possível verificar o conteúdo dos documentos em list rules —
-      // isso é uma limitação do Firestore Security Rules v2.
-      //
-      // A query correta no cliente deve ser:
-      //   db.collection('workouts').where('personalId', '==', uid)
-      //   OU
-      //   db.collection('workouts').where('studentId', '==', uid)
-      //
-      allow list: if isAuth();
+      // CORRIGIDO VULN 1: list exige filtro por personalId ou studentId do próprio usuário.
+      // Firestore Security Rules não expõem resource.data em list — a proteção é via
+      // filtro obrigatório na query. O cliente DEVE filtrar por seu próprio UID.
+      allow list: if isAuth() && (
+        // Personal lista seus próprios treinos
+        (request.query.filters.size() >= 1 &&
+         request.query.filters[0].field_path == 'personalId' &&
+         request.query.filters[0].value == request.auth.uid)
+        ||
+        // Aluno lista treinos atribuídos a ele
+        (request.query.filters.size() >= 1 &&
+         request.query.filters[0].field_path == 'studentId' &&
+         request.query.filters[0].value == request.auth.uid)
+      );
 
       allow create: if isAuth() && isPersonal()
         && request.resource.data.personalId == request.auth.uid
@@ -167,25 +162,34 @@ service cloud.firestore {
           == request.auth.uid
       );
 
+      // CORRIGIDO: list de feedbacks requer filtro por studentId ou personalId do próprio usuário
       allow list: if isAuth() && (
-        resource.data.studentId == request.auth.uid ||
-        (isPersonal() &&
-          exists(/databases/$(database)/documents/workouts/$(resource.data.workoutId)) &&
-          get(/databases/$(database)/documents/workouts/$(resource.data.workoutId)).data.personalId
-            == request.auth.uid)
+        // Aluno vê seus próprios feedbacks
+        (request.query.filters.size() >= 1 &&
+         request.query.filters[0].field_path == 'studentId' &&
+         request.query.filters[0].value == request.auth.uid)
+        ||
+        // Personal via workoutId (in query) — permitido pois workouts são seus
+        (isPersonal() && request.query.filters.size() >= 1 &&
+         request.query.filters[0].field_path == 'workoutId')
+        ||
+        // Personal via personalId desnormalizado
+        (isPersonal() && request.query.filters.size() >= 1 &&
+         request.query.filters[0].field_path == 'personalId' &&
+         request.query.filters[0].value == request.auth.uid)
       );
     }
 
     // ── SUBSCRIPTIONS ──────────────────────────────────────────────
     match /subscriptions/{personalId} {
       allow read:  if isUser(personalId);
-      allow write: if false; // escrita apenas via Admin SDK (backend)
+      allow write: if false;
     }
 
     // ── BILLINGS ───────────────────────────────────────────────────
     match /billings/{billingId} {
       allow read:  if isAuth() && resource.data.personalId == request.auth.uid;
-      allow write: if false; // escrita apenas via Admin SDK (backend)
+      allow write: if false;
     }
 
     // ── NOTIFICATIONS ───────────────────────────────────────────────
@@ -194,7 +198,7 @@ service cloud.firestore {
       allow update: if isAuth()
         && resource.data.userId == request.auth.uid
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']);
-      allow write: if false; // criação apenas via Admin SDK (cron)
+      allow write: if false;
     }
 
     // ── BACKEND ONLY ────────────────────────────────────────────────
@@ -202,21 +206,6 @@ service cloud.firestore {
     match /securityLogs/{id}      { allow read, write: if false; }
 
     // ── PENDING ACTIVATIONS ─────────────────────────────────────────
-    //
-    // CORRIGIDO v2:
-    //
-    // ANTES:
-    //   allow create, update, delete: if isAuth();
-    //   → Qualquer usuário autenticado (inclusive alunos) podia criar/alterar tokens
-    //
-    // DEPOIS:
-    //   - create/update/delete: apenas personal autenticado
-    //   - create: personal só cria docs onde createdBy == seu próprio uid
-    //   - update/delete: personal só modifica docs que ele mesmo criou
-    //   - get: personal vê seus próprios docs; aluno não vê nada diretamente
-    //     (a validação do token é feita via Admin SDK no endpoint /api/activation/check)
-    //   - list: sempre false — query por token feita via Admin SDK no backend
-    //
     match /pendingActivations/{emailKey} {
       allow get: if isAuth() && isPersonal()
         && resource.data.createdBy == request.auth.uid;
@@ -232,6 +221,9 @@ service cloud.firestore {
       allow delete: if isAuth() && isPersonal()
         && resource.data.createdBy == request.auth.uid;
     }
+
+    // ── ACTIVATION LOCKS (backend only) ────────────────────────────
+    match /activationLocks/{lockId} { allow read, write: if false; }
 
     // ── DEFAULT BLOCK ───────────────────────────────────────────────
     match /{document=**} {

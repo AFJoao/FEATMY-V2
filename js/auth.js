@@ -244,7 +244,7 @@ class AuthManager {
       });
 
       const baseUrl       = window.location.origin;
-      const activationUrl = `${baseUrl}/#/primeiro-acesso?token=${activationToken}`;
+      const activationUrl = `${baseUrl}/#/primeiro-acesso#token=${activationToken}`;
 
       return {
         success: true,

@@ -41,6 +41,14 @@
       ]
     },
     {
+      "collectionGroup": "feedbacks",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "personalId", "order": "ASCENDING"  },
+        { "fieldPath": "createdAt",  "order": "DESCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "billings",
       "queryScope": "COLLECTION",
       "fields": [

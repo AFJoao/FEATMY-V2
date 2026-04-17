@@ -61,7 +61,7 @@ window.__pageInit = async function() {
       updatedAt:       firebase.firestore.FieldValue.serverTimestamp(),
     }, { merge: true });
 
-    return `${window.location.origin}/#/primeiro-acesso?token=${newToken}`;
+    return `${window.location.origin}/#/primeiro-acesso#token=${newToken}`;
   }
 
   // ── Criar aluno ────────────────────────────────────────────────

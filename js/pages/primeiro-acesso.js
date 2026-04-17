@@ -1,6 +1,11 @@
 /**
- * js/pages/primeiro-acesso.js
- * Migrado de script inline em pages/primeiro-acesso.html
+ * js/pages/primeiro-acesso.js — v2
+ *
+ * CORREÇÕES v2:
+ * 1. Token extraído da URL imediatamente e limpo do histórico (não vaza em analytics)
+ * 2. Validação do token via API server-side (/api/activation/check) em vez de Firestore direto
+ * 3. Ativação via API server-side (/api/activation/activate) com lock atômico
+ * 4. Suporte a hash fragment (#token=...) além de query string (?token=...) para compatibilidade
  */
 window.__pageInit = async function() {
   let activationData  = null;
@@ -24,13 +29,45 @@ window.__pageInit = async function() {
     if (el) el.style.display = 'none';
   }
 
-  function getTokenFromUrl() {
+  /**
+   * Extrai token da URL e limpa imediatamente do histórico/URL visível.
+   * Suporta:
+   *   - /#/primeiro-acesso?token=ABC (query string — legado, loga em analytics)
+   *   - /#/primeiro-acesso#token=ABC (hash fragment — seguro, não vai a servidores)
+   *
+   * A limpeza ocorre antes de qualquer script de analytics ter a chance de capturar.
+   */
+  function extractAndClearToken() {
+    const fullHash = window.location.hash || '';
+
+    // Tentar hash fragment primeiro: /#/primeiro-acesso#token=ABC
+    // O segundo # cria um fragmento dentro do fragmento — incomum mas funciona no browser
+    const hashTokenMatch = fullHash.match(/[#&]token=([a-f0-9]{64})/);
+    if (hashTokenMatch) {
+      const token = hashTokenMatch[1];
+      // Limpar token da URL imediatamente
+      history.replaceState(null, '', window.location.pathname + '#/primeiro-acesso');
+      return token;
+    }
+
+    // Fallback: query string /?token=ABC (legado)
     const search = new URLSearchParams(window.location.search);
-    if (search.has('token')) return search.get('token');
-    const hash = window.location.hash || '';
-    const qi   = hash.indexOf('?');
-    if (qi === -1) return null;
-    return new URLSearchParams(hash.slice(qi)).get('token') || null;
+    if (search.has('token')) {
+      const token = search.get('token');
+      // Limpar da URL sem recarregar
+      history.replaceState(null, '', window.location.pathname + '#/primeiro-acesso');
+      return token;
+    }
+
+    // Também verificar dentro do hash como query: /#/primeiro-acesso?token=ABC
+    const hashQueryMatch = fullHash.match(/\?token=([a-f0-9]{64})/);
+    if (hashQueryMatch) {
+      const token = hashQueryMatch[1];
+      history.replaceState(null, '', window.location.pathname + '#/primeiro-acesso');
+      return token;
+    }
+
+    return null;
   }
 
   async function checkTokenViaAPI(token) {
@@ -51,8 +88,24 @@ window.__pageInit = async function() {
     }
   }
 
+  async function activateViaAPI(token, password, email) {
+    try {
+      const res  = await fetch('/api/activation/activate', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ token, password, email }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) return { success: true, customToken: data.customToken };
+      return { success: false, error: data.error || 'Erro ao ativar conta.' };
+    } catch {
+      return { success: false, error: 'Erro de conexão. Tente novamente.' };
+    }
+  }
+
   async function init() {
-    activationToken = getTokenFromUrl();
+    // Extrair e limpar token da URL ANTES de qualquer outra operação
+    activationToken = extractAndClearToken();
 
     if (!activationToken) {
       const msg = document.getElementById('invalidMsg');
@@ -97,15 +150,27 @@ window.__pageInit = async function() {
     btn.innerHTML = '<span class="spinner"></span>';
     btn.disabled  = true;
 
-    const result = await authManager.activateStudentAccount(
-      activationData.email,
-      password,
-      activationData.studentDocId,
-      activationToken,
-      activationData.emailKey
-    );
+    // Usar API server-side para ativação com lock atômico
+    const result = await activateViaAPI(activationToken, password, activationData.email);
 
     if (result.success) {
+      // Login com custom token gerado pelo servidor
+      try {
+        if (result.customToken) {
+          await auth.signInWithCustomToken(result.customToken);
+          await authManager.reinitialize();
+        }
+      } catch (e) {
+        console.warn('[primeiro-acesso] Custom token login falhou, tentando login direto:', e.message);
+        // Fallback: login direto com email/senha
+        try {
+          await auth.signInWithEmailAndPassword(activationData.email, password);
+          await authManager.reinitialize();
+        } catch (loginErr) {
+          console.error('[primeiro-acesso] Login fallback falhou:', loginErr.message);
+        }
+      }
+
       const stepEl = document.getElementById('stepPassword');
       if (stepEl) stepEl.innerHTML = `
         <div style="text-align:center;padding:20px 0;">

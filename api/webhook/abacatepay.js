@@ -1,39 +1,24 @@
 /**
- * POST /api/webhook/abacatepay
+ * POST /api/webhook/abacatepay — v3
  *
- * CORREÇÃO v2 — rawBody:
+ * CORREÇÃO v3 (VULN ATAQUE 2):
+ * - Verificar confirmedAmount == billingData.amountInCents antes de ativar
+ * - Previne upgrade gratuito de plano via externalId manipulado
  *
- * PROBLEMA:
- *   O Vercel faz parse do body JSON antes de chamar o handler.
- *   O código anterior usava JSON.stringify(req.body) para recalcular o rawBody,
- *   mas JSON.stringify pode diferir do payload original em ordem de chaves,
- *   espaços e encoding — tornando a verificação HMAC não confiável.
- *
- * SOLUÇÃO:
- *   Exportar config com bodyParser: false para que o Vercel NÃO faça parse.
- *   Ler o body como stream raw e calcular o HMAC sobre os bytes originais.
- *   Depois fazer JSON.parse() manualmente para processar o payload.
- *
- * OUTRAS CORREÇÕES MANTIDAS:
- *   - 2 camadas de segurança: webhookSecret na query + HMAC-SHA256 no header
- *   - Idempotência via processedWebhooks
- *   - Double-check via GET na API da AbacatePay antes de ativar
- *   - Logs de segurança para tentativas inválidas
+ * Mantidas todas as correções v2:
+ * - bodyParser: false (rawBody para HMAC correto)
+ * - 2 camadas: webhookSecret + HMAC-SHA256
+ * - Idempotência via processedWebhooks
+ * - Double-check via GET na API da AbacatePay
  */
 
 const crypto = require('crypto');
 const admin  = require('firebase-admin');
 
-// ── CRÍTICO: desabilitar bodyParser do Vercel ─────────────────────────────────
-// Sem isso, req.body já vem parseado e o rawBody recalculado via JSON.stringify
-// pode diferir do payload original, quebrando a verificação HMAC.
 module.exports.config = {
-  api: {
-    bodyParser: false,
-  },
+  api: { bodyParser: false },
 };
 
-// ── Firebase Admin (singleton) ─────────────────────────────────────────────
 if (!admin.apps.length) {
   admin.initializeApp({
     credential: admin.credential.cert({
@@ -46,58 +31,40 @@ if (!admin.apps.length) {
 
 const db = admin.firestore();
 
-// ── Chave pública fixa da AbacatePay (documentação oficial) ───────────────
 const ABACATEPAY_PUBLIC_KEY =
   't9dXRhHHo3yDEj5pVDYz0frf7q6bMKyMRmxxCPIPp3RCplBfXRxqlC6ZpiWmOqj4' +
   'L63qEaeUOtrCI8P0VMUgo6iIga2ri9ogaHFs0WIIywSMg0q7RmBfybe1E5XJcfC4' +
   'IW3alNqym0tXoAKkzvfEjZxV6bE0oG2zJrNNYmUCKZyV0KZ3JS8Votf9EAWWYdi' +
   'DkMkpbMdPggfh1EqHlVkMiTady6jOR3hyzGEHrIz2Ret0xHKMbiqkr9HS1JhNHDX9';
 
-// ── Planos (backend é fonte de verdade) ────────────────────────────────────
 const PLANS = {
   starter: { maxStudents: 5,  durationDays: 30 },
   pro:     { maxStudents: 15, durationDays: 30 },
   elite:   { maxStudents: 40, durationDays: 30 },
 };
 
-// ── Ler body como Buffer raw (sem parse) ──────────────────────────────────
-// Necessário para calcular HMAC sobre os bytes originais do payload.
-// Limite de 1MB para prevenir ataques de payload gigante.
 function getRawBody(req, maxBytes = 1_000_000) {
   return new Promise((resolve, reject) => {
     const chunks = [];
     let totalSize = 0;
-
     req.on('data', (chunk) => {
       totalSize += chunk.length;
-      if (totalSize > maxBytes) {
-        reject(new Error('Payload muito grande'));
-        req.destroy();
-        return;
-      }
+      if (totalSize > maxBytes) { reject(new Error('Payload muito grande')); req.destroy(); return; }
       chunks.push(chunk);
     });
-
-    req.on('end', () => {
-      resolve(Buffer.concat(chunks));
-    });
-
+    req.on('end', () => resolve(Buffer.concat(chunks)));
     req.on('error', reject);
   });
 }
 
-// ── Validar assinatura HMAC-SHA256 (base64) ───────────────────────────────
-// Recebe Buffer para garantir que os bytes são exatamente os recebidos.
 function validateHmacSignature(rawBodyBuffer, signatureFromHeader) {
   try {
     const expected = crypto
       .createHmac('sha256', ABACATEPAY_PUBLIC_KEY)
-      .update(rawBodyBuffer)          // Buffer — sem conversão de encoding
+      .update(rawBodyBuffer)
       .digest('base64');
-
     const A = Buffer.from(expected);
     const B = Buffer.from(signatureFromHeader || '');
-
     if (A.length !== B.length) return false;
     return crypto.timingSafeEqual(A, B);
   } catch {
@@ -105,7 +72,6 @@ function validateHmacSignature(rawBodyBuffer, signatureFromHeader) {
   }
 }
 
-// ── Confirmar pagamento via API (double-check) ────────────────────────────
 async function confirmPixViaAPI(pixId) {
   try {
     const res = await fetch(
@@ -120,7 +86,6 @@ async function confirmPixViaAPI(pixId) {
   }
 }
 
-// ── Calcular data de expiração ─────────────────────────────────────────────
 function calcExpiry(planId) {
   const days = PLANS[planId]?.durationDays || 30;
   const d    = new Date();
@@ -128,22 +93,17 @@ function calcExpiry(planId) {
   return admin.firestore.Timestamp.fromDate(d);
 }
 
-// ── Log de segurança ───────────────────────────────────────────────────────
 async function securityLog(type, data) {
   try {
     await db.collection('securityLogs').add({
-      type,
-      data,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      type, data, createdAt: admin.firestore.FieldValue.serverTimestamp(),
     });
   } catch { /* não crítico */ }
 }
 
-// ── Handler principal ──────────────────────────────────────────────────────
 async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
 
-  // ── Ler raw body ANTES de qualquer parse ──────────────────────
   let rawBodyBuffer;
   try {
     rawBodyBuffer = await getRawBody(req);
@@ -152,18 +112,17 @@ async function handler(req, res) {
     return res.status(400).json({ error: 'Body inválido' });
   }
 
-  // ── Camada 1: secret na query string ──────────────────────────
+  // Camada 1: secret na query string
   const webhookSecret = req.query.webhookSecret || '';
   if (webhookSecret !== process.env.ABACATEPAY_WEBHOOK_SECRET) {
     await securityLog('WEBHOOK_INVALID_SECRET', {
       ip: req.headers['x-forwarded-for']?.split(',')[0].trim() || 'unknown',
     });
     console.warn('[webhook] Secret inválido rejeitado');
-    // Retorna 200 para não revelar o motivo ao atacante
     return res.status(200).json({ received: true });
   }
 
-  // ── Camada 2: assinatura HMAC sobre raw bytes ─────────────────
+  // Camada 2: HMAC sobre raw bytes
   const signature = req.headers['x-webhook-signature'] || '';
   if (!validateHmacSignature(rawBodyBuffer, signature)) {
     await securityLog('WEBHOOK_INVALID_HMAC', {
@@ -174,7 +133,6 @@ async function handler(req, res) {
     return res.status(200).json({ received: true });
   }
 
-  // ── Parse do payload (após validação HMAC) ────────────────────
   let event;
   try {
     event = JSON.parse(rawBodyBuffer.toString('utf8'));
@@ -187,12 +145,7 @@ async function handler(req, res) {
   const pixData   = event?.data?.transparent || event?.data?.checkout || {};
   const pixId     = pixData?.id || '';
 
-  console.log('[webhook] Evento recebido:', eventType, pixId);
-
-  // ── Processar apenas pagamento confirmado ─────────────────────
-  const isPaid = eventType === 'transparent.completed'
-    || eventType === 'checkout.completed';
-
+  const isPaid = eventType === 'transparent.completed' || eventType === 'checkout.completed';
   if (!isPaid) {
     console.log('[webhook] Evento ignorado:', eventType);
     return res.status(200).json({ received: true });
@@ -203,7 +156,7 @@ async function handler(req, res) {
     return res.status(200).json({ received: true });
   }
 
-  // ── Idempotência: já processamos este pixId? ──────────────────
+  // Idempotência
   const processedRef = db.collection('processedWebhooks').doc(pixId);
   const alreadyDone  = await processedRef.get();
   if (alreadyDone.exists) {
@@ -211,7 +164,7 @@ async function handler(req, res) {
     return res.status(200).json({ received: true, duplicate: true });
   }
 
-  // ── Double-check: confirmar via API ───────────────────────────
+  // Double-check via API
   const confirmed       = await confirmPixViaAPI(pixId);
   const confirmedStatus = confirmed?.status || '';
 
@@ -221,32 +174,18 @@ async function handler(req, res) {
     return res.status(200).json({ received: true });
   }
 
-  // ── Buscar cobrança no Firestore pelo externalId ──────────────
+  // Buscar cobrança no Firestore
   const externalId = pixData?.externalId || event?.data?.metadata?.externalId || '';
-
   let billingDoc, billingData;
 
   if (externalId) {
-    const snap = await db.collection('billings')
-      .where('externalId', '==', externalId)
-      .limit(1)
-      .get();
-    if (!snap.empty) {
-      billingDoc  = snap.docs[0];
-      billingData = billingDoc.data();
-    }
+    const snap = await db.collection('billings').where('externalId', '==', externalId).limit(1).get();
+    if (!snap.empty) { billingDoc = snap.docs[0]; billingData = billingDoc.data(); }
   }
 
-  // Fallback: buscar pelo gatewayId
   if (!billingDoc) {
-    const snap = await db.collection('billings')
-      .where('gatewayId', '==', pixId)
-      .limit(1)
-      .get();
-    if (!snap.empty) {
-      billingDoc  = snap.docs[0];
-      billingData = billingDoc.data();
-    }
+    const snap = await db.collection('billings').where('gatewayId', '==', pixId).limit(1).get();
+    if (!snap.empty) { billingDoc = snap.docs[0]; billingData = billingDoc.data(); }
   }
 
   if (!billingDoc || !billingData) {
@@ -255,9 +194,30 @@ async function handler(req, res) {
     return res.status(200).json({ received: true });
   }
 
+  // CORREÇÃO VULN ATAQUE 2: Verificar se o valor confirmado bate com o billing
+  // Previne upgrade de plano via externalId manipulado
+  const confirmedAmount = confirmed?.amount;
+  const expectedAmount  = billingData?.amountInCents;
+
+  if (confirmedAmount !== undefined && expectedAmount !== undefined &&
+      confirmedAmount !== expectedAmount) {
+    await securityLog('WEBHOOK_AMOUNT_MISMATCH', {
+      pixId,
+      externalId,
+      confirmedAmount,
+      expectedAmount,
+      personalId: billingData.personalId,
+      planId: billingData.planId,
+    });
+    console.error('[webhook] FRAUDE DETECTADA: Valor divergente — pixId:', pixId,
+      'esperado:', expectedAmount, 'confirmado:', confirmedAmount);
+    // Retornar 200 para não revelar detecção ao atacante
+    return res.status(200).json({ received: true });
+  }
+
   const { personalId, planId } = billingData;
 
-  // ── Marcar como processado (idempotência) ─────────────────────
+  // Marcar como processado (idempotência)
   await processedRef.set({
     processedAt:  admin.firestore.FieldValue.serverTimestamp(),
     billingDocId: billingDoc.id,
@@ -265,14 +225,14 @@ async function handler(req, res) {
     pixId,
   });
 
-  // ── Atualizar cobrança para "paid" ────────────────────────────
+  // Atualizar cobrança
   await billingDoc.ref.update({
     status:    'paid',
     gatewayId: pixId,
     paidAt:    admin.firestore.FieldValue.serverTimestamp(),
   });
 
-  // ── Criar/atualizar assinatura ────────────────────────────────
+  // Criar/atualizar assinatura
   const planConfig = PLANS[planId] || PLANS.starter;
   const newExpiry  = calcExpiry(planId);
   const subRef     = db.collection('subscriptions').doc(personalId);
@@ -291,13 +251,9 @@ async function handler(req, res) {
   if (subSnap.exists) {
     await subRef.update(subData);
   } else {
-    await subRef.set({
-      ...subData,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
+    await subRef.set({ ...subData, createdAt: admin.firestore.FieldValue.serverTimestamp() });
   }
 
-  // ── Atualizar campo no doc do personal ───────────────────────
   await db.collection('users').doc(personalId).update({
     subscriptionStatus:  'active',
     subscriptionPlan:    planId,

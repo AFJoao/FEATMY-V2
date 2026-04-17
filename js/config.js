@@ -17,6 +17,12 @@ if (!firebase.apps.length) {
   firebase.initializeApp(firebaseConfig);
 }
 
+const appCheck = firebase.appCheck();
+appCheck.activate(
+  new firebase.appCheck.ReCaptchaV3Provider('SUA_RECAPTCHA_V3_SITE_KEY'),
+  true
+);
+
 // Referências globais para Auth e Firestore
 const auth = firebase.auth();
 const db = firebase.firestore();

@@ -1,18 +1,15 @@
 /**
- * api/_lib/cors.js
+ * api/_lib/cors.js — v3
  *
- * Helper centralizado de CORS.
+ * CORREÇÃO v3 (VULN 8):
+ *   Em produção sem APP_URL, o comportamento anterior era fail-open (permitia tudo).
+ *   Isso anulava toda a proteção CORS se a variável de ambiente falhasse no deploy.
  *
- * CORREÇÃO v2:
- *   Em produção sem APP_URL configurada, o comportamento anterior lançava
- *   uma exceção que retornava 403 em TODAS as requisições — derrubando
- *   o dashboard inteiro mesmo que o usuário estivesse autenticado.
- *
- *   Novo comportamento:
- *   - APP_URL ausente em produção: loga erro crítico + permite requisição
- *     (fail-open controlado). O handler ainda pode rejeitar por token inválido.
- *   - Origin não permitida em produção: bloqueia com 403 (fail-closed).
- *   - Em dev: sempre permissivo para localhost.
+ *   Novo comportamento fail-CLOSED:
+ *   - APP_URL ausente em produção: loga erro CRÍTICO e lança exceção (bloqueia request)
+ *   - Origin não permitida em produção: lança exceção (bloqueia request)
+ *   - Requisições sem origin (server-to-server): sempre permitidas (não são CSRF)
+ *   - Em desenvolvimento: permissivo para localhost
  *
  * APP_URL suporta múltiplas origens separadas por vírgula:
  *   APP_URL=https://featym.com,https://www.featym.com
@@ -30,38 +27,37 @@ const isProd = process.env.NODE_ENV === 'production';
 /**
  * Retorna a origin permitida para o request atual.
  *
- * CORRIGIDO v2:
- *   Produção sem APP_URL → loga erro mas retorna '*' em vez de lançar.
- *   Isso evita que uma variável de ambiente faltando derrube toda a API.
- *   O erro no log é suficiente para alertar — o deploy deve ter APP_URL.
+ * FAIL-CLOSED em produção:
+ *   - Sem APP_URL: lança (bloqueia tudo — misconfiguration não deve ser silenciosa)
+ *   - Origin não permitida: lança
  *
- *   Produção com APP_URL mas origin não permitida → lança (fail-closed).
+ * Requisições sem origin header (Postman, server-to-server, cron):
+ *   - Sempre permitidas: não são requests de browser, logo não são vetores CSRF
  */
 function getAllowedOrigin(req) {
   const requestOrigin = req?.headers?.origin || '';
 
   if (isProd) {
-    // APP_URL não configurada: loga erro crítico mas não bloqueia
     if (ALLOWED_ORIGINS.size === 0) {
+      // FAIL-CLOSED: APP_URL não configurada em produção é erro bloqueante
       console.error(
         '[cors] CRÍTICO: APP_URL não configurada em produção. ' +
-        'Configure a variável de ambiente na Vercel. Permitindo request sem restrição de origin.'
+        'Configure a variável de ambiente na Vercel. Bloqueando request.'
       );
-      return requestOrigin || '*';
+      throw new Error('[cors] APP_URL não configurada em produção — request bloqueado');
     }
 
-    // Origin presente e permitida → OK
-    if (requestOrigin && ALLOWED_ORIGINS.has(requestOrigin)) {
-      return requestOrigin;
-    }
-
-    // Sem origin no header (ex: chamadas server-side, Postman, cron) → permite
-    // Requisições sem origin são feitas por servidores, não por browsers
+    // Sem origin no header → server-to-server ou cron → permitir
     if (!requestOrigin) {
       return '*';
     }
 
-    // Origin presente mas não permitida → fail-closed
+    // Origin na lista → OK
+    if (ALLOWED_ORIGINS.has(requestOrigin)) {
+      return requestOrigin;
+    }
+
+    // Origin presente mas não permitida → FAIL-CLOSED
     throw new Error(
       `[cors] Origin não permitida: "${requestOrigin}". ` +
       `Origens aceitas: ${[...ALLOWED_ORIGINS].join(', ')}`
@@ -73,7 +69,7 @@ function getAllowedOrigin(req) {
     return requestOrigin;
   }
 
-  // Origin na lista → permitida
+  // Origin na lista em dev → permitida
   if (requestOrigin && ALLOWED_ORIGINS.has(requestOrigin)) {
     return requestOrigin;
   }
@@ -85,6 +81,7 @@ function getAllowedOrigin(req) {
 
 /**
  * Aplica headers CORS no response.
+ * Lança se a origin não for permitida (caller deve capturar e retornar 403).
  */
 function applyCors(req, res, methods = 'POST, OPTIONS', useCredentials = false) {
   const origin = getAllowedOrigin(req); // pode lançar em produção com origin inválida
@@ -98,4 +95,4 @@ function applyCors(req, res, methods = 'POST, OPTIONS', useCredentials = false) 
   }
 }
 
-module.exports = { getAllowedOrigin, applyCors }; 
+module.exports = { getAllowedOrigin, applyCors };

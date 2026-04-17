@@ -408,20 +408,24 @@ class Router {
   }
 
   _showErrorPage(message) {
-    const container = document.getElementById('app');
-    if (!container) return;
-    container.innerHTML = `
-      <div style="max-width:600px;margin:100px auto;padding:40px;text-align:center;
-                  background:#fff3f3;border:2px solid #ffdddd;border-radius:12px;">
-        <h2 style="color:#cc0000;margin-bottom:12px;">Erro ao carregar página</h2>
-        <p style="color:#666;margin-bottom:20px;">${message}</p>
-        <button onclick="window.location.reload()"
-                style="padding:12px 24px;background:#000;color:#fff;
-                       border:none;border-radius:8px;cursor:pointer;font-size:15px;">
-          Recarregar
-        </button>
-      </div>`;
-  }
+  const container = document.getElementById('app');
+  if (!container) return;
+  const wrapper = document.createElement('div');
+  wrapper.style.cssText = 'max-width:600px;margin:100px auto;padding:40px;text-align:center;background:#fff3f3;border:2px solid #ffdddd;border-radius:12px;';
+  const h2 = document.createElement('h2');
+  h2.style.cssText = 'color:#cc0000;margin-bottom:12px;';
+  h2.textContent = 'Erro ao carregar página';
+  const p = document.createElement('p');
+  p.style.cssText = 'color:#666;margin-bottom:20px;';
+  p.textContent = message; // textContent — imune a XSS
+  const btn = document.createElement('button');
+  btn.style.cssText = 'padding:12px 24px;background:#000;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:15px;';
+  btn.textContent = 'Recarregar';
+  btn.addEventListener('click', () => window.location.reload());
+  wrapper.appendChild(h2); wrapper.appendChild(p); wrapper.appendChild(btn);
+  container.innerHTML = '';
+  container.appendChild(wrapper);
+}
 
   // ── Helpers de navegação ──────────────────────────────────────
 
