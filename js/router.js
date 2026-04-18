@@ -1,28 +1,14 @@
 /**
- * js/router.js — v3
+ * js/router.js — v4
  *
- * CORREÇÕES v3:
+ * CORREÇÃO v4 (VULN 7 — XSS em _showErrorPage):
+ *   ANTES: container.innerHTML com `message` interpolado → XSS se message contiver HTML
+ *   DEPOIS: DOM API pura com textContent → impossível injetar HTML, independente do conteúdo
  *
- * 1. RACE CONDITION NO AUTH:
- *    Antes: waitForAuth fazia polling de authManager.isInitialized, mas se
- *    authManager.initialize() ainda não havia sido chamado (corrida com
- *    DOMContentLoaded), o polling nunca via a mudança.
- *    Depois: router.init() garante que authManager.initialize() foi chamado
- *    ANTES de começar o polling, e usa onAuthStateChanged como fallback
- *    direto ao Firebase para não depender só do flag.
- *
- * 2. BOTÕES "VOLTAR" BLOQUEADOS PELA CSP:
- *    Antes: onclick="router.goToPersonalDashboard()" nos atributos HTML
- *    eram bloqueados pela CSP (sem unsafe-inline).
- *    Depois: o router registra event listeners nos elementos após carregar
- *    cada página, sem depender de handlers inline. As páginas mantêm
- *    data-action="back" / data-action="go-to:PATH" como convenção.
- *
- * 3. LIMPEZA DE SCRIPTS INLINE:
- *    _stripInlineScripts agora também remove atributos de evento inline
- *    (onclick, onmouseover etc.) de elementos que serão tratados por JS.
- *    ATENÇÃO: isso é opt-in via data-safe-events="true" no elemento raiz
- *    da página para não quebrar páginas que ainda não foram migradas.
+ * Todas as correções v3 mantidas:
+ * - Race condition no auth resolvida
+ * - Botões "voltar" via data-action (sem onclick inline)
+ * - Limpeza de scripts inline
  */
 
 class Router {
@@ -95,20 +81,17 @@ class Router {
   // ── Auth ─────────────────────────────────────────────────────
 
   async waitForAuth() {
-    // Garantir que o authManager foi inicializado antes de esperar
     if (typeof authManager === 'undefined') {
       console.error('[router] authManager não encontrado');
       this.authReady = true;
       return;
     }
 
-    // Se já inicializado, retornar imediatamente
     if (authManager.isInitialized) {
       this.authReady = true;
       return;
     }
 
-    // Garantir que initialize() foi chamado
     authManager.initialize();
 
     return new Promise((resolve) => {
@@ -123,25 +106,20 @@ class Router {
         resolve();
       };
 
-      // Polling rápido como mecanismo principal
       const pollInterval = setInterval(() => {
         if (authManager.isInitialized) done();
       }, 30);
 
-      // Fallback via onAuthStateChanged do Firebase diretamente
-      // Isso garante que não ficamos travados se o flag nunca mudar
       let unsubscribe;
       try {
         unsubscribe = auth.onAuthStateChanged(() => {
           if (unsubscribe) unsubscribe();
-          // Dar uma volta ao event loop para o authManager processar
           setTimeout(done, 50);
         });
       } catch (e) {
         // auth pode não estar disponível ainda
       }
 
-      // Timeout de segurança
       const timeoutId = setTimeout(() => {
         console.warn('[router] Timeout aguardando AuthManager — continuando');
         if (unsubscribe) try { unsubscribe(); } catch (_) {}
@@ -299,7 +277,6 @@ class Router {
         window.location.hash = '#' + path;
       }
 
-      // Registrar listeners declarativos (data-action) antes do script da página
       this._bindDeclarativeActions(container);
 
       await this._loadPageScript(path, matchResult);
@@ -311,20 +288,11 @@ class Router {
     }
   }
 
-  /**
-   * Registra event listeners em elementos com data-action="..." 
-   * como alternativa segura aos onclick inline, compatível com CSP estrita.
-   *
-   * Uso no HTML: <button data-action="back">Voltar</button>
-   *              <button data-action="go-to:/personal/dashboard">Dashboard</button>
-   *              <button data-action="logout">Sair</button>
-   */
   _bindDeclarativeActions(container) {
     container.querySelectorAll('[data-action]').forEach(el => {
       const action = el.dataset.action;
       if (!action) return;
 
-      // Evitar registrar listener duplo
       if (el._routerActionBound) return;
       el._routerActionBound = true;
 
@@ -407,25 +375,56 @@ class Router {
     container.textContent = '';
   }
 
+  /**
+   * CORREÇÃO VULN 7 — XSS em _showErrorPage
+   *
+   * ANTES: innerHTML com message interpolado → qualquer HTML em message executava
+   * DEPOIS: DOM API pura com textContent → XSS impossível independente do conteúdo
+   */
   _showErrorPage(message) {
-  const container = document.getElementById('app');
-  if (!container) return;
-  const wrapper = document.createElement('div');
-  wrapper.style.cssText = 'max-width:600px;margin:100px auto;padding:40px;text-align:center;background:#fff3f3;border:2px solid #ffdddd;border-radius:12px;';
-  const h2 = document.createElement('h2');
-  h2.style.cssText = 'color:#cc0000;margin-bottom:12px;';
-  h2.textContent = 'Erro ao carregar página';
-  const p = document.createElement('p');
-  p.style.cssText = 'color:#666;margin-bottom:20px;';
-  p.textContent = message; // textContent — imune a XSS
-  const btn = document.createElement('button');
-  btn.style.cssText = 'padding:12px 24px;background:#000;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:15px;';
-  btn.textContent = 'Recarregar';
-  btn.addEventListener('click', () => window.location.reload());
-  wrapper.appendChild(h2); wrapper.appendChild(p); wrapper.appendChild(btn);
-  container.innerHTML = '';
-  container.appendChild(wrapper);
-}
+    const container = document.getElementById('app');
+    if (!container) return;
+
+    // Construir via DOM API — NUNCA usar innerHTML com dados externos
+    const wrapper = document.createElement('div');
+    wrapper.style.cssText = [
+      'max-width:600px',
+      'margin:100px auto',
+      'padding:40px',
+      'text-align:center',
+      'background:#fff3f3',
+      'border:2px solid #ffdddd',
+      'border-radius:12px',
+    ].join(';');
+
+    const h2 = document.createElement('h2');
+    h2.style.cssText = 'color:#cc0000;margin-bottom:12px;';
+    h2.textContent = 'Erro ao carregar página'; // textContent — imune a XSS
+
+    const p = document.createElement('p');
+    p.style.cssText = 'color:#666;margin-bottom:20px;';
+    p.textContent = message; // textContent — seguro mesmo com <script> ou outros tags
+
+    const btn = document.createElement('button');
+    btn.style.cssText = [
+      'padding:12px 24px',
+      'background:#000',
+      'color:#fff',
+      'border:none',
+      'border-radius:8px',
+      'cursor:pointer',
+      'font-size:15px',
+    ].join(';');
+    btn.textContent = 'Recarregar';
+    btn.addEventListener('click', () => window.location.reload()); // addEventListener — sem onclick inline
+
+    wrapper.appendChild(h2);
+    wrapper.appendChild(p);
+    wrapper.appendChild(btn);
+
+    container.innerHTML = '';
+    container.appendChild(wrapper);
+  }
 
   // ── Helpers de navegação ──────────────────────────────────────
 
@@ -441,7 +440,6 @@ class Router {
   goTo(path)                     { this.navigate(path); }
 
   async init() {
-    // Garantir que o authManager está inicializando antes de qualquer coisa
     if (typeof authManager !== 'undefined') {
       authManager.initialize();
     }

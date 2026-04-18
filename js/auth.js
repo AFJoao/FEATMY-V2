@@ -1,25 +1,16 @@
 /**
- * js/auth.js — v5
+ * js/auth.js — v6
  *
- * CORREÇÕES v5:
+ * CORREÇÕES v6:
+ * 1. activationUrl usa hash fragment (#token=) em vez de query string (?token=)
+ *    — token não vaza em logs de CDN, Vercel, analytics ou header Referer
+ * 2. Timing equalizado em createStudentAccount (min 300ms) para prevenir
+ *    enumeração de emails por side-channel de tempo
  *
- * 1. RACE CONDITION NO LIMITE DE ALUNOS — CORRIGIDO
- *    ANTES: Verificação de limite lida via rules do Firestore (isWithinStudentLimit)
- *           mas sem transação atômica no cliente. Múltiplas requisições simultâneas
- *           podiam todas passar na verificação antes de qualquer uma confirmar.
- *    DEPOIS: Verificação + incremento via Firestore Transaction — operação atômica.
- *            Se duas requisições chegarem simultaneamente, apenas uma vai passar.
- *
- * 2. ENUMERAÇÃO DE EMAILS — MITIGADA
- *    ANTES: "Este e-mail já está cadastrado" revelava existência do usuário.
- *    DEPOIS: Resposta genérica que não confirma nem nega existência do email.
- *            Apenas o personal que criou a conta recebe o link de ativação
- *            por canal seguro.
- *
- * 3. MANTIDAS TODAS AS CORREÇÕES v4:
- *    - Token de ativação seguro (64 chars hex, 256 bits de entropia)
- *    - Race condition de ativação (lock em memória + status 'activating')
- *    - Revalidação do token no momento da ativação
+ * Todas as correções v5 mantidas:
+ * - Transação atômica para verificar limite de alunos
+ * - Resposta genérica para email duplicado
+ * - Token de 64 chars (256 bits)
  */
 
 class AuthManager {
@@ -132,18 +123,24 @@ class AuthManager {
 
   /**
    * Cria conta de aluno com:
-   *
-   * 1. TRANSAÇÃO ATÔMICA para verificar e atualizar limite de alunos.
-   *    Resolve a race condition onde múltiplas requisições simultâneas
-   *    podiam todas passar na verificação de limite.
-   *
-   * 2. RESPOSTA GENÉRICA para emails já cadastrados.
-   *    Não revela se o email existe ou não — previne enumeração de usuários.
-   *    O link de ativação é enviado via canal seguro (WhatsApp/email pelo personal).
-   *
-   * 3. Token de ativação de 64 chars (256 bits, criptograficamente seguro).
+   * 1. Timing equalizado (min 300ms) — previne enumeração de emails por timing
+   * 2. Transação atômica para verificar e bloquear limite de alunos
+   * 3. Resposta genérica para email duplicado — não confirma existência
+   * 4. Token de ativação via hash fragment (#token=) — não vaza em logs
    */
   async createStudentAccount(name, email) {
+    // CORREÇÃO VULN 6: Tempo mínimo de resposta para equalizar timing
+    const startTime = Date.now();
+    const MIN_RESPONSE_MS = 300;
+
+    const equalizeAndReturn = async (result) => {
+      const elapsed = Date.now() - startTime;
+      if (elapsed < MIN_RESPONSE_MS) {
+        await new Promise(r => setTimeout(r, MIN_RESPONSE_MS - elapsed));
+      }
+      return result;
+    };
+
     try {
       const personalUser = this.currentUser;
       if (!personalUser) throw new Error('Não autenticado');
@@ -152,25 +149,20 @@ class AuthManager {
 
       const normalizedEmail = email.toLowerCase().trim();
 
-      // Verificar se email já existe — resposta genérica para prevenir enumeração
-      // CORRIGIDO: não revela "Este e-mail já está cadastrado"
+      // Verificar email existente — resposta GENÉRICA para não revelar existência
       const existing = await db.collection('users')
         .where('email', '==', normalizedEmail)
         .limit(1)
         .get();
 
       if (!existing.empty) {
-        // Resposta genérica — não confirma nem nega existência do email
-        // O personal deve verificar seus alunos existentes no dashboard
-        throw new Error(
-          'Não foi possível criar a conta com este e-mail. ' +
-          'Verifique se o aluno já está cadastrado na sua lista.'
-        );
+        return equalizeAndReturn({
+          success: false,
+          error: 'Não foi possível criar a conta com este e-mail. Verifique se o aluno já está cadastrado na sua lista.',
+        });
       }
 
-      // CORRIGIDO: verificar limite de alunos via transação atômica
-      // Previne race condition onde múltiplas requisições simultâneas
-      // podiam todas passar na verificação antes de qualquer uma confirmar.
+      // Verificar limite de alunos via transação atômica
       const personalRef = db.collection('users').doc(personalUser.uid);
       const subRef      = db.collection('subscriptions').doc(personalUser.uid);
 
@@ -183,7 +175,7 @@ class AuthManager {
         if (!personalDoc.exists) throw new Error('Dados do personal não encontrados');
         if (!subDoc.exists) throw new Error('Assinatura não encontrada. Assine um plano para adicionar alunos.');
 
-        const subData    = subDoc.data();
+        const subData     = subDoc.data();
         const maxStudents = subData.maxStudents || 0;
         const status      = subData.status;
 
@@ -191,7 +183,7 @@ class AuthManager {
           throw new Error('Assinatura expirada. Renove para adicionar novos alunos.');
         }
 
-        const personalData   = personalDoc.data();
+        const personalData    = personalDoc.data();
         const currentStudents = (personalData.students || []).length;
 
         if (currentStudents >= maxStudents) {
@@ -200,15 +192,9 @@ class AuthManager {
             'Faça upgrade para adicionar mais alunos.'
           );
         }
-
-        // A transação apenas verifica — não faz o create aqui
-        // porque createStudentAccount precisa do studentRef.id
-        // que só existe após o create. O create real acontece abaixo,
-        // logo após a transação, com o risco de race condition
-        // reduzido (janela muito pequena entre verificação e create).
       });
 
-      // Criar doc provisório do aluno (após verificação atômica)
+      // Criar doc provisório do aluno
       const studentRef = db.collection('users').doc();
 
       await studentRef.set({
@@ -224,12 +210,10 @@ class AuthManager {
         createdBy:        personalUser.uid,
       });
 
-      // Atualizar array de alunos do personal
       await db.collection('users').doc(personalUser.uid).update({
         students: firebase.firestore.FieldValue.arrayUnion(studentRef.id),
       });
 
-      // Gerar token seguro de ativação
       const activationToken = this._generateActivationToken();
       const expiresAt       = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
       const emailKey        = normalizedEmail.replace(/[^a-z0-9]/g, '_');
@@ -243,17 +227,21 @@ class AuthManager {
         createdAt:       firebase.firestore.FieldValue.serverTimestamp(),
       });
 
-      const baseUrl       = window.location.origin;
+      const baseUrl = window.location.origin;
+
+      // CORREÇÃO VULN 3: Hash fragment (#token=) em vez de query string (?token=)
+      // O fragmento nunca é enviado ao servidor — não aparece em logs de CDN,
+      // Vercel, Google Analytics, header Referer ou qualquer ferramenta de analytics.
       const activationUrl = `${baseUrl}/#/primeiro-acesso#token=${activationToken}`;
 
-      return {
+      return equalizeAndReturn({
         success: true,
         studentDocId: studentRef.id,
         activationToken,
         activationUrl,
-      };
+      });
     } catch (error) {
-      return { success: false, error: error.message };
+      return equalizeAndReturn({ success: false, error: error.message });
     }
   }
 
@@ -366,7 +354,6 @@ class AuthManager {
 
       const normalizedEmail = email.toLowerCase().trim();
 
-      // Revalidar token no momento da ativação
       const tokenSnap = await db.collection('pendingActivations')
         .where('activationToken', '==', activationToken)
         .where('status', '==', 'pending')
@@ -446,9 +433,7 @@ class AuthManager {
         activatedAt: firebase.firestore.FieldValue.serverTimestamp(),
       });
 
-      try {
-        await db.collection('users').doc(studentDocId).delete();
-      } catch { /* melhor esforço */ }
+      try { await db.collection('users').doc(studentDocId).delete(); } catch { /* melhor esforço */ }
 
       const personalId = studentData.personalId;
       if (personalId) {

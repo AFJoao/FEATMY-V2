@@ -32,6 +32,20 @@
     crossorigin="anonymous"
   ></script>
 
+  <!--
+    CORREÇÃO VULN 4: Firebase App Check SDK
+    Deve ser carregado ANTES de config.js para que App Check seja inicializado
+    junto com o Firebase, antes de qualquer chamada a Firestore ou Auth.
+
+    Após obter sua reCAPTCHA v3 site key no Firebase Console > App Check:
+    1. Substituir RECAPTCHA_SITE_KEY em js/config.js
+    2. No Firebase Console: App Check > Enforce para Firestore e Authentication
+  -->
+  <script
+    src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-check-compat.js"
+    crossorigin="anonymous"
+  ></script>
+
   <script src="js/config.js"></script>
   <script src="js/auth.js"></script>
   <script src="js/db.js"></script>
