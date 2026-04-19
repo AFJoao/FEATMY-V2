@@ -3,7 +3,7 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // ── Helpers ────────────────────────────────────────────────────
+    // ── Helpers ────────────────────────────────────────────────────────────
 
     function isAuth() {
       return request.auth != null;
@@ -48,25 +48,33 @@ service cloud.firestore {
       return isPersonal() && resource.data.personalId == request.auth.uid;
     }
 
-    // ── USERS ──────────────────────────────────────────────────────
+    // ── USERS ──────────────────────────────────────────────────────────────
     match /users/{userId} {
       allow get: if isUser(userId)
         || (resource.data.status == 'pending' && resource.data.userType == 'student'
             && isAuth() && resource.data.personalId == request.auth.uid)
         || (isAuth() && resource.data.personalId == request.auth.uid);
 
-      // CORRIGIDO VULN 2: list força filtro por personalId do próprio usuário autenticado.
-      // Personal só lista seus próprios alunos; listagem geral de users é proibida.
+      // CORRIGIDO VULN 2 (reforçado):
+      // Personal só lista usuários com filtro explícito por SEU PRÓPRIO personalId.
+      // A regra garante que, independente de quantos filtros existam, pelo menos
+      // um deles deve ser personalId == request.auth.uid.
+      // Isso previne que Personal A liste alunos de Personal B.
       allow list: if isAuth() && isPersonal() && (
-        request.query.filters.size() >= 1 &&
-        (
-          (request.query.filters[0].field_path == 'personalId' &&
-           request.query.filters[0].value == request.auth.uid)
-          ||
-          (request.query.filters.size() >= 2 &&
-           request.query.filters[1].field_path == 'personalId' &&
-           request.query.filters[1].value == request.auth.uid)
-        )
+        // Caso 1: único filtro é personalId do próprio usuário
+        (request.query.filters.size() == 1 &&
+         request.query.filters[0].field_path == 'personalId' &&
+         request.query.filters[0].value == request.auth.uid)
+        ||
+        // Caso 2: dois filtros, um deles sendo personalId do próprio usuário
+        // (ex: personalId == uid AND userType == 'student')
+        (request.query.filters.size() == 2 &&
+         request.query.filters[0].field_path == 'personalId' &&
+         request.query.filters[0].value == request.auth.uid)
+        ||
+        (request.query.filters.size() == 2 &&
+         request.query.filters[1].field_path == 'personalId' &&
+         request.query.filters[1].value == request.auth.uid)
       );
 
       allow create: if isUser(userId);
@@ -91,7 +99,7 @@ service cloud.firestore {
             && (resource.data.status == 'pending' || resource.data.status == 'activating'));
     }
 
-    // ── EXERCISES ──────────────────────────────────────────────────
+    // ── EXERCISES ──────────────────────────────────────────────────────────
     match /exercises/{exerciseId} {
       allow read: if isAuth() && (
         resource.data.personalId == request.auth.uid
@@ -113,7 +121,7 @@ service cloud.firestore {
         && resource.data.personalId == request.auth.uid;
     }
 
-    // ── WORKOUTS ───────────────────────────────────────────────────
+    // ── WORKOUTS ───────────────────────────────────────────────────────────
     match /workouts/{workoutId} {
       allow get: if isAuth() && (
         resource.data.personalId == request.auth.uid ||
@@ -121,9 +129,8 @@ service cloud.firestore {
           hasActiveSubscription(resource.data.personalId))
       );
 
-      // CORRIGIDO VULN 1: list exige filtro por personalId ou studentId do próprio usuário.
-      // Firestore Security Rules não expõem resource.data em list — a proteção é via
-      // filtro obrigatório na query. O cliente DEVE filtrar por seu próprio UID.
+      // CORRIGIDO VULN 1: list exige filtro obrigatório por personalId ou studentId
+      // do próprio usuário autenticado. Impossível listar treinos de outros.
       allow list: if isAuth() && (
         // Personal lista seus próprios treinos
         (request.query.filters.size() >= 1 &&
@@ -148,7 +155,7 @@ service cloud.firestore {
         && resource.data.personalId == request.auth.uid;
     }
 
-    // ── FEEDBACKS ──────────────────────────────────────────────────
+    // ── FEEDBACKS ──────────────────────────────────────────────────────────
     match /feedbacks/{feedbackId} {
       allow create: if isAuth()
         && request.resource.data.studentId == request.auth.uid;
@@ -162,14 +169,14 @@ service cloud.firestore {
           == request.auth.uid
       );
 
-      // CORRIGIDO: list de feedbacks requer filtro por studentId ou personalId do próprio usuário
+      // list de feedbacks requer filtro por studentId ou personalId do próprio usuário
       allow list: if isAuth() && (
         // Aluno vê seus próprios feedbacks
         (request.query.filters.size() >= 1 &&
          request.query.filters[0].field_path == 'studentId' &&
          request.query.filters[0].value == request.auth.uid)
         ||
-        // Personal via workoutId (in query) — permitido pois workouts são seus
+        // Personal via workoutId (in query)
         (isPersonal() && request.query.filters.size() >= 1 &&
          request.query.filters[0].field_path == 'workoutId')
         ||
@@ -180,19 +187,19 @@ service cloud.firestore {
       );
     }
 
-    // ── SUBSCRIPTIONS ──────────────────────────────────────────────
+    // ── SUBSCRIPTIONS ──────────────────────────────────────────────────────
     match /subscriptions/{personalId} {
       allow read:  if isUser(personalId);
-      allow write: if false;
+      allow write: if false; // somente serverless functions (Firebase Admin SDK)
     }
 
-    // ── BILLINGS ───────────────────────────────────────────────────
+    // ── BILLINGS ───────────────────────────────────────────────────────────
     match /billings/{billingId} {
       allow read:  if isAuth() && resource.data.personalId == request.auth.uid;
-      allow write: if false;
+      allow write: if false; // somente serverless functions
     }
 
-    // ── NOTIFICATIONS ───────────────────────────────────────────────
+    // ── NOTIFICATIONS ──────────────────────────────────────────────────────
     match /notifications/{notifId} {
       allow read: if isAuth() && resource.data.userId == request.auth.uid;
       allow update: if isAuth()
@@ -201,15 +208,18 @@ service cloud.firestore {
       allow write: if false;
     }
 
-    // ── BACKEND ONLY ────────────────────────────────────────────────
+    // ── BACKEND ONLY ────────────────────────────────────────────────────────
     match /processedWebhooks/{id} { allow read, write: if false; }
     match /securityLogs/{id}      { allow read, write: if false; }
+    match /activationLocks/{id}   { allow read, write: if false; }
 
-    // ── PENDING ACTIVATIONS ─────────────────────────────────────────
+    // ── PENDING ACTIVATIONS ─────────────────────────────────────────────────
     match /pendingActivations/{emailKey} {
+      // Personal pode ler suas próprias ativações pendentes (para reenvio de link)
       allow get: if isAuth() && isPersonal()
         && resource.data.createdBy == request.auth.uid;
 
+      // Listagem proibida do client — somente via Admin SDK no server
       allow list: if false;
 
       allow create: if isAuth() && isPersonal()
@@ -222,10 +232,7 @@ service cloud.firestore {
         && resource.data.createdBy == request.auth.uid;
     }
 
-    // ── ACTIVATION LOCKS (backend only) ────────────────────────────
-    match /activationLocks/{lockId} { allow read, write: if false; }
-
-    // ── DEFAULT BLOCK ───────────────────────────────────────────────
+    // ── DEFAULT BLOCK ───────────────────────────────────────────────────────
     match /{document=**} {
       allow read, write: if false;
     }
