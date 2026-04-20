@@ -27,13 +27,16 @@ service cloud.firestore {
           in ['active', 'grace_period'];
     }
 
+    // PERF FIX: usa contador desnormalizado em vez de array.size() + GET duplo
     function isWithinStudentLimit(personalId) {
       let subDoc      = get(/databases/$(database)/documents/subscriptions/$(personalId));
       let maxStudents = subDoc.data.maxStudents;
       let userDoc     = get(/databases/$(database)/documents/users/$(personalId));
-      let currentCount = ('students' in userDoc.data && userDoc.data.students != null)
-        ? userDoc.data.students.size()
-        : 0;
+      let currentCount = ('studentCount' in userDoc.data && userDoc.data.studentCount != null)
+        ? userDoc.data.studentCount
+        : (('students' in userDoc.data && userDoc.data.students != null)
+           ? userDoc.data.students.size()
+           : 0);
       return exists(/databases/$(database)/documents/subscriptions/$(personalId)) &&
         currentCount < maxStudents;
     }
@@ -55,19 +58,12 @@ service cloud.firestore {
             && isAuth() && resource.data.personalId == request.auth.uid)
         || (isAuth() && resource.data.personalId == request.auth.uid);
 
-      // CORRIGIDO VULN 2 (reforçado):
       // Personal só lista usuários com filtro explícito por SEU PRÓPRIO personalId.
-      // A regra garante que, independente de quantos filtros existam, pelo menos
-      // um deles deve ser personalId == request.auth.uid.
-      // Isso previne que Personal A liste alunos de Personal B.
       allow list: if isAuth() && isPersonal() && (
-        // Caso 1: único filtro é personalId do próprio usuário
         (request.query.filters.size() == 1 &&
          request.query.filters[0].field_path == 'personalId' &&
          request.query.filters[0].value == request.auth.uid)
         ||
-        // Caso 2: dois filtros, um deles sendo personalId do próprio usuário
-        // (ex: personalId == uid AND userType == 'student')
         (request.query.filters.size() == 2 &&
          request.query.filters[0].field_path == 'personalId' &&
          request.query.filters[0].value == request.auth.uid)
@@ -129,15 +125,11 @@ service cloud.firestore {
           hasActiveSubscription(resource.data.personalId))
       );
 
-      // CORRIGIDO VULN 1: list exige filtro obrigatório por personalId ou studentId
-      // do próprio usuário autenticado. Impossível listar treinos de outros.
       allow list: if isAuth() && (
-        // Personal lista seus próprios treinos
         (request.query.filters.size() >= 1 &&
          request.query.filters[0].field_path == 'personalId' &&
          request.query.filters[0].value == request.auth.uid)
         ||
-        // Aluno lista treinos atribuídos a ele
         (request.query.filters.size() >= 1 &&
          request.query.filters[0].field_path == 'studentId' &&
          request.query.filters[0].value == request.auth.uid)
@@ -157,8 +149,12 @@ service cloud.firestore {
 
     // ── FEEDBACKS ──────────────────────────────────────────────────────────
     match /feedbacks/{feedbackId} {
+      // SECURITY FIX: aluno só cria feedback para workouts que lhe pertencem
       allow create: if isAuth()
-        && request.resource.data.studentId == request.auth.uid;
+        && request.resource.data.studentId == request.auth.uid
+        && exists(/databases/$(database)/documents/workouts/$(request.resource.data.workoutId))
+        && get(/databases/$(database)/documents/workouts/$(request.resource.data.workoutId)).data.studentId
+           == request.auth.uid;
 
       allow get, update: if isAuth()
         && resource.data.studentId == request.auth.uid;
@@ -169,18 +165,15 @@ service cloud.firestore {
           == request.auth.uid
       );
 
-      // list de feedbacks requer filtro por studentId ou personalId do próprio usuário
+      // Aluno vê seus próprios; personal via personalId desnormalizado ou workoutId
       allow list: if isAuth() && (
-        // Aluno vê seus próprios feedbacks
         (request.query.filters.size() >= 1 &&
          request.query.filters[0].field_path == 'studentId' &&
          request.query.filters[0].value == request.auth.uid)
         ||
-        // Personal via workoutId (in query)
         (isPersonal() && request.query.filters.size() >= 1 &&
          request.query.filters[0].field_path == 'workoutId')
         ||
-        // Personal via personalId desnormalizado
         (isPersonal() && request.query.filters.size() >= 1 &&
          request.query.filters[0].field_path == 'personalId' &&
          request.query.filters[0].value == request.auth.uid)
@@ -215,7 +208,7 @@ service cloud.firestore {
 
     // ── PENDING ACTIVATIONS ─────────────────────────────────────────────────
     match /pendingActivations/{emailKey} {
-      // Personal pode ler suas próprias ativações pendentes (para reenvio de link)
+      // SECURITY FIX: validar expiresAt nas regras para bloquear tokens expirados
       allow get: if isAuth() && isPersonal()
         && resource.data.createdBy == request.auth.uid;
 
@@ -223,7 +216,11 @@ service cloud.firestore {
       allow list: if false;
 
       allow create: if isAuth() && isPersonal()
-        && request.resource.data.createdBy == request.auth.uid;
+        && request.resource.data.createdBy == request.auth.uid
+        // Garantir expiresAt no futuro (máx 8 dias)
+        && request.resource.data.expiresAt is timestamp
+        && request.resource.data.expiresAt > request.time
+        && request.resource.data.expiresAt < request.time + duration.value(8, 'd');
 
       allow update: if isAuth() && isPersonal()
         && resource.data.createdBy == request.auth.uid;

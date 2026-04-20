@@ -1,11 +1,12 @@
 /**
  * POST /api/billing/simulate-payment
  *
- * Só funciona com chaves _dev_ do AbacatePay.
+ * APENAS disponível com chaves _dev_ do AbacatePay OU em NODE_ENV !== 'production'.
  * Processa o pagamento localmente após simular na AbacatePay.
  *
- * Correções v3:
- * - Rate limiting duplo (UID + IP) — igual ao create-charge
+ * Correções v4:
+ * - SECURITY FIX: bloqueio por chave _dev_ E por NODE_ENV=production (dupla barreira)
+ * - Rate limiting duplo (UID + IP)
  * - Validação de ownership — personal só simula seus próprios billings
  * - CORS centralizado via helper (fail-closed em produção)
  * - Em dev, não bloqueia por processedWebhooks — permite re-simular
@@ -58,6 +59,23 @@ function calcExpiry(planId) {
 module.exports = async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
 
+  // ── SECURITY FIX: Bloquear em produção INDEPENDENTE da chave ─────────────
+  // Dupla barreira: NODE_ENV E chave _dev_ precisam estar ok
+  const isProd   = process.env.NODE_ENV === 'production';
+  const apiKey   = process.env.ABACATEPAY_API_KEY || '';
+  const isDevKey = apiKey.includes('_dev_');
+
+  if (isProd) {
+    // Em produção, endpoint NUNCA deve estar acessível, mesmo com chave dev
+    logger.security('simulate-payment', 'Tentativa de simulação em produção bloqueada');
+    return res.status(403).json({ error: 'Endpoint não disponível em produção' });
+  }
+
+  if (!isDevKey) {
+    // Em desenvolvimento, exige chave dev
+    return res.status(403).json({ error: 'Simulação disponível apenas com chave Dev Mode do AbacatePay' });
+  }
+
   // ── CORS centralizado (fail-closed em produção) ───────────────
   try {
     applyCors(req, res, 'POST, OPTIONS');
@@ -67,12 +85,6 @@ module.exports = async function handler(req, res) {
   }
 
   res.setHeader('Cache-Control', 'no-store');
-
-  // Só em dev
-  const apiKey = process.env.ABACATEPAY_API_KEY || '';
-  if (!apiKey.includes('_dev_')) {
-    return res.status(403).json({ error: 'Simulação disponível apenas em Dev Mode' });
-  }
 
   try {
     initFirebase();
@@ -89,8 +101,6 @@ module.exports = async function handler(req, res) {
   const uid = decoded.uid;
 
   // ── Rate limiting duplo: por UID + por IP ─────────────────────
-  // NOVO v3: protege contra abuso de simulação em dev.
-  // Limite billing: 10 req/min por UID e por IP.
   try {
     const { limited, reset, reason } = await checkRateLimitDual(req, uid, 'billing');
     if (limited) {
@@ -103,24 +113,20 @@ module.exports = async function handler(req, res) {
       });
     }
   } catch (err) {
-    // Em produção: Redis indisponível → fail-closed
-    // Em dev: sem Redis → fail-open (não quebra o dev)
-    if (process.env.NODE_ENV === 'production') {
-      logger.error('simulate-payment', 'Rate limit error em produção', { error: err.message });
-      return res.status(503).json({ error: 'Serviço temporariamente indisponível' });
-    }
-    // Dev sem Redis: logar e continuar
+    // Dev sem Redis: logar e continuar (fail-open em dev é aceitável)
     console.warn('[simulate-payment] Rate limit indisponível em dev:', err.message);
   }
 
   const { gatewayPixId } = req.body || {};
-  if (!gatewayPixId) return res.status(400).json({ error: 'gatewayPixId é obrigatório' });
+  if (!gatewayPixId || typeof gatewayPixId !== 'string' || gatewayPixId.length > 200) {
+    return res.status(400).json({ error: 'gatewayPixId é obrigatório e deve ser uma string válida' });
+  }
 
   // ── 1. Tentar simular na AbacatePay (melhor esforço) ──────────
   let abacateOk = false;
   try {
     const abacateRes = await fetch(
-      `https://api.abacatepay.com/v1/pixQrCode/simulate-payment?id=${gatewayPixId}`,
+      `https://api.abacatepay.com/v1/pixQrCode/simulate-payment?id=${encodeURIComponent(gatewayPixId)}`,
       {
         method:  'POST',
         headers: {
@@ -150,7 +156,7 @@ module.exports = async function handler(req, res) {
 
   if (billingSnap.empty) {
     return res.status(404).json({
-      error: 'Cobrança não encontrada. O billing pode ter sido criado sem gatewayId.',
+      error: 'Cobrança não encontrada.',
     });
   }
 
@@ -163,7 +169,7 @@ module.exports = async function handler(req, res) {
     logger.security('simulate-payment', 'Ownership violation', {
       uid:              decoded.uid,
       billingPersonalId: billingData.personalId,
-      gatewayPixId
+      gatewayPixId,
     });
     return res.status(403).json({ error: 'Acesso negado' });
   }

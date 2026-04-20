@@ -4,14 +4,22 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Featym — Personal Training Platform</title>
+  <!--
+    SECURITY: Content-Security-Policy definida via headers HTTP no vercel.json.
+    style-src-attr 'none' — estilos inline em atributos style="" são bloqueados.
+    Use classes CSS de css/components.css para substituir estilos inline.
+  -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700;800&family=DM+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/components.css">
   <link rel="stylesheet" href="css/mobile-responsive-fixes.css">
 </head>
 <body>
   <div id="app">
-    <div class="loading">
-      <div class="spinner"></div>
-      <p>Carregando...</p>
+    <div class="fc-loading-overlay" style="padding-top: 120px;">
+      <div class="fc-spinner fc-spinner--lg"></div>
+      <p class="fc-loading-overlay__text">Carregando...</p>
     </div>
   </div>
 
@@ -33,13 +41,16 @@
   ></script>
 
   <!--
-    CORREÇÃO VULN 4: Firebase App Check SDK
-    Deve ser carregado ANTES de config.js para que App Check seja inicializado
-    junto com o Firebase, antes de qualquer chamada a Firestore ou Auth.
+    Firebase App Check — deve ser carregado ANTES de config.js.
 
-    Após obter sua reCAPTCHA v3 site key no Firebase Console > App Check:
-    1. Substituir RECAPTCHA_SITE_KEY em js/config.js
-    2. No Firebase Console: App Check > Enforce para Firestore e Authentication
+    SETUP NECESSÁRIO (Firebase Console):
+    1. Firebase Console > App Check > Registrar app
+    2. Escolher reCAPTCHA v3 como provedor
+    3. Obter site key e substituir em js/config.js
+    4. Após testes: App Check > Enforce para Firestore e Authentication
+
+    DEBUG em dev: no console antes de carregar:
+      self.FIREBASE_APPCHECK_DEBUG_TOKEN = true;
   -->
   <script
     src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-check-compat.js"

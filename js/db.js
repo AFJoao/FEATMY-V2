@@ -1,20 +1,22 @@
 /**
- * js/db.js — v5
+ * js/db.js — v6
  *
- * CORREÇÕES v5:
+ * CORREÇÕES v6:
  *
- * getPersonalExercises — fallback sem orderBy:
- *   O Firestore exige índice composto para queries com WHERE + ORDER BY.
- *   Se o índice ainda não foi criado/deployado no projeto, a query lança erro.
- *   Agora usa try/catch: tenta primeiro COM orderBy (usa índice quando disponível),
- *   e se falhar por índice ausente, reexecuta SEM orderBy e faz sort manual.
- *   Isso elimina o erro "query requires an index" na página de exercícios.
+ * createFeedback — desnormaliza personalId:
+ *   Adiciona campo `personalId` no documento de feedback, eliminando a necessidade
+ *   de chunk queries via workoutId para listar feedbacks do personal.
+ *   Permite query direta: feedbacks.where('personalId', '==', uid).
  *
- * getPersonalFeedbacks — mesmo padrão de fallback por chunk:
- *   Chunks de feedbacks com orderBy também podem falhar sem índice
- *   workoutId+createdAt. Fallback sem orderBy + sort manual.
+ * deleteWorkout — usa batch para consistência:
+ *   Antes: duas operações separadas (update + delete) → possível inconsistência.
+ *   Agora: batch atômico garante que assignedWorkouts e workout são atualizados juntos.
  *
- * Todas as correções v4 mantidas.
+ * getPersonalFeedbacks — estratégia dupla:
+ *   Tenta primeiro query por personalId (índice simples, sem chunks).
+ *   Fallback para chunk query por workoutId caso índice ainda não exista.
+ *
+ * Todas as correções v5 mantidas.
  */
 
 class DatabaseManager {
@@ -148,7 +150,6 @@ class DatabaseManager {
 
       let docs = [];
 
-      // Tentar com orderBy (requer índice composto personalId + createdAt)
       try {
         const snap = await db.collection('exercises')
           .where('personalId', '==', user.uid)
@@ -157,9 +158,8 @@ class DatabaseManager {
           .get();
         docs = snap.docs;
       } catch (indexErr) {
-        // Índice ainda não criado/deployado — fallback sem orderBy
         if (indexErr.code === 'failed-precondition' || (indexErr.message || '').includes('index')) {
-          console.warn('[db] Índice de exercícios ausente, usando fallback sem orderBy. Crie o índice no Firebase Console.');
+          console.warn('[db] Índice de exercícios ausente, usando fallback sem orderBy.');
           const snap = await db.collection('exercises')
             .where('personalId', '==', user.uid)
             .limit(200)
@@ -180,7 +180,6 @@ class DatabaseManager {
         }
       });
 
-      // Sort manual para garantir ordem consistente
       exercises.sort((a, b) => {
         if (!a.createdAt) return 1;
         if (!b.createdAt) return -1;
@@ -371,17 +370,25 @@ class DatabaseManager {
     }
   }
 
+  /**
+   * deleteWorkout — PERF FIX: usa batch para consistência atômica.
+   * Antes: update + delete separados podiam deixar assignedWorkouts inconsistente.
+   * Agora: operações agrupadas em batch.
+   */
   async deleteWorkout(workoutId) {
     try {
       const workout = await this.getWorkout(workoutId);
+      const batch   = db.batch();
+
       if (workout?.studentId) {
-        try {
-          await db.collection('users').doc(workout.studentId).update({
-            assignedWorkouts: firebase.firestore.FieldValue.arrayRemove(workoutId),
-          });
-        } catch (e) { /* não crítico */ }
+        batch.update(db.collection('users').doc(workout.studentId), {
+          assignedWorkouts: firebase.firestore.FieldValue.arrayRemove(workoutId),
+        });
       }
-      await db.collection('workouts').doc(workoutId).delete();
+
+      batch.delete(db.collection('workouts').doc(workoutId));
+
+      await batch.commit();
       return { success: true };
     } catch (error) {
       console.error('[db] Erro ao deletar treino:', error);
@@ -391,6 +398,10 @@ class DatabaseManager {
 
   // ── Feedbacks ─────────────────────────────────────────────────────
 
+  /**
+   * createFeedback — PERF FIX: desnormaliza personalId.
+   * Adiciona campo `personalId` para permitir query direta sem chunk por workoutId.
+   */
   async createFeedback(feedbackData) {
     try {
       const user = authManager.getCurrentUser();
@@ -408,10 +419,20 @@ class DatabaseManager {
         return { success: false, error: 'Você já enviou feedback para este dia nesta semana' };
       }
 
+      // PERF: buscar personalId do workout para desnormalizar
+      let personalId = '';
+      try {
+        const workoutDoc = await db.collection('workouts').doc(feedbackData.workoutId).get();
+        if (workoutDoc.exists) {
+          personalId = workoutDoc.data().personalId || '';
+        }
+      } catch { /* não crítico */ }
+
       await db.collection('feedbacks').doc(feedbackKey).set({
         id:             feedbackKey,
         studentId:      user.uid,
         workoutId:      feedbackData.workoutId     || '',
+        personalId:     personalId,                        // campo desnormalizado
         weekIdentifier: weekIdentifier             || '',
         dayOfWeek:      feedbackData.dayOfWeek     || '',
         effortLevel:    feedbackData.effortLevel   || 5,
@@ -438,10 +459,18 @@ class DatabaseManager {
       const dayOfWeek = new Date().toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
       const key       = `${user.uid}_${data.workoutId}_${weekId}_${dayOfWeek}`;
 
+      // PERF: desnormalizar personalId
+      let personalId = '';
+      try {
+        const workoutDoc = await db.collection('workouts').doc(data.workoutId).get();
+        if (workoutDoc.exists) personalId = workoutDoc.data().personalId || '';
+      } catch { /* não crítico */ }
+
       await db.collection('feedbacks').doc(key).set({
         id:             key,
         studentId:      user.uid,
         workoutId:      data.workoutId    || '',
+        personalId:     personalId,
         workoutName:    data.workoutName  || '',
         weekIdentifier: weekId,
         dayOfWeek,
@@ -497,14 +526,50 @@ class DatabaseManager {
     }
   }
 
-  async getPersonalFeedbacks({ workoutLimit = 200, feedbackLimit = 500 } = {}) {
+  /**
+   * getPersonalFeedbacks — PERF FIX: estratégia dupla.
+   *
+   * Estratégia 1 (preferida): query direta por personalId (índice simples).
+   *   Requer campo `personalId` desnormalizado nos documentos de feedback.
+   *   Criado automaticamente pelo createFeedback() desta versão.
+   *
+   * Estratégia 2 (fallback): chunk queries por workoutId (comportamento anterior).
+   *   Usado para feedbacks antigos que não têm personalId desnormalizado.
+   */
+  async getPersonalFeedbacks({ feedbackLimit = 500 } = {}) {
     try {
       const user = authManager.getCurrentUser();
       if (!user) throw new Error('Usuário não autenticado');
 
+      // Estratégia 1: query direta por personalId
+      try {
+        const snap = await db.collection('feedbacks')
+          .where('personalId', '==', user.uid)
+          .orderBy('createdAt', 'desc')
+          .limit(feedbackLimit)
+          .get();
+
+        if (!snap.empty) {
+          return snap.docs.map(doc => doc.data());
+        }
+        // Se vazio, pode ser que feedbacks antigos não tenham personalId
+        // Continua para fallback
+      } catch (err) {
+        const isIndexError = err.code === 'failed-precondition' ||
+          (err.message || '').includes('index');
+        if (!isIndexError) {
+          console.warn('[db] Erro na query por personalId:', err.message);
+        }
+        // Fallback para chunk query
+      }
+
+      // Estratégia 2: fallback via chunk queries por workoutId
+      console.warn('[db] Usando fallback chunk query para feedbacks. ' +
+        'Adicione índice personalId+createdAt na coleção feedbacks para melhor performance.');
+
       const workoutsSnapshot = await db.collection('workouts')
         .where('personalId', '==', user.uid)
-        .limit(workoutLimit)
+        .limit(200)
         .get();
 
       const workoutIds = workoutsSnapshot.docs.map(doc => doc.id);
@@ -516,7 +581,6 @@ class DatabaseManager {
         chunks.push(workoutIds.slice(i, i + CHUNK_SIZE));
       }
 
-      // Para cada chunk, tentar com orderBy; se falhar por índice, sem orderBy
       const chunkSnapshots = await Promise.all(
         chunks.map(async chunk => {
           try {
@@ -529,15 +593,11 @@ class DatabaseManager {
             const isIndexError = err.code === 'failed-precondition' ||
               (err.message || '').includes('index');
             if (isIndexError) {
-              console.warn('[db] Índice de feedbacks ausente, usando fallback sem orderBy. Crie o índice no Firebase Console.');
               return db.collection('feedbacks')
                 .where('workoutId', 'in', chunk)
                 .limit(Math.ceil(feedbackLimit / chunks.length))
                 .get()
-                .catch(err2 => {
-                  console.warn('[db] Erro em chunk de feedbacks:', err2.message);
-                  return { docs: [] };
-                });
+                .catch(() => ({ docs: [] }));
             }
             console.warn('[db] Erro em chunk de feedbacks:', err.message);
             return { docs: [] };
@@ -557,7 +617,6 @@ class DatabaseManager {
         });
       });
 
-      // Sort manual garante ordem mesmo sem orderBy no Firestore
       allFeedbacks.sort((a, b) => {
         if (!a.createdAt) return 1;
         if (!b.createdAt) return -1;

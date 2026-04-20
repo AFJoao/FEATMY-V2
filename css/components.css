@@ -1,0 +1,729 @@
+/**
+ * css/components.css
+ *
+ * Classes CSS que substituem estilos inline nos HTML das páginas.
+ * Necessário para cumprir a política CSP style-src-attr 'none'.
+ *
+ * CONVENÇÃO DE NOMENCLATURA:
+ *   .fc-*  → classes de componentes (featym-component)
+ *   .fh-*  → classes de helpers/utilitários (featym-helper)
+ */
+
+/* ═══════════════════════════════════════════════════════════
+   HELPERS GERAIS
+═══════════════════════════════════════════════════════════ */
+
+.fh-hidden     { display: none !important; }
+.fh-flex       { display: flex; }
+.fh-flex-col   { display: flex; flex-direction: column; }
+.fh-items-center { align-items: center; }
+.fh-justify-center { justify-content: center; }
+.fh-justify-between { justify-content: space-between; }
+.fh-gap-8  { gap: 8px; }
+.fh-gap-10 { gap: 10px; }
+.fh-gap-12 { gap: 12px; }
+.fh-gap-14 { gap: 14px; }
+.fh-w-full { width: 100%; }
+.fh-text-center { text-align: center; }
+
+/* ═══════════════════════════════════════════════════════════
+   HEADER BADGE
+═══════════════════════════════════════════════════════════ */
+
+.fc-header-badge {
+  background: rgba(0, 230, 118, 0.15);
+  color: #00E676;
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 20px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border: 1px solid rgba(0, 230, 118, 0.25);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   SPINNER
+═══════════════════════════════════════════════════════════ */
+
+.fc-spinner {
+  width: 28px;
+  height: 28px;
+  border: 3px solid rgba(0, 0, 0, 0.08);
+  border-top-color: #00E676;
+  border-radius: 50%;
+  animation: fc-spin 0.8s linear infinite;
+  margin: 0 auto;
+}
+
+.fc-spinner--sm {
+  width: 20px;
+  height: 20px;
+  border-width: 2.5px;
+}
+
+.fc-spinner--lg {
+  width: 40px;
+  height: 40px;
+  border-width: 4px;
+}
+
+.fc-spinner--dark {
+  border-top-color: #0A0A0A;
+}
+
+.fc-spinner--inline {
+  display: inline-block;
+  vertical-align: middle;
+  margin: 0;
+}
+
+@keyframes fc-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   LOADING OVERLAY
+═══════════════════════════════════════════════════════════ */
+
+.fc-loading-overlay {
+  text-align: center;
+  padding: 60px 20px;
+}
+
+.fc-loading-overlay__text {
+  color: #9CA3AF;
+  font-size: 0.875rem;
+  margin: 16px 0 0;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   NAV BUTTON (header)
+═══════════════════════════════════════════════════════════ */
+
+.fc-nav-btn {
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 0.875rem;
+  font-weight: 500;
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+  background: transparent;
+  font-family: inherit;
+}
+
+.fc-nav-btn:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.09);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.fc-nav-btn--bordered {
+  border: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+.fc-nav-btn--accent {
+  background: #00E676;
+  color: #0A0A0A;
+  font-weight: 700;
+  border: none;
+}
+
+.fc-nav-btn--accent:hover {
+  background: #00C853;
+  box-shadow: 0 4px 16px rgba(0, 230, 118, 0.3);
+  color: #0A0A0A;
+  border: none;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   BACK BUTTON
+═══════════════════════════════════════════════════════════ */
+
+.fc-back-btn {
+  color: #fff;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  padding: 8px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s;
+  font-size: 0.82rem;
+  font-weight: 600;
+  font-family: inherit;
+}
+
+.fc-back-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.35);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   CARD BASE
+═══════════════════════════════════════════════════════════ */
+
+.fc-card {
+  background: #fff;
+  border: 1px solid #EBEBEB;
+  border-radius: 16px;
+  overflow: hidden;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.fc-card:hover {
+  border-color: #00E676;
+  transform: translateY(-2px);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.08);
+}
+
+.fc-card__body {
+  padding: 18px 20px 14px;
+}
+
+.fc-card__footer {
+  padding: 10px 20px 14px;
+  border-top: 1px solid #F4F4F4;
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   STUDENT / STATUS BADGES
+═══════════════════════════════════════════════════════════ */
+
+.fc-badge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 20px;
+  flex-shrink: 0;
+  display: inline-block;
+}
+
+.fc-badge--active {
+  background: #ECFDF5;
+  color: #047857;
+  border: 1px solid #A7F3D0;
+}
+
+.fc-badge--pending {
+  background: #FFFBEB;
+  color: #92400E;
+  border: 1px solid #FDE68A;
+}
+
+.fc-badge--inactive {
+  background: #FFF1F2;
+  color: #BE123C;
+  border: 1px solid #FECDD3;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   ALERT / FEEDBACK MESSAGES
+═══════════════════════════════════════════════════════════ */
+
+.fc-alert {
+  padding: 12px 16px;
+  border-radius: 10px;
+  font-size: 0.83rem;
+  font-weight: 500;
+  line-height: 1.5;
+  display: none;
+}
+
+.fc-alert--error {
+  background: #FFF1F2;
+  border: 1px solid #FECDD3;
+  color: #BE123C;
+}
+
+.fc-alert--success {
+  background: #ECFDF5;
+  border: 1px solid #A7F3D0;
+  color: #047857;
+}
+
+.fc-alert--warning {
+  background: #FFFBEB;
+  border: 1px solid #FDE68A;
+  color: #92400E;
+}
+
+.fc-alert--info {
+  background: #EFF6FF;
+  border: 1px solid #BFDBFE;
+  color: #1E40AF;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   MODAL
+═══════════════════════════════════════════════════════════ */
+
+.fc-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
+.fc-modal-overlay.open {
+  opacity: 1;
+  pointer-events: all;
+}
+
+.fc-modal-box {
+  background: #fff;
+  border-radius: 20px;
+  padding: 32px;
+  width: 100%;
+  max-width: 420px;
+  transform: translateY(12px);
+  transition: transform 0.2s ease;
+}
+
+.fc-modal-overlay.open .fc-modal-box {
+  transform: translateY(0);
+}
+
+.fc-modal-input {
+  width: 100%;
+  padding: 12px 14px;
+  border: 2px solid #EBEBEB;
+  border-radius: 10px;
+  font-size: 0.9rem;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.2s;
+  box-sizing: border-box;
+  background: #FAFAFA;
+  color: #0A0A0A;
+}
+
+.fc-modal-input:focus {
+  border-color: #0A0A0A;
+  background: #fff;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   BUTTONS
+═══════════════════════════════════════════════════════════ */
+
+.fc-btn {
+  padding: 13px;
+  border: none;
+  border-radius: 10px;
+  font-size: 0.9rem;
+  font-weight: 800;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+}
+
+.fc-btn--primary {
+  background: #00E676;
+  color: #0A0A0A;
+}
+
+.fc-btn--primary:hover {
+  background: #00C853;
+  box-shadow: 0 4px 16px rgba(0, 230, 118, 0.3);
+}
+
+.fc-btn--primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.fc-btn--secondary {
+  background: #F4F4F4;
+  color: #374151;
+}
+
+.fc-btn--secondary:hover {
+  background: #EBEBEB;
+}
+
+.fc-btn--danger {
+  background: #FEF2F2;
+  color: #DC2626;
+}
+
+.fc-btn--danger:hover {
+  background: #FECACA;
+}
+
+.fc-btn--dark {
+  background: #0A0A0A;
+  color: #fff;
+}
+
+.fc-btn--dark:hover {
+  background: #1a1a1a;
+}
+
+.fc-btn--full {
+  width: 100%;
+}
+
+.fc-btn--sm {
+  padding: 7px 14px;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   CARD ACTION BUTTONS (inside student cards)
+═══════════════════════════════════════════════════════════ */
+
+.fc-card-action {
+  padding: 6px 12px;
+  border-radius: 7px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  transition: opacity 0.15s;
+}
+
+.fc-card-action:hover {
+  opacity: 0.72;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   STUDENT CARD (dashboard)
+═══════════════════════════════════════════════════════════ */
+
+.fc-student-card {
+  background: #fff;
+  border: 1px solid #EBEBEB;
+  border-radius: 16px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.fc-student-card.clickable .fc-student-card__body {
+  cursor: pointer;
+}
+
+.fc-student-card.clickable:hover {
+  border-color: #00E676;
+  transform: translateY(-2px);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.07);
+}
+
+.fc-student-card__body {
+  padding: 18px 20px 14px;
+}
+
+.fc-student-card__footer {
+  padding: 10px 20px 14px;
+  border-top: 1px solid #F4F4F4;
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   AVATAR INITIALS
+═══════════════════════════════════════════════════════════ */
+
+.fc-avatar {
+  width: 42px;
+  height: 42px;
+  background: #0A0A0A;
+  border-radius: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.fc-avatar__text {
+  color: #00E676;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   PROGRESS BAR
+═══════════════════════════════════════════════════════════ */
+
+.fc-progress-bar {
+  background: #E5E7EB;
+  border-radius: 999px;
+  height: 6px;
+  overflow: hidden;
+}
+
+.fc-progress-bar__fill {
+  height: 100%;
+  background: linear-gradient(90deg, #00E676, #00C853);
+  border-radius: 999px;
+  transition: width 0.4s ease;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   TOAST
+═══════════════════════════════════════════════════════════ */
+
+.fc-toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%) translateY(80px);
+  background: #111827;
+  color: #fff;
+  padding: 10px 18px;
+  border-radius: 10px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  z-index: 9999;
+  transition: transform 0.3s ease;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.fc-toast.show {
+  transform: translateX(-50%) translateY(0);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   DAY TAB NAVIGATION
+═══════════════════════════════════════════════════════════ */
+
+.fc-day-tabs {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  padding: 0 0 2px;
+}
+
+.fc-day-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.fc-day-tab {
+  flex-shrink: 0;
+  padding: 8px 14px;
+  border-radius: 10px;
+  border: 1.5px solid #E5E7EB;
+  background: #fff;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #6B7280;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.fc-day-tab:hover {
+  border-color: #D1D5DB;
+  color: #374151;
+}
+
+.fc-day-tab--active {
+  background: #0A0A0A;
+  border-color: #0A0A0A;
+  color: #fff;
+}
+
+.fc-day-tab--today {
+  border-color: #00E676;
+}
+
+.fc-day-tab--rest {
+  opacity: 0.45;
+  cursor: default;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   EMPTY STATE
+═══════════════════════════════════════════════════════════ */
+
+.fc-empty-state {
+  padding: 48px 32px;
+  background: #FAFAFA;
+  border-radius: 16px;
+  border: 2px dashed #E5E7EB;
+  text-align: center;
+}
+
+.fc-empty-state__icon {
+  width: 48px;
+  height: 48px;
+  background: #F4F4F4;
+  border-radius: 12px;
+  margin: 0 auto 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.fc-empty-state__title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #374151;
+  margin: 0 0 6px;
+}
+
+.fc-empty-state__desc {
+  font-size: 0.85rem;
+  color: #9CA3AF;
+  margin: 0;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   SECTION DIVIDER
+═══════════════════════════════════════════════════════════ */
+
+.fc-divider {
+  border: none;
+  border-top: 1px solid #F4F4F4;
+  margin: 16px 0;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   LINK
+═══════════════════════════════════════════════════════════ */
+
+.fc-link {
+  color: #0A0A0A;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.fc-link:hover {
+  text-decoration: underline;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   PRIMEIRO ACESSO BUTTON
+═══════════════════════════════════════════════════════════ */
+
+.fc-primeiro-acesso-btn {
+  background: #F59E0B;
+  color: #fff;
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 8px 14px;
+  border-radius: 8px;
+  text-decoration: none;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: background 0.2s;
+  display: inline-block;
+}
+
+.fc-primeiro-acesso-btn:hover {
+  background: #D97706;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   SUBSCRIPTION WARNING BANNER
+═══════════════════════════════════════════════════════════ */
+
+.fc-warn-banner {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 9999;
+  padding: 12px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-family: 'DM Sans', system-ui, sans-serif;
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.08);
+}
+
+.fc-warn-banner--info {
+  background: #EFF6FF;
+  border-top: 2px solid #BFDBFE;
+}
+
+.fc-warn-banner--warning {
+  background: #FFFBEB;
+  border-top: 2px solid #FDE68A;
+}
+
+.fc-warn-banner--danger {
+  background: #FFF1F2;
+  border-top: 2px solid #FECDD3;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   FILTER CHIPS
+═══════════════════════════════════════════════════════════ */
+
+.fc-filter-chip {
+  padding: 7px 16px;
+  border-radius: 20px;
+  border: 1.5px solid #EBEBEB;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: #fff;
+  color: #6B7280;
+  white-space: nowrap;
+  font-family: inherit;
+  flex-shrink: 0;
+}
+
+.fc-filter-chip:hover {
+  border-color: #D1D5DB;
+  color: #374151;
+}
+
+.fc-filter-chip--active {
+  background: #0A0A0A;
+  border-color: #0A0A0A;
+  color: #fff;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   RESPONSIVE UTILITIES
+═══════════════════════════════════════════════════════════ */
+
+@media (max-width: 768px) {
+  .fh-hide-mobile { display: none !important; }
+  .fc-modal-box { padding: 24px !important; border-radius: 16px !important; }
+  .fc-nav-btn { padding: 8px !important; min-width: 38px; justify-content: center; gap: 0 !important; }
+  .fc-nav-btn .fc-nav-label { display: none; }
+}
+
+@media (min-width: 769px) {
+  .fh-hide-desktop { display: none !important; }
+}

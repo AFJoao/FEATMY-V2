@@ -1,16 +1,20 @@
 /**
- * js/auth.js — v6
+ * js/auth.js — v7
  *
- * CORREÇÕES v6:
- * 1. activationUrl usa hash fragment (#token=) em vez de query string (?token=)
- *    — token não vaza em logs de CDN, Vercel, analytics ou header Referer
- * 2. Timing equalizado em createStudentAccount (min 300ms) para prevenir
- *    enumeração de emails por side-channel de tempo
+ * CORREÇÕES v7 (SEGURANÇA):
+ * 1. activateStudentAccount() REMOVIDO do cliente — toda ativação ocorre
+ *    exclusivamente via /api/activation/activate (lock atômico server-side).
+ *    Race condition de ativação dupla eliminada.
  *
- * Todas as correções v5 mantidas:
- * - Transação atômica para verificar limite de alunos
- * - Resposta genérica para email duplicado
- * - Token de 64 chars (256 bits)
+ * 2. createStudentAccount() agora incrementa studentCount (campo desnormalizado)
+ *    além de arrays.students — melhora performance das regras Firestore que antes
+ *    faziam GET duplo + array.size() por operação.
+ *
+ * 3. deleteStudent() decrementa studentCount atomicamente.
+ *
+ * 4. activationUrl usa hash fragment (#token=) — mantido da v6.
+ *
+ * 5. Timing equalizado em createStudentAccount (min 300ms) — mantido da v6.
  */
 
 class AuthManager {
@@ -21,7 +25,6 @@ class AuthManager {
     this.isInitialized   = false;
     this.authStateUnsubscribe  = null;
     this.initializationPromise = null;
-    this._activationInProgress = false;
   }
 
   // ── Inicialização ──────────────────────────────────────────────
@@ -101,13 +104,14 @@ class AuthManager {
       const user       = credential.user;
 
       await db.collection('users').doc(user.uid).set({
-        uid:       user.uid,
+        uid:          user.uid,
         name,
         email,
-        userType:  'personal',
-        status:    'active',
-        students:  [],
-        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+        userType:     'personal',
+        status:       'active',
+        students:     [],
+        studentCount: 0,
+        createdAt:    firebase.firestore.FieldValue.serverTimestamp(),
       });
 
       this.currentUser     = user;
@@ -127,9 +131,9 @@ class AuthManager {
    * 2. Transação atômica para verificar e bloquear limite de alunos
    * 3. Resposta genérica para email duplicado — não confirma existência
    * 4. Token de ativação via hash fragment (#token=) — não vaza em logs
+   * 5. Incremento de studentCount (campo desnormalizado para performance)
    */
   async createStudentAccount(name, email) {
-    // CORREÇÃO VULN 6: Tempo mínimo de resposta para equalizar timing
     const startTime = Date.now();
     const MIN_RESPONSE_MS = 300;
 
@@ -165,6 +169,7 @@ class AuthManager {
       // Verificar limite de alunos via transação atômica
       const personalRef = db.collection('users').doc(personalUser.uid);
       const subRef      = db.collection('subscriptions').doc(personalUser.uid);
+      let   studentRef;
 
       await db.runTransaction(async (t) => {
         const [personalDoc, subDoc] = await Promise.all([
@@ -183,8 +188,11 @@ class AuthManager {
           throw new Error('Assinatura expirada. Renove para adicionar novos alunos.');
         }
 
-        const personalData    = personalDoc.data();
-        const currentStudents = (personalData.students || []).length;
+        const personalData = personalDoc.data();
+        // PERF: usa studentCount se disponível, senão conta o array
+        const currentStudents = typeof personalData.studentCount === 'number'
+          ? personalData.studentCount
+          : (personalData.students || []).length;
 
         if (currentStudents >= maxStudents) {
           throw new Error(
@@ -192,26 +200,28 @@ class AuthManager {
             'Faça upgrade para adicionar mais alunos.'
           );
         }
-      });
 
-      // Criar doc provisório do aluno
-      const studentRef = db.collection('users').doc();
+        // Criar doc provisório do aluno dentro da transação
+        studentRef = db.collection('users').doc();
 
-      await studentRef.set({
-        uid:              studentRef.id,
-        name:             name.trim(),
-        email:            normalizedEmail,
-        userType:         'student',
-        status:           'pending',
-        personalId:       personalUser.uid,
-        authUid:          null,
-        assignedWorkouts: [],
-        createdAt:        firebase.firestore.FieldValue.serverTimestamp(),
-        createdBy:        personalUser.uid,
-      });
+        t.set(studentRef, {
+          uid:              studentRef.id,
+          name:             name.trim(),
+          email:            normalizedEmail,
+          userType:         'student',
+          status:           'pending',
+          personalId:       personalUser.uid,
+          authUid:          null,
+          assignedWorkouts: [],
+          createdAt:        firebase.firestore.FieldValue.serverTimestamp(),
+          createdBy:        personalUser.uid,
+        });
 
-      await db.collection('users').doc(personalUser.uid).update({
-        students: firebase.firestore.FieldValue.arrayUnion(studentRef.id),
+        // Incrementar contador e atualizar array atomicamente
+        t.update(personalRef, {
+          students:     firebase.firestore.FieldValue.arrayUnion(studentRef.id),
+          studentCount: firebase.firestore.FieldValue.increment(1),
+        });
       });
 
       const activationToken = this._generateActivationToken();
@@ -228,10 +238,7 @@ class AuthManager {
       });
 
       const baseUrl = window.location.origin;
-
-      // CORREÇÃO VULN 3: Hash fragment (#token=) em vez de query string (?token=)
-      // O fragmento nunca é enviado ao servidor — não aparece em logs de CDN,
-      // Vercel, Google Analytics, header Referer ou qualquer ferramenta de analytics.
+      // Hash fragment (#token=) — não vaza em logs de CDN, analytics ou Referer
       const activationUrl = `${baseUrl}/#/primeiro-acesso#token=${activationToken}`;
 
       return equalizeAndReturn({
@@ -268,19 +275,34 @@ class AuthManager {
       const personalUser = this.currentUser;
       if (!personalUser) throw new Error('Não autenticado');
 
+      // Buscar dados do aluno para limpar pendingActivations
+      let studentEmail = null;
       try {
         const studentDoc = await db.collection('users').doc(studentDocId).get();
         if (studentDoc.exists) {
-          const emailKey = studentDoc.data().email.replace(/[^a-z0-9]/g, '_');
-          await db.collection('pendingActivations').doc(emailKey).delete();
+          studentEmail = studentDoc.data().email;
         }
-      } catch { /* índice pode não existir */ }
+      } catch { /* melhor esforço */ }
 
-      await db.collection('users').doc(personalUser.uid).update({
-        students: firebase.firestore.FieldValue.arrayRemove(studentDocId),
+      // Batch: remover aluno + decrementar contador atomicamente
+      const batch = db.batch();
+
+      batch.update(db.collection('users').doc(personalUser.uid), {
+        students:     firebase.firestore.FieldValue.arrayRemove(studentDocId),
+        studentCount: firebase.firestore.FieldValue.increment(-1),
       });
 
-      await db.collection('users').doc(studentDocId).delete();
+      batch.delete(db.collection('users').doc(studentDocId));
+
+      await batch.commit();
+
+      // Limpar pendingActivations (melhor esforço, fora do batch)
+      if (studentEmail) {
+        try {
+          const emailKey = studentEmail.toLowerCase().replace(/[^a-z0-9]/g, '_');
+          await db.collection('pendingActivations').doc(emailKey).delete();
+        } catch { /* não crítico */ }
+      }
 
       return { success: true };
     } catch (error) {
@@ -290,6 +312,10 @@ class AuthManager {
 
   // ── Primeiro Acesso do Aluno ───────────────────────────────────
 
+  /**
+   * checkPendingStudent — valida token localmente (pré-check rápido).
+   * A ativação real ocorre EXCLUSIVAMENTE via /api/activation/activate.
+   */
   async checkPendingStudent(activationToken) {
     if (!activationToken || activationToken.length < 32) {
       return { exists: false, invalidToken: true };
@@ -333,153 +359,6 @@ class AuthManager {
       };
     } catch (error) {
       return { exists: false, error: error.message };
-    }
-  }
-
-  async activateStudentAccount(email, password, studentDocId, activationToken, emailKey) {
-    if (!activationToken || activationToken.length < 32) {
-      return {
-        success: false,
-        error:   'Token de ativação inválido. Use o link enviado pelo seu personal trainer.',
-      };
-    }
-
-    if (this._activationInProgress) {
-      return { success: false, error: 'Ativação já em andamento. Aguarde.' };
-    }
-    this._activationInProgress = true;
-
-    try {
-      if (password.length < 6) throw new Error('A senha deve ter pelo menos 6 caracteres');
-
-      const normalizedEmail = email.toLowerCase().trim();
-
-      const tokenSnap = await db.collection('pendingActivations')
-        .where('activationToken', '==', activationToken)
-        .where('status', '==', 'pending')
-        .limit(1)
-        .get();
-
-      if (tokenSnap.empty) {
-        return {
-          success: false,
-          error:   'Link de ativação inválido ou já utilizado. Solicite um novo link ao seu personal trainer.',
-        };
-      }
-
-      const activationDoc  = tokenSnap.docs[0];
-      const activationData = activationDoc.data();
-
-      if (activationData.expiresAt) {
-        const expiresAt = activationData.expiresAt.toDate
-          ? activationData.expiresAt.toDate()
-          : new Date(activationData.expiresAt);
-        if (new Date() > expiresAt) {
-          return {
-            success: false,
-            error:   'Link de ativação expirado. Solicite um novo link ao seu personal trainer.',
-          };
-        }
-      }
-
-      const provisoryDoc = await db.collection('users').doc(studentDocId).get();
-      if (!provisoryDoc.exists) {
-        throw new Error('Dados do aluno não encontrados. Entre em contato com seu personal trainer.');
-      }
-      const studentData = provisoryDoc.data();
-
-      if (studentData.status === 'activating') {
-        await new Promise(r => setTimeout(r, 3000));
-        const recheckDoc = await db.collection('users').doc(studentDocId).get();
-        if (recheckDoc.exists && recheckDoc.data().status === 'activating') {
-          await db.collection('users').doc(studentDocId).update({ status: 'pending' });
-        } else if (recheckDoc.exists && recheckDoc.data().status !== 'pending') {
-          return { success: false, error: 'Conta já foi ativada em outro dispositivo. Faça login.' };
-        }
-      }
-
-      try {
-        await db.collection('users').doc(studentDocId).update({ status: 'activating' });
-      } catch { /* melhor esforço */ }
-
-      let user;
-      try {
-        const credential = await auth.createUserWithEmailAndPassword(normalizedEmail, password);
-        user = credential.user;
-      } catch (authError) {
-        if (authError.code === 'auth/email-already-in-use') {
-          const credential = await auth.signInWithEmailAndPassword(normalizedEmail, password);
-          user = credential.user;
-        } else {
-          try {
-            await db.collection('users').doc(studentDocId).update({ status: 'pending' });
-          } catch { /* melhor esforço */ }
-          throw authError;
-        }
-      }
-
-      const existingDoc = await db.collection('users').doc(user.uid).get();
-      if (existingDoc.exists && existingDoc.data().status === 'active') {
-        this.currentUser     = user;
-        this.currentUserType = 'student';
-        return { success: true, user, userType: 'student' };
-      }
-
-      await db.collection('users').doc(user.uid).set({
-        ...studentData,
-        uid:         user.uid,
-        authUid:     user.uid,
-        status:      'active',
-        activatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-      });
-
-      try { await db.collection('users').doc(studentDocId).delete(); } catch { /* melhor esforço */ }
-
-      const personalId = studentData.personalId;
-      if (personalId) {
-        try {
-          await db.collection('users').doc(personalId).update({
-            students: firebase.firestore.FieldValue.arrayRemove(studentDocId),
-          });
-          await db.collection('users').doc(personalId).update({
-            students: firebase.firestore.FieldValue.arrayUnion(user.uid),
-          });
-        } catch { /* melhor esforço */ }
-      }
-
-      try {
-        const resolvedEmailKey = emailKey || activationData.emailKey || '';
-        if (resolvedEmailKey) {
-          await db.collection('pendingActivations').doc(resolvedEmailKey).update({
-            status:    'used',
-            usedAt:    firebase.firestore.FieldValue.serverTimestamp(),
-            usedByUid: user.uid,
-          });
-        } else {
-          await activationDoc.ref.update({
-            status:    'used',
-            usedAt:    firebase.firestore.FieldValue.serverTimestamp(),
-            usedByUid: user.uid,
-          });
-        }
-      } catch { /* melhor esforço */ }
-
-      this.currentUser     = user;
-      this.currentUserType = 'student';
-
-      return { success: true, user, userType: 'student' };
-
-    } catch (error) {
-      try {
-        const currentDoc = await db.collection('users').doc(studentDocId).get();
-        if (currentDoc.exists && currentDoc.data().status === 'activating') {
-          await db.collection('users').doc(studentDocId).update({ status: 'pending' });
-        }
-      } catch { /* melhor esforço */ }
-
-      return { success: false, error: this._translateError(error) };
-    } finally {
-      this._activationInProgress = false;
     }
   }
 

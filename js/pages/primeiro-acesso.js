@@ -1,11 +1,16 @@
 /**
- * js/pages/primeiro-acesso.js — v2
+ * js/pages/primeiro-acesso.js — v3
  *
- * CORREÇÕES v2:
- * 1. Token extraído da URL imediatamente e limpo do histórico (não vaza em analytics)
- * 2. Validação do token via API server-side (/api/activation/check) em vez de Firestore direto
- * 3. Ativação via API server-side (/api/activation/activate) com lock atômico
- * 4. Suporte a hash fragment (#token=...) além de query string (?token=...) para compatibilidade
+ * CORREÇÕES v3 (SEGURANÇA):
+ * 1. Fluxo de ativação 100% server-side:
+ *    - checkTokenViaAPI() valida token em /api/activation/check
+ *    - activateViaAPI() ativa em /api/activation/activate (lock atômico)
+ *    - Removida completamente a tentativa de ativação client-side via authManager
+ *    - Race condition de ativação dupla eliminada
+ *
+ * 2. Token extraído da URL imediatamente e limpo do histórico — mantido da v2.
+ *
+ * 3. Suporte a hash fragment (#token=) e query string (?token=) — mantido da v2.
  */
 window.__pageInit = async function() {
   let activationData  = null;
@@ -32,20 +37,16 @@ window.__pageInit = async function() {
   /**
    * Extrai token da URL e limpa imediatamente do histórico/URL visível.
    * Suporta:
-   *   - /#/primeiro-acesso?token=ABC (query string — legado, loga em analytics)
-   *   - /#/primeiro-acesso#token=ABC (hash fragment — seguro, não vai a servidores)
-   *
-   * A limpeza ocorre antes de qualquer script de analytics ter a chance de capturar.
+   *   - /#/primeiro-acesso#token=ABC (hash fragment — seguro)
+   *   - /#/primeiro-acesso?token=ABC (query string — legado)
    */
   function extractAndClearToken() {
     const fullHash = window.location.hash || '';
 
-    // Tentar hash fragment primeiro: /#/primeiro-acesso#token=ABC
-    // O segundo # cria um fragmento dentro do fragmento — incomum mas funciona no browser
+    // Tentar hash fragment: /#/primeiro-acesso#token=ABC
     const hashTokenMatch = fullHash.match(/[#&]token=([a-f0-9]{64})/);
     if (hashTokenMatch) {
       const token = hashTokenMatch[1];
-      // Limpar token da URL imediatamente
       history.replaceState(null, '', window.location.pathname + '#/primeiro-acesso');
       return token;
     }
@@ -54,12 +55,11 @@ window.__pageInit = async function() {
     const search = new URLSearchParams(window.location.search);
     if (search.has('token')) {
       const token = search.get('token');
-      // Limpar da URL sem recarregar
       history.replaceState(null, '', window.location.pathname + '#/primeiro-acesso');
       return token;
     }
 
-    // Também verificar dentro do hash como query: /#/primeiro-acesso?token=ABC
+    // Hash como query: /#/primeiro-acesso?token=ABC
     const hashQueryMatch = fullHash.match(/\?token=([a-f0-9]{64})/);
     if (hashQueryMatch) {
       const token = hashQueryMatch[1];
@@ -88,6 +88,11 @@ window.__pageInit = async function() {
     }
   }
 
+  /**
+   * activateViaAPI — SECURITY FIX: única forma de ativar conta.
+   * O servidor usa lock atômico via Firestore Transaction para prevenir
+   * ativação dupla mesmo sob condições de concorrência.
+   */
   async function activateViaAPI(token, password, email) {
     try {
       const res  = await fetch('/api/activation/activate', {
@@ -150,7 +155,7 @@ window.__pageInit = async function() {
     btn.innerHTML = '<span class="spinner"></span>';
     btn.disabled  = true;
 
-    // Usar API server-side para ativação com lock atômico
+    // SECURITY FIX: ativação EXCLUSIVAMENTE via API server-side (lock atômico)
     const result = await activateViaAPI(activationToken, password, activationData.email);
 
     if (result.success) {
@@ -162,7 +167,6 @@ window.__pageInit = async function() {
         }
       } catch (e) {
         console.warn('[primeiro-acesso] Custom token login falhou, tentando login direto:', e.message);
-        // Fallback: login direto com email/senha
         try {
           await auth.signInWithEmailAndPassword(activationData.email, password);
           await authManager.reinitialize();

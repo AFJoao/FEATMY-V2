@@ -1,125 +1,234 @@
 /**
- * POST /api/activation/check
+ * POST /api/billing/simulate-payment
  *
- * Valida token de ativação server-side antes de mostrar o formulário de senha.
- * Não expõe dados sensíveis — retorna apenas nome e email do aluno.
+ * APENAS disponível com chaves _dev_ do AbacatePay OU em NODE_ENV !== 'production'.
+ * Processa o pagamento localmente após simular na AbacatePay.
  *
- * Respostas:
- *   200 { valid: true, name, email }
- *   400 Token ausente/malformado
- *   404 Token não encontrado
- *   409 Conta já ativada
- *   410 Token expirado ou já usado
- *   429 Rate limit
- *   500 Erro interno
+ * Correções v4:
+ * - SECURITY FIX: bloqueio por chave _dev_ E por NODE_ENV=production (dupla barreira)
+ * - Rate limiting duplo (UID + IP)
+ * - Validação de ownership — personal só simula seus próprios billings
+ * - CORS centralizado via helper (fail-closed em produção)
+ * - Em dev, não bloqueia por processedWebhooks — permite re-simular
  */
 
+const { applyCors }          = require('../_lib/cors');
+const { checkRateLimitDual } = require('../_lib/ratelimit');
+const { logger }             = require('../_lib/logger');
 const admin = require('firebase-admin');
 
-if (!admin.apps.length) {
+function initFirebase() {
+  if (admin.apps.length) return;
+
+  const projectId   = process.env.FIREBASE_PROJECT_ID;
+  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+  const privateKey  = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n');
+
+  if (!projectId || !clientEmail || !privateKey) {
+    throw new Error(`Variáveis faltando: FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL ou FIREBASE_PRIVATE_KEY`);
+  }
+
   admin.initializeApp({
-    credential: admin.credential.cert({
-      projectId:   process.env.FIREBASE_PROJECT_ID,
-      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-      privateKey:  process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-    }),
+    credential: admin.credential.cert({ projectId, clientEmail, privateKey }),
   });
 }
 
-const db = admin.firestore();
+const PLANS = {
+  starter: { maxStudents: 5,  durationDays: 30 },
+  pro:     { maxStudents: 15, durationDays: 30 },
+  elite:   { maxStudents: 40, durationDays: 30 },
+};
 
-// Rate limiting in-memory (por IP) — fallback quando Redis não disponível
-// Para produção com tráfego alto, usar Upstash via ratelimit.js
-const ipHits = new Map();
-function isRateLimited(ip) {
-  const now = Date.now();
-  const key = `check:${ip}`;
-  const hits = (ipHits.get(key) || []).filter(t => now - t < 60_000);
-  if (hits.length >= 20) return true; // 20 checks/min por IP
-  hits.push(now);
-  ipHits.set(key, hits);
-  // GC periódico
-  if (ipHits.size > 5000) {
-    for (const [k, v] of ipHits) {
-      if (v.every(t => now - t > 60_000)) ipHits.delete(k);
-    }
+async function verifyToken(req) {
+  const auth = req.headers.authorization || '';
+  if (!auth.startsWith('Bearer ')) return null;
+  try {
+    return await admin.auth().verifyIdToken(auth.slice(7));
+  } catch {
+    return null;
   }
-  return false;
+}
+
+function calcExpiry(planId) {
+  const days = PLANS[planId]?.durationDays || 30;
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  return admin.firestore.Timestamp.fromDate(d);
 }
 
 module.exports = async function handler(req, res) {
-  res.setHeader('Cache-Control', 'no-store');
-
   if (req.method !== 'POST') return res.status(405).end();
 
-  const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || 'unknown';
-  if (isRateLimited(ip)) {
-    return res.status(429).json({ error: 'Muitas tentativas. Aguarde antes de tentar novamente.' });
+  // ── SECURITY FIX: Bloquear em produção INDEPENDENTE da chave ─────────────
+  // Dupla barreira: NODE_ENV E chave _dev_ precisam estar ok
+  const isProd   = process.env.NODE_ENV === 'production';
+  const apiKey   = process.env.ABACATEPAY_API_KEY || '';
+  const isDevKey = apiKey.includes('_dev_');
+
+  if (isProd) {
+    // Em produção, endpoint NUNCA deve estar acessível, mesmo com chave dev
+    logger.security('simulate-payment', 'Tentativa de simulação em produção bloqueada');
+    return res.status(403).json({ error: 'Endpoint não disponível em produção' });
   }
 
-  const { token } = req.body || {};
-
-  // Validação básica do token
-  if (!token || typeof token !== 'string' || !/^[a-f0-9]{64}$/.test(token)) {
-    return res.status(400).json({ error: 'Token inválido.' });
+  if (!isDevKey) {
+    // Em desenvolvimento, exige chave dev
+    return res.status(403).json({ error: 'Simulação disponível apenas com chave Dev Mode do AbacatePay' });
   }
+
+  // ── CORS centralizado (fail-closed em produção) ───────────────
+  try {
+    applyCors(req, res, 'POST, OPTIONS');
+  } catch (err) {
+    logger.security('simulate-payment', 'CORS bloqueado', { error: err.message });
+    return res.status(403).json({ error: 'Origin não permitida' });
+  }
+
+  res.setHeader('Cache-Control', 'no-store');
 
   try {
-    // Buscar token no índice de ativações pendentes
-    const snap = await db.collection('pendingActivations')
-      .where('activationToken', '==', token)
-      .limit(1)
-      .get();
-
-    if (snap.empty) {
-      return res.status(404).json({ error: 'Link de ativação inválido ou não encontrado.' });
-    }
-
-    const doc  = snap.docs[0];
-    const data = doc.data();
-
-    // Verificar status
-    if (data.status === 'used') {
-      return res.status(410).json({ error: 'Este link já foi utilizado. Faça login normalmente.' });
-    }
-
-    if (data.status === 'activating') {
-      // Ativação em andamento em outro dispositivo
-      return res.status(409).json({ error: 'Ativação em andamento. Aguarde alguns minutos.' });
-    }
-
-    if (data.status !== 'pending') {
-      return res.status(410).json({ error: 'Link inválido.' });
-    }
-
-    // Verificar expiração
-    const expiresAt = data.expiresAt?.toDate?.() || new Date(0);
-    if (new Date() > expiresAt) {
-      return res.status(410).json({ error: 'Link expirado. Solicite um novo ao seu personal trainer.' });
-    }
-
-    // Buscar dados do aluno
-    const studentDoc = await db.collection('users').doc(data.studentDocId).get();
-    if (!studentDoc.exists) {
-      return res.status(404).json({ error: 'Dados não encontrados. Contate seu personal trainer.' });
-    }
-
-    const student = studentDoc.data();
-
-    // Verificar se conta já foi ativada de outra forma
-    if (student.status === 'active' && student.authUid) {
-      return res.status(409).json({ error: 'Conta já ativada. Faça login normalmente.' });
-    }
-
-    // Retornar apenas os dados necessários para o formulário
-    return res.status(200).json({
-      valid: true,
-      name:  student.name  || '',
-      email: student.email || '',
-    });
-
-  } catch (error) {
-    console.error('[activation/check] Erro:', error.message);
-    return res.status(500).json({ error: 'Erro interno. Tente novamente.' });
+    initFirebase();
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
   }
+
+  const db = admin.firestore();
+
+  // ── Autenticação ──────────────────────────────────────────────
+  const decoded = await verifyToken(req);
+  if (!decoded) return res.status(401).json({ error: 'Não autenticado' });
+
+  const uid = decoded.uid;
+
+  // ── Rate limiting duplo: por UID + por IP ─────────────────────
+  try {
+    const { limited, reset, reason } = await checkRateLimitDual(req, uid, 'billing');
+    if (limited) {
+      const retryAfter = Math.ceil((reset - Date.now()) / 1000);
+      res.setHeader('Retry-After', retryAfter);
+      logger.warn('simulate-payment', 'Rate limit atingido', { uid, reason });
+      return res.status(429).json({
+        error: 'Muitas tentativas. Aguarde antes de tentar novamente.',
+        retryAfterSeconds: retryAfter,
+      });
+    }
+  } catch (err) {
+    // Dev sem Redis: logar e continuar (fail-open em dev é aceitável)
+    console.warn('[simulate-payment] Rate limit indisponível em dev:', err.message);
+  }
+
+  const { gatewayPixId } = req.body || {};
+  if (!gatewayPixId || typeof gatewayPixId !== 'string' || gatewayPixId.length > 200) {
+    return res.status(400).json({ error: 'gatewayPixId é obrigatório e deve ser uma string válida' });
+  }
+
+  // ── 1. Tentar simular na AbacatePay (melhor esforço) ──────────
+  let abacateOk = false;
+  try {
+    const abacateRes = await fetch(
+      `https://api.abacatepay.com/v1/pixQrCode/simulate-payment?id=${encodeURIComponent(gatewayPixId)}`,
+      {
+        method:  'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type':  'application/json',
+        },
+        body: JSON.stringify({ metadata: {} }),
+      }
+    );
+    const abacateJson = await abacateRes.json();
+
+    if (!abacateRes.ok || abacateJson.success === false) {
+      console.warn('[simulate-payment] AbacatePay aviso (continuando local):', abacateJson.error);
+    } else {
+      abacateOk = true;
+      console.log('[simulate-payment] AbacatePay simulação OK');
+    }
+  } catch (e) {
+    console.warn('[simulate-payment] Erro ao chamar AbacatePay (continuando local):', e.message);
+  }
+
+  // ── 2. Buscar billing pelo gatewayId ──────────────────────────
+  const billingSnap = await db.collection('billings')
+    .where('gatewayId', '==', gatewayPixId)
+    .limit(1)
+    .get();
+
+  if (billingSnap.empty) {
+    return res.status(404).json({
+      error: 'Cobrança não encontrada.',
+    });
+  }
+
+  const billingDoc  = billingSnap.docs[0];
+  const billingData = billingDoc.data();
+  const { personalId, planId } = billingData;
+
+  // ── 3. Validar ownership — CRÍTICO ────────────────────────────
+  if (billingData.personalId !== decoded.uid) {
+    logger.security('simulate-payment', 'Ownership violation', {
+      uid:              decoded.uid,
+      billingPersonalId: billingData.personalId,
+      gatewayPixId,
+    });
+    return res.status(403).json({ error: 'Acesso negado' });
+  }
+
+  // ── 4. Em dev, NÃO bloquear por processedWebhooks ─────────────
+  const processedRef = db.collection('processedWebhooks').doc(`dev_${gatewayPixId}`);
+
+  // ── 5. Processar pagamento ────────────────────────────────────
+  await billingDoc.ref.update({
+    status: 'paid',
+    paidAt: admin.firestore.FieldValue.serverTimestamp(),
+  });
+
+  const planConfig = PLANS[planId] || PLANS.starter;
+  const newExpiry  = calcExpiry(planId);
+  const subRef     = db.collection('subscriptions').doc(personalId);
+  const subSnap    = await subRef.get();
+
+  const subData = {
+    personalId,
+    planId,
+    maxStudents:   planConfig.maxStudents,
+    status:        'active',
+    lastPaymentAt: admin.firestore.FieldValue.serverTimestamp(),
+    expiresAt:     newExpiry,
+    updatedAt:     admin.firestore.FieldValue.serverTimestamp(),
+  };
+
+  if (subSnap.exists) {
+    await subRef.update(subData);
+  } else {
+    await subRef.set({
+      ...subData,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+  }
+
+  await db.collection('users').doc(personalId).update({
+    subscriptionStatus:  'active',
+    subscriptionPlan:    planId,
+    subscriptionExpiry:  newExpiry,
+    subscriptionUpdated: admin.firestore.FieldValue.serverTimestamp(),
+  });
+
+  await processedRef.set({
+    processedAt:  admin.firestore.FieldValue.serverTimestamp(),
+    billingDocId: billingDoc.id,
+    personalId,
+    pixId:        gatewayPixId,
+    source:       'simulate-payment-dev',
+  });
+
+  logger.info('simulate-payment', 'Ativado em dev', { personalId, planId });
+
+  return res.status(200).json({
+    success:   true,
+    activated: true,
+    abacateOk,
+    planId,
+    personalId,
+  });
 };
