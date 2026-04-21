@@ -17,7 +17,12 @@
 </head>
 <body>
   <div id="app">
-    <div class="fc-loading-overlay" style="padding-top: 120px;">
+    <!--
+      CORREÇÃO 4.7 — Removido style="padding-top: 120px;" inline que violava
+      CSP style-src-attr 'none'. Substituído pela classe .fc-loading-overlay
+      que já tem padding definido em css/components.css.
+    -->
+    <div class="fc-loading-overlay">
       <div class="fc-spinner fc-spinner--lg"></div>
       <p class="fc-loading-overlay__text">Carregando...</p>
     </div>
@@ -39,19 +44,6 @@
     integrity="sha384-7TetnPNdXXu6qURzIEXWCwpXedGGBJSXIR5Cv0gOWTB34UD5TxPHx33PhjA6wFQ3"
     crossorigin="anonymous"
   ></script>
-
-  <!--
-    Firebase App Check — deve ser carregado ANTES de config.js.
-
-    SETUP NECESSÁRIO (Firebase Console):
-    1. Firebase Console > App Check > Registrar app
-    2. Escolher reCAPTCHA v3 como provedor
-    3. Obter site key e substituir em js/config.js
-    4. Após testes: App Check > Enforce para Firestore e Authentication
-
-    DEBUG em dev: no console antes de carregar:
-      self.FIREBASE_APPCHECK_DEBUG_TOKEN = true;
-  -->
   <script
     src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-check-compat.js"
     crossorigin="anonymous"

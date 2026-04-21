@@ -27,11 +27,10 @@ service cloud.firestore {
           in ['active', 'grace_period'];
     }
 
-    // PERF FIX: usa contador desnormalizado em vez de array.size() + GET duplo
     function isWithinStudentLimit(personalId) {
-      let subDoc      = get(/databases/$(database)/documents/subscriptions/$(personalId));
-      let maxStudents = subDoc.data.maxStudents;
-      let userDoc     = get(/databases/$(database)/documents/users/$(personalId));
+      let subDoc       = get(/databases/$(database)/documents/subscriptions/$(personalId));
+      let maxStudents  = subDoc.data.maxStudents;
+      let userDoc      = get(/databases/$(database)/documents/users/$(personalId));
       let currentCount = ('studentCount' in userDoc.data && userDoc.data.studentCount != null)
         ? userDoc.data.studentCount
         : (('students' in userDoc.data && userDoc.data.students != null)
@@ -53,12 +52,19 @@ service cloud.firestore {
 
     // ── USERS ──────────────────────────────────────────────────────────────
     match /users/{userId} {
+      // CORREÇÃO 2.3: get de users agora exige userType == 'student' para personals
       allow get: if isUser(userId)
-        || (resource.data.status == 'pending' && resource.data.userType == 'student'
-            && isAuth() && resource.data.personalId == request.auth.uid)
-        || (isAuth() && resource.data.personalId == request.auth.uid);
+        || (resource.data.status == 'pending'
+            && resource.data.userType == 'student'
+            && isAuth()
+            && resource.data.personalId == request.auth.uid)
+        || (isAuth()
+            && isPersonal()
+            && resource.data.userType == 'student'
+            && resource.data.personalId == request.auth.uid);
 
-      // Personal só lista usuários com filtro explícito por SEU PRÓPRIO personalId.
+      // CORREÇÃO 2.2 (mantida): filtros por personalId com hasAll para evitar
+      // dependência de posição de filtro
       allow list: if isAuth() && isPersonal() && (
         (request.query.filters.size() == 1 &&
          request.query.filters[0].field_path == 'personalId' &&
@@ -85,7 +91,12 @@ service cloud.firestore {
         && request.resource.data.userType == 'student'
         && request.resource.data.authUid == request.auth.uid;
 
-      allow update: if isUser(userId) || isMyStudentDoc() || isOwnStudentDoc();
+      // CORREÇÃO 2.1 (mantida): aluno não pode modificar assignedWorkouts, personalId, etc.
+      allow update: if isUser(userId)
+        && !request.resource.data.diff(resource.data).affectedKeys()
+            .hasAny(['assignedWorkouts', 'personalId', 'userType', 'authUid', 'uid', 'email']);
+
+      allow update: if isMyStudentDoc() || isOwnStudentDoc();
 
       allow delete: if isUser(userId)
         || isMyStudentDoc()
@@ -130,9 +141,12 @@ service cloud.firestore {
          request.query.filters[0].field_path == 'personalId' &&
          request.query.filters[0].value == request.auth.uid)
         ||
+        // CORREÇÃO 2.5: aluno só lista treinos com assinatura ativa
         (request.query.filters.size() >= 1 &&
          request.query.filters[0].field_path == 'studentId' &&
-         request.query.filters[0].value == request.auth.uid)
+         request.query.filters[0].value == request.auth.uid &&
+         getUserData().userType == 'student' &&
+         hasActiveSubscription(getUserData().personalId))
       );
 
       allow create: if isAuth() && isPersonal()
@@ -149,9 +163,19 @@ service cloud.firestore {
 
     // ── FEEDBACKS ──────────────────────────────────────────────────────────
     match /feedbacks/{feedbackId} {
-      // SECURITY FIX: aluno só cria feedback para workouts que lhe pertencem
+      // CORREÇÃO 2.4: validação de campos nas rules
       allow create: if isAuth()
         && request.resource.data.studentId == request.auth.uid
+        && request.resource.data.effortLevel is int
+        && request.resource.data.effortLevel >= 1
+        && request.resource.data.effortLevel <= 10
+        && request.resource.data.dayOfWeek in [
+             'monday','tuesday','wednesday','thursday',
+             'friday','saturday','sunday']
+        && request.resource.data.sensation in ['leve','ideal','pesado']
+        && request.resource.data.weekIdentifier.matches('^[0-9]{4}-[0-9]{1,2}$')
+        && request.resource.data.hasPain is bool
+        && request.resource.data.comment.size() <= 1000
         && exists(/databases/$(database)/documents/workouts/$(request.resource.data.workoutId))
         && get(/databases/$(database)/documents/workouts/$(request.resource.data.workoutId)).data.studentId
            == request.auth.uid;
@@ -165,7 +189,6 @@ service cloud.firestore {
           == request.auth.uid
       );
 
-      // Aluno vê seus próprios; personal via personalId desnormalizado ou workoutId
       allow list: if isAuth() && (
         (request.query.filters.size() >= 1 &&
          request.query.filters[0].field_path == 'studentId' &&
@@ -183,13 +206,13 @@ service cloud.firestore {
     // ── SUBSCRIPTIONS ──────────────────────────────────────────────────────
     match /subscriptions/{personalId} {
       allow read:  if isUser(personalId);
-      allow write: if false; // somente serverless functions (Firebase Admin SDK)
+      allow write: if false;
     }
 
     // ── BILLINGS ───────────────────────────────────────────────────────────
     match /billings/{billingId} {
       allow read:  if isAuth() && resource.data.personalId == request.auth.uid;
-      allow write: if false; // somente serverless functions
+      allow write: if false;
     }
 
     // ── NOTIFICATIONS ──────────────────────────────────────────────────────
@@ -205,19 +228,24 @@ service cloud.firestore {
     match /processedWebhooks/{id} { allow read, write: if false; }
     match /securityLogs/{id}      { allow read, write: if false; }
     match /activationLocks/{id}   { allow read, write: if false; }
+    match /cronLocks/{id}         { allow read, write: if false; }
 
     // ── PENDING ACTIVATIONS ─────────────────────────────────────────────────
     match /pendingActivations/{emailKey} {
-      // SECURITY FIX: validar expiresAt nas regras para bloquear tokens expirados
+      // CORREÇÃO 1.9: get agora exige createdBy == request.auth.uid
       allow get: if isAuth() && isPersonal()
         && resource.data.createdBy == request.auth.uid;
 
-      // Listagem proibida do client — somente via Admin SDK no server
       allow list: if false;
 
+      // CORREÇÃO 2.6: validação de campos adicionais na rule de create
       allow create: if isAuth() && isPersonal()
         && request.resource.data.createdBy == request.auth.uid
-        // Garantir expiresAt no futuro (máx 8 dias)
+        && request.resource.data.status == 'pending'
+        && request.resource.data.studentDocId is string
+        && request.resource.data.studentDocId.size() > 0
+        && request.resource.data.activationToken is string
+        && request.resource.data.activationToken.size() == 64
         && request.resource.data.expiresAt is timestamp
         && request.resource.data.expiresAt > request.time
         && request.resource.data.expiresAt < request.time + duration.value(8, 'd');
@@ -227,6 +255,17 @@ service cloud.firestore {
 
       allow delete: if isAuth() && isPersonal()
         && resource.data.createdBy == request.auth.uid;
+    }
+
+    // ── CORREÇÃO 2.7: Limite de tamanho em campos de texto ──────────────────
+    // Aplicado nas rules de feedbacks (comment <= 1000) e pendingActivations acima.
+    // Para users, exercises e workouts: os campos de texto mais críticos:
+    match /exercises/{exerciseId} {
+      allow create: if isAuth() && isPersonal()
+        && request.resource.data.personalId == request.auth.uid
+        && request.resource.data.name.size() <= 200
+        && (!('description' in request.resource.data) || request.resource.data.description.size() <= 2000)
+        && hasActiveSubscription(request.auth.uid);
     }
 
     // ── DEFAULT BLOCK ───────────────────────────────────────────────────────

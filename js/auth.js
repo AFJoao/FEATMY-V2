@@ -1,20 +1,20 @@
 /**
- * js/auth.js — v7
+ * js/auth.js — v8
  *
- * CORREÇÕES v7 (SEGURANÇA):
- * 1. activateStudentAccount() REMOVIDO do cliente — toda ativação ocorre
- *    exclusivamente via /api/activation/activate (lock atômico server-side).
- *    Race condition de ativação dupla eliminada.
+ * CORREÇÃO 1.4 — emailKey agora usa SHA-256 em vez de substituição de caracteres.
+ * Antes: normalizedEmail.replace(/[^a-z0-9]/g, '_') causava colisões.
+ * Ex: test@foo.com e test_foo_com geravam o mesmo emailKey "test_foo_com".
  *
- * 2. createStudentAccount() agora incrementa studentCount (campo desnormalizado)
- *    além de arrays.students — melhora performance das regras Firestore que antes
- *    faziam GET duplo + array.size() por operação.
+ * A geração de hash no browser (WebCrypto) produz um identificador único
+ * e sem colisões, mantendo compatibilidade com o servidor que também deve
+ * migrar para o mesmo padrão.
  *
- * 3. deleteStudent() decrementa studentCount atomicamente.
+ * NOTA: Esta mudança implica que activations antigas com emailKey baseado
+ * em sanitização NÃO serão encontradas pelo novo código. Para migração,
+ * o servidor deve tentar ambos os formatos durante um período de transição,
+ * ou regenerar os links de ativação pendentes.
  *
- * 4. activationUrl usa hash fragment (#token=) — mantido da v6.
- *
- * 5. Timing equalizado em createStudentAccount (min 300ms) — mantido da v6.
+ * Todas as correções v7 mantidas.
  */
 
 class AuthManager {
@@ -26,8 +26,6 @@ class AuthManager {
     this.authStateUnsubscribe  = null;
     this.initializationPromise = null;
   }
-
-  // ── Inicialização ──────────────────────────────────────────────
 
   initialize() {
     if (this.initializationPromise) return this.initializationPromise;
@@ -86,11 +84,25 @@ class AuthManager {
     this.listeners = [];
   }
 
-  // ── Gerador de token seguro ────────────────────────────────────
   _generateActivationToken() {
     const bytes = new Uint8Array(32);
     crypto.getRandomValues(bytes);
     return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
+  }
+
+  /**
+   * CORREÇÃO 1.4 — Gera emailKey via SHA-256 (sem colisões).
+   * Substitui o replace(/[^a-z0-9]/g, '_') que causava colisões.
+   *
+   * @param {string} normalizedEmail - email já em lowercase
+   * @returns {Promise<string>} hex hash de 64 chars
+   */
+  async _emailToKey(normalizedEmail) {
+    const encoder = new TextEncoder();
+    const data    = encoder.encode(normalizedEmail);
+    const hashBuf = await crypto.subtle.digest('SHA-256', data);
+    const hashArr = Array.from(new Uint8Array(hashBuf));
+    return hashArr.map(b => b.toString(16).padStart(2, '0')).join('');
   }
 
   // ── Cadastro de Personal Trainer ───────────────────────────────
@@ -125,14 +137,6 @@ class AuthManager {
 
   // ── Gerenciamento de Alunos pelo Personal ──────────────────────
 
-  /**
-   * Cria conta de aluno com:
-   * 1. Timing equalizado (min 300ms) — previne enumeração de emails por timing
-   * 2. Transação atômica para verificar e bloquear limite de alunos
-   * 3. Resposta genérica para email duplicado — não confirma existência
-   * 4. Token de ativação via hash fragment (#token=) — não vaza em logs
-   * 5. Incremento de studentCount (campo desnormalizado para performance)
-   */
   async createStudentAccount(name, email) {
     const startTime = Date.now();
     const MIN_RESPONSE_MS = 300;
@@ -153,7 +157,6 @@ class AuthManager {
 
       const normalizedEmail = email.toLowerCase().trim();
 
-      // Verificar email existente — resposta GENÉRICA para não revelar existência
       const existing = await db.collection('users')
         .where('email', '==', normalizedEmail)
         .limit(1)
@@ -166,7 +169,6 @@ class AuthManager {
         });
       }
 
-      // Verificar limite de alunos via transação atômica
       const personalRef = db.collection('users').doc(personalUser.uid);
       const subRef      = db.collection('subscriptions').doc(personalUser.uid);
       let   studentRef;
@@ -188,8 +190,7 @@ class AuthManager {
           throw new Error('Assinatura expirada. Renove para adicionar novos alunos.');
         }
 
-        const personalData = personalDoc.data();
-        // PERF: usa studentCount se disponível, senão conta o array
+        const personalData    = personalDoc.data();
         const currentStudents = typeof personalData.studentCount === 'number'
           ? personalData.studentCount
           : (personalData.students || []).length;
@@ -201,7 +202,6 @@ class AuthManager {
           );
         }
 
-        // Criar doc provisório do aluno dentro da transação
         studentRef = db.collection('users').doc();
 
         t.set(studentRef, {
@@ -217,7 +217,6 @@ class AuthManager {
           createdBy:        personalUser.uid,
         });
 
-        // Incrementar contador e atualizar array atomicamente
         t.update(personalRef, {
           students:     firebase.firestore.FieldValue.arrayUnion(studentRef.id),
           studentCount: firebase.firestore.FieldValue.increment(1),
@@ -226,7 +225,9 @@ class AuthManager {
 
       const activationToken = this._generateActivationToken();
       const expiresAt       = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-      const emailKey        = normalizedEmail.replace(/[^a-z0-9]/g, '_');
+
+      // CORREÇÃO 1.4: usar SHA-256 em vez de replace() para evitar colisões
+      const emailKey = await this._emailToKey(normalizedEmail);
 
       await db.collection('pendingActivations').doc(emailKey).set({
         studentDocId:    studentRef.id,
@@ -238,7 +239,6 @@ class AuthManager {
       });
 
       const baseUrl = window.location.origin;
-      // Hash fragment (#token=) — não vaza em logs de CDN, analytics ou Referer
       const activationUrl = `${baseUrl}/#/primeiro-acesso#token=${activationToken}`;
 
       return equalizeAndReturn({
@@ -275,7 +275,6 @@ class AuthManager {
       const personalUser = this.currentUser;
       if (!personalUser) throw new Error('Não autenticado');
 
-      // Buscar dados do aluno para limpar pendingActivations
       let studentEmail = null;
       try {
         const studentDoc = await db.collection('users').doc(studentDocId).get();
@@ -284,7 +283,6 @@ class AuthManager {
         }
       } catch { /* melhor esforço */ }
 
-      // Batch: remover aluno + decrementar contador atomicamente
       const batch = db.batch();
 
       batch.update(db.collection('users').doc(personalUser.uid), {
@@ -296,10 +294,10 @@ class AuthManager {
 
       await batch.commit();
 
-      // Limpar pendingActivations (melhor esforço, fora do batch)
       if (studentEmail) {
         try {
-          const emailKey = studentEmail.toLowerCase().replace(/[^a-z0-9]/g, '_');
+          // CORREÇÃO 1.4: usar mesmo hash para encontrar o documento
+          const emailKey = await this._emailToKey(studentEmail.toLowerCase().trim());
           await db.collection('pendingActivations').doc(emailKey).delete();
         } catch { /* não crítico */ }
       }
@@ -312,16 +310,14 @@ class AuthManager {
 
   // ── Primeiro Acesso do Aluno ───────────────────────────────────
 
-  /**
-   * checkPendingStudent — valida token localmente (pré-check rápido).
-   * A ativação real ocorre EXCLUSIVAMENTE via /api/activation/activate.
-   */
   async checkPendingStudent(activationToken) {
     if (!activationToken || activationToken.length < 32) {
       return { exists: false, invalidToken: true };
     }
 
     try {
+      // CORREÇÃO 1.9: query inclui apenas dados necessários para verificação
+      // A query ainda usa activationToken como chave primária de busca
       const snap = await db.collection('pendingActivations')
         .where('activationToken', '==', activationToken)
         .where('status', '==', 'pending')
@@ -402,15 +398,11 @@ class AuthManager {
     return { success: true };
   }
 
-  // ── Getters ────────────────────────────────────────────────────
-
   getCurrentUser()     { return this.currentUser; }
   getCurrentUserType() { return this.currentUserType; }
   isAuthenticated()    { return this.currentUser !== null; }
   isPersonal()         { return this.currentUserType === 'personal'; }
   isStudent()          { return this.currentUserType === 'student'; }
-
-  // ── Helpers ────────────────────────────────────────────────────
 
   _translateError(error) {
     const map = {

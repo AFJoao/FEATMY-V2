@@ -1,12 +1,9 @@
 /**
- * css/components.css
+ * css/components.css — v2
  *
- * Classes CSS que substituem estilos inline nos HTML das páginas.
- * Necessário para cumprir a política CSP style-src-attr 'none'.
- *
- * CONVENÇÃO DE NOMENCLATURA:
- *   .fc-*  → classes de componentes (featym-component)
- *   .fh-*  → classes de helpers/utilitários (featym-helper)
+ * CORREÇÃO 4.7 — .fc-loading-overlay agora tem padding-top: 120px definido
+ * em CSS, eliminando a necessidade do style="padding-top: 120px;" inline que
+ * violava CSP style-src-attr 'none'.
  */
 
 /* ═══════════════════════════════════════════════════════════
@@ -88,7 +85,7 @@
 
 .fc-loading-overlay {
   text-align: center;
-  padding: 60px 20px;
+  padding: 120px 20px 60px; /* CORREÇÃO 4.7: padding-top:120px em CSS, não inline */
 }
 
 .fc-loading-overlay__text {

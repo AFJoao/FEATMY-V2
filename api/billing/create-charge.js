@@ -1,48 +1,26 @@
 /**
  * POST /api/billing/create-charge
  *
- * Correções v4:
- * - Rate limiting persistente via Upstash Redis (duplo: UID + IP)
- * - CORS centralizado via helper (fail-closed em produção)
- * - CPF e telefone recebidos no body (não salvos no Firestore)
- * - Validação de CPF (dígitos verificadores) e telefone no backend
- * - Idempotência inteligente por período de cobrança
+ * Correções v5:
+ * CORREÇÃO 1.2  — Schema validation com Zod (.strict() rejeita campos extras)
+ * CORREÇÃO 3.4  — Content-Type validation
+ * CORREÇÃO 3.8  — Quota de billings pendentes por personal (máx 3)
+ * CORREÇÃO 3.9  — verifyToken centralizado via _lib/auth.js
+ * CORREÇÃO 3.10 — Firebase Admin centralizado via _lib/firebase-admin.js
  */
 
-const { applyCors }          = require('../_lib/cors');
-const { checkRateLimitDual } = require('../_lib/ratelimit');
+const { applyCors }            = require('../_lib/cors');
+const { checkRateLimitDual }   = require('../_lib/ratelimit');
+const { verifyToken }          = require('../_lib/auth');
+const { validateContentType }  = require('../_lib/validateContentType');
+const { admin, db }            = require('../_lib/firebase-admin');
 
-let _admin = null;
-let _db    = null;
-
-function getAdmin() {
-  if (_admin) return _admin;
-
-  const admin = require('firebase-admin');
-
-  const projectId   = process.env.FIREBASE_PROJECT_ID;
-  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-  const privateKey  = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n');
-
-  if (!projectId || !clientEmail || !privateKey) {
-    throw new Error(
-      `Variáveis de ambiente faltando: ${[
-        !projectId   && 'FIREBASE_PROJECT_ID',
-        !clientEmail && 'FIREBASE_CLIENT_EMAIL',
-        !privateKey  && 'FIREBASE_PRIVATE_KEY',
-      ].filter(Boolean).join(', ')}`
-    );
-  }
-
-  if (!admin.apps.length) {
-    admin.initializeApp({
-      credential: admin.credential.cert({ projectId, clientEmail, privateKey }),
-    });
-  }
-
-  _admin = admin;
-  _db    = admin.firestore();
-  return admin;
+// ── Zod schema (CORREÇÃO 1.2) ─────────────────────────────────────────────
+let z;
+try {
+  ({ z } = require('zod'));
+} catch {
+  z = null;
 }
 
 const PLANS = {
@@ -51,7 +29,7 @@ const PLANS = {
   elite:   { id: 'elite',   name: 'Elite',   priceInCents: 4940, maxStudents: 40 },
 };
 
-// ── Validação de CPF (dígitos verificadores) ──────────────────────
+// ── Validação de CPF (dígitos verificadores) ──────────────────────────────
 function validateCPF(raw) {
   const digits = (raw || '').replace(/\D/g, '');
   if (digits.length !== 11) return false;
@@ -65,13 +43,11 @@ function validateCPF(raw) {
   return calc(10) === parseInt(digits[9]) && calc(11) === parseInt(digits[10]);
 }
 
-// ── Validação de telefone brasileiro ─────────────────────────────
 function validatePhone(raw) {
   const digits = (raw || '').replace(/\D/g, '');
   return digits.length === 10 || digits.length === 11;
 }
 
-// ── Formatadores para a API da AbacatePay ────────────────────────
 function formatCPF(raw) {
   const digits = (raw || '').replace(/\D/g, '').slice(0, 11);
   if (digits.length !== 11) return digits;
@@ -83,16 +59,6 @@ function formatPhone(raw) {
   if (digits.length === 11) return `(${digits.slice(0,2)}) ${digits.slice(2,7)}-${digits.slice(7,11)}`;
   if (digits.length === 10) return `(${digits.slice(0,2)}) ${digits.slice(2,6)}-${digits.slice(6,10)}`;
   return digits;
-}
-
-async function verifyToken(admin, req) {
-  const authHeader = req.headers.authorization || '';
-  if (!authHeader.startsWith('Bearer ')) return null;
-  try {
-    return await admin.auth().verifyIdToken(authHeader.slice(7));
-  } catch {
-    return null;
-  }
 }
 
 async function createPixQrCode({
@@ -133,7 +99,6 @@ async function createPixQrCode({
   return json.data;
 }
 
-// ── Verifica se um QR Code ainda está válido na AbacatePay ───────
 async function isPixStillValid(gatewayId) {
   if (!gatewayId) return false;
   try {
@@ -149,7 +114,7 @@ async function isPixStillValid(gatewayId) {
 }
 
 module.exports = async function handler(req, res) {
-  // ── CORS centralizado (fail-closed em produção) ───────────────
+  // ── CORS ──────────────────────────────────────────────────────────────────
   try {
     applyCors(req, res, 'POST, OPTIONS');
   } catch (err) {
@@ -162,22 +127,16 @@ module.exports = async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
 
-  let admin, db;
-  try {
-    admin = getAdmin();
-    db    = _db;
-  } catch (err) {
-    console.error('[create-charge] Firebase init error:', err.message);
-    return res.status(500).json({ error: 'Erro de configuração do servidor', detail: err.message });
-  }
+  // ── CORREÇÃO 3.4: Content-Type validation ─────────────────────────────────
+  if (!validateContentType(req, res)) return;
 
-  const decoded = await verifyToken(admin, req);
+  // ── Auth ──────────────────────────────────────────────────────────────────
+  const decoded = await verifyToken(req);
   if (!decoded) return res.status(401).json({ error: 'Não autenticado' });
 
   const uid = decoded.uid;
 
-  // ── Rate limiting duplo: por UID + por IP ─────────────────────
-  // Protege contra abuso por usuário e bypass via múltiplas contas
+  // ── Rate limiting ─────────────────────────────────────────────────────────
   try {
     const { limited, reset, reason } = await checkRateLimitDual(req, uid, 'billing');
     if (limited) {
@@ -190,31 +149,48 @@ module.exports = async function handler(req, res) {
       });
     }
   } catch (err) {
-    // Em produção: Redis indisponível → fail-closed (503)
     console.error('[create-charge] Rate limit error:', err.message);
     return res.status(503).json({ error: 'Serviço temporariamente indisponível' });
   }
 
+  // ── CORREÇÃO 1.2: Schema validation com Zod ───────────────────────────────
   const { planId, cpf, phone } = req.body || {};
 
-  // ── Validar plano ─────────────────────────────────────────────
+  if (z) {
+    const schema = z.object({
+      planId: z.enum(['starter', 'pro', 'elite']),
+      cpf:    z.string().regex(/^\d{11}$/, 'CPF deve ter 11 dígitos'),
+      phone:  z.string().regex(/^\d{10,11}$/, 'Telefone deve ter 10 ou 11 dígitos'),
+    }).strict(); // .strict() rejeita campos extras
+
+    const parsed = schema.safeParse({
+      planId,
+      cpf:   (cpf   || '').replace(/\D/g, ''),
+      phone: (phone || '').replace(/\D/g, ''),
+    });
+
+    if (!parsed.success) {
+      return res.status(400).json({
+        error: 'Dados inválidos.',
+        details: parsed.error.errors.map(e => e.message),
+      });
+    }
+  } else {
+    // Fallback manual se Zod não estiver instalado
+    const plan = PLANS[planId];
+    if (!plan) return res.status(400).json({ error: 'Plano inválido' });
+    if (!cpf || !validateCPF(cpf)) return res.status(400).json({ error: 'CPF inválido.', field: 'cpf' });
+    if (!phone || !validatePhone(phone)) return res.status(400).json({ error: 'Telefone inválido.', field: 'phone' });
+  }
+
   const plan = PLANS[planId];
   if (!plan) return res.status(400).json({ error: 'Plano inválido' });
 
-  // ── Validar CPF ───────────────────────────────────────────────
-  if (!cpf || !validateCPF(cpf)) {
-    return res.status(400).json({ error: 'CPF inválido.', field: 'cpf' });
-  }
+  // Validações adicionais de CPF/telefone
+  if (!validateCPF(cpf)) return res.status(400).json({ error: 'CPF inválido.', field: 'cpf' });
+  if (!validatePhone(phone)) return res.status(400).json({ error: 'Telefone inválido.', field: 'phone' });
 
-  // ── Validar telefone ──────────────────────────────────────────
-  if (!phone || !validatePhone(phone)) {
-    return res.status(400).json({
-      error: 'Telefone inválido. Informe DDD + número (10 ou 11 dígitos).',
-      field: 'phone',
-    });
-  }
-
-  // ── Buscar dados do usuário ───────────────────────────────────
+  // ── Buscar dados do usuário ───────────────────────────────────────────────
   let userDoc;
   try {
     userDoc = await db.collection('users').doc(uid).get();
@@ -230,15 +206,29 @@ module.exports = async function handler(req, res) {
   const userData      = userDoc.data();
   const customerName  = userData.name  || 'Cliente';
   const customerEmail = userData.email || '';
-
-  // CPF e telefone vêm do body — não salvos, não lidos do Firestore
   const customerTaxId = cpf;
   const customerPhone = phone;
 
   const now           = new Date();
   const billingPeriod = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
-  // ── Idempotência inteligente ──────────────────────────────────
+  // ── CORREÇÃO 3.8: Quota de billings pendentes ─────────────────────────────
+  try {
+    const pendingSnap = await db.collection('billings')
+      .where('personalId', '==', uid)
+      .where('status', '==', 'pending')
+      .get();
+
+    if (pendingSnap.size >= 3) {
+      return res.status(429).json({
+        error: 'Muitas cobranças pendentes. Pague ou aguarde expiração das cobranças anteriores.',
+      });
+    }
+  } catch (err) {
+    console.warn('[create-charge] Quota check falhou (continuando):', err.message);
+  }
+
+  // ── Idempotência inteligente ──────────────────────────────────────────────
   try {
     const pendingSnap = await db.collection('billings')
       .where('personalId', '==', uid)
@@ -268,7 +258,6 @@ module.exports = async function handler(req, res) {
         });
       }
 
-      // QR expirou — invalidar e criar novo
       console.log('[create-charge] QR Code expirado, criando novo para plano:', planId);
       await existingDoc.ref.update({ status: 'expired' });
     }
@@ -276,7 +265,7 @@ module.exports = async function handler(req, res) {
     console.warn('[create-charge] Idempotency check falhou (continuando):', err.message);
   }
 
-  // ── Criar nova cobrança ───────────────────────────────────────
+  // ── Criar nova cobrança ───────────────────────────────────────────────────
   const externalId = `featym_${uid}_${billingPeriod}_${planId}_${Date.now()}`;
 
   let pixData;
@@ -296,7 +285,6 @@ module.exports = async function handler(req, res) {
     return res.status(502).json({ error: 'Erro ao gerar cobrança. Tente novamente.' });
   }
 
-  // Salvar billing — CPF e telefone NÃO são salvos
   let billingRef;
   try {
     billingRef = db.collection('billings').doc();

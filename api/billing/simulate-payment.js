@@ -1,53 +1,25 @@
 /**
  * POST /api/billing/simulate-payment
  *
- * APENAS disponível com chaves _dev_ do AbacatePay OU em NODE_ENV !== 'production'.
- * Processa o pagamento localmente após simular na AbacatePay.
+ * CORREÇÃO 3.9  — verifyToken migrado para _lib/auth.js centralizado.
+ * CORREÇÃO 3.4  — validateContentType adicionado.
+ * CORREÇÃO 3.10 — Firebase Admin via _lib/firebase-admin.js centralizado.
  *
- * Correções v4:
- * - SECURITY FIX: bloqueio por chave _dev_ E por NODE_ENV=production (dupla barreira)
- * - Rate limiting duplo (UID + IP)
- * - Validação de ownership — personal só simula seus próprios billings
- * - CORS centralizado via helper (fail-closed em produção)
- * - Em dev, não bloqueia por processedWebhooks — permite re-simular
+ * Todas as correções v4 mantidas (bloqueio em produção, ownership check, etc.)
  */
 
-const { applyCors }          = require('../_lib/cors');
-const { checkRateLimitDual } = require('../_lib/ratelimit');
-const { logger }             = require('../_lib/logger');
-const admin = require('firebase-admin');
-
-function initFirebase() {
-  if (admin.apps.length) return;
-
-  const projectId   = process.env.FIREBASE_PROJECT_ID;
-  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-  const privateKey  = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n');
-
-  if (!projectId || !clientEmail || !privateKey) {
-    throw new Error(`Variáveis faltando: FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL ou FIREBASE_PRIVATE_KEY`);
-  }
-
-  admin.initializeApp({
-    credential: admin.credential.cert({ projectId, clientEmail, privateKey }),
-  });
-}
+const { applyCors }           = require('../_lib/cors');
+const { checkRateLimitDual }  = require('../_lib/ratelimit');
+const { logger }              = require('../_lib/logger');
+const { verifyToken }         = require('../_lib/auth');
+const { validateContentType } = require('../_lib/validateContentType');
+const { admin, db }           = require('../_lib/firebase-admin');
 
 const PLANS = {
   starter: { maxStudents: 5,  durationDays: 30 },
   pro:     { maxStudents: 15, durationDays: 30 },
   elite:   { maxStudents: 40, durationDays: 30 },
 };
-
-async function verifyToken(req) {
-  const auth = req.headers.authorization || '';
-  if (!auth.startsWith('Bearer ')) return null;
-  try {
-    return await admin.auth().verifyIdToken(auth.slice(7));
-  } catch {
-    return null;
-  }
-}
 
 function calcExpiry(planId) {
   const days = PLANS[planId]?.durationDays || 30;
@@ -59,24 +31,21 @@ function calcExpiry(planId) {
 module.exports = async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
 
-  // ── SECURITY FIX: Bloquear em produção INDEPENDENTE da chave ─────────────
-  // Dupla barreira: NODE_ENV E chave _dev_ precisam estar ok
+  // ── SECURITY: Bloquear em produção ────────────────────────────────────────
   const isProd   = process.env.NODE_ENV === 'production';
   const apiKey   = process.env.ABACATEPAY_API_KEY || '';
   const isDevKey = apiKey.includes('_dev_');
 
   if (isProd) {
-    // Em produção, endpoint NUNCA deve estar acessível, mesmo com chave dev
     logger.security('simulate-payment', 'Tentativa de simulação em produção bloqueada');
     return res.status(403).json({ error: 'Endpoint não disponível em produção' });
   }
 
   if (!isDevKey) {
-    // Em desenvolvimento, exige chave dev
     return res.status(403).json({ error: 'Simulação disponível apenas com chave Dev Mode do AbacatePay' });
   }
 
-  // ── CORS centralizado (fail-closed em produção) ───────────────
+  // ── CORS ──────────────────────────────────────────────────────────────────
   try {
     applyCors(req, res, 'POST, OPTIONS');
   } catch (err) {
@@ -86,21 +55,16 @@ module.exports = async function handler(req, res) {
 
   res.setHeader('Cache-Control', 'no-store');
 
-  try {
-    initFirebase();
-  } catch (err) {
-    return res.status(500).json({ error: err.message });
-  }
+  // ── CORREÇÃO 3.4: Content-Type validation ─────────────────────────────────
+  if (!validateContentType(req, res)) return;
 
-  const db = admin.firestore();
-
-  // ── Autenticação ──────────────────────────────────────────────
+  // ── CORREÇÃO 3.9: verifyToken centralizado ────────────────────────────────
   const decoded = await verifyToken(req);
   if (!decoded) return res.status(401).json({ error: 'Não autenticado' });
 
   const uid = decoded.uid;
 
-  // ── Rate limiting duplo: por UID + por IP ─────────────────────
+  // ── Rate limiting ─────────────────────────────────────────────────────────
   try {
     const { limited, reset, reason } = await checkRateLimitDual(req, uid, 'billing');
     if (limited) {
@@ -113,7 +77,6 @@ module.exports = async function handler(req, res) {
       });
     }
   } catch (err) {
-    // Dev sem Redis: logar e continuar (fail-open em dev é aceitável)
     console.warn('[simulate-payment] Rate limit indisponível em dev:', err.message);
   }
 
@@ -122,7 +85,7 @@ module.exports = async function handler(req, res) {
     return res.status(400).json({ error: 'gatewayPixId é obrigatório e deve ser uma string válida' });
   }
 
-  // ── 1. Tentar simular na AbacatePay (melhor esforço) ──────────
+  // ── 1. Tentar simular na AbacatePay ───────────────────────────────────────
   let abacateOk = false;
   try {
     const abacateRes = await fetch(
@@ -148,36 +111,34 @@ module.exports = async function handler(req, res) {
     console.warn('[simulate-payment] Erro ao chamar AbacatePay (continuando local):', e.message);
   }
 
-  // ── 2. Buscar billing pelo gatewayId ──────────────────────────
+  // ── 2. Buscar billing pelo gatewayId ──────────────────────────────────────
   const billingSnap = await db.collection('billings')
     .where('gatewayId', '==', gatewayPixId)
     .limit(1)
     .get();
 
   if (billingSnap.empty) {
-    return res.status(404).json({
-      error: 'Cobrança não encontrada.',
-    });
+    return res.status(404).json({ error: 'Cobrança não encontrada.' });
   }
 
   const billingDoc  = billingSnap.docs[0];
   const billingData = billingDoc.data();
-  const { personalId, planId } = billingData;
 
-  // ── 3. Validar ownership — CRÍTICO ────────────────────────────
+  // ── 3. Validar ownership ──────────────────────────────────────────────────
   if (billingData.personalId !== decoded.uid) {
     logger.security('simulate-payment', 'Ownership violation', {
-      uid:              decoded.uid,
+      uid:               decoded.uid,
       billingPersonalId: billingData.personalId,
       gatewayPixId,
     });
     return res.status(403).json({ error: 'Acesso negado' });
   }
 
-  // ── 4. Em dev, NÃO bloquear por processedWebhooks ─────────────
+  const { personalId, planId } = billingData;
+
+  // ── 4. Processar pagamento ────────────────────────────────────────────────
   const processedRef = db.collection('processedWebhooks').doc(`dev_${gatewayPixId}`);
 
-  // ── 5. Processar pagamento ────────────────────────────────────
   await billingDoc.ref.update({
     status: 'paid',
     paidAt: admin.firestore.FieldValue.serverTimestamp(),

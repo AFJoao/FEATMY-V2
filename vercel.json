@@ -88,7 +88,7 @@
   "functions": {
     "api/webhook/abacatepay.js": {
       "memory": 256,
-      "maxDuration": 15
+      "maxDuration": 30
     },
     "api/billing/create-charge.js": {
       "memory": 256,
@@ -113,6 +113,10 @@
     "api/activation/activate.js": {
       "memory": 256,
       "maxDuration": 15
+    },
+    "api/health.js": {
+      "memory": 128,
+      "maxDuration": 5
     }
   }
 }

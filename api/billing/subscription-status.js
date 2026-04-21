@@ -1,110 +1,53 @@
-const { applyCors } = require('../_lib/cors');
- 
-let _adminInstance = null;
-let _dbInstance    = null;
- 
-function getFirebaseAdmin() {
-  // Retornar instâncias já criadas (singleton real)
-  if (_adminInstance && _dbInstance) {
-    return { admin: _adminInstance, db: _dbInstance };
-  }
- 
-  const admin = require('firebase-admin');
- 
-  // Verificar variáveis de ambiente ANTES de tentar inicializar
-  const projectId   = process.env.FIREBASE_PROJECT_ID;
-  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-  const privateKey  = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n');
- 
-  if (!projectId || !clientEmail || !privateKey) {
-    const missing = [
-      !projectId   && 'FIREBASE_PROJECT_ID',
-      !clientEmail && 'FIREBASE_CLIENT_EMAIL',
-      !privateKey  && 'FIREBASE_PRIVATE_KEY',
-    ].filter(Boolean).join(', ');
-    throw new Error(
-      `Variáveis de ambiente faltando no servidor: ${missing}. ` +
-      `Configure-as no painel da Vercel em Settings → Environment Variables.`
-    );
-  }
- 
-  // Inicializar apenas se ainda não existe nenhum app
-  if (!admin.apps.length) {
-    admin.initializeApp({
-      credential: admin.credential.cert({ projectId, clientEmail, privateKey }),
-    });
-  }
- 
-  _adminInstance = admin;
-  _dbInstance    = admin.firestore();
- 
-  return { admin: _adminInstance, db: _dbInstance };
-}
- 
+/**
+ * GET /api/billing/subscription-status
+ *
+ * CORREÇÃO 3.9  — verifyToken migrado para _lib/auth.js centralizado.
+ * CORREÇÃO 3.10 — Firebase Admin via _lib/firebase-admin.js centralizado.
+ */
+
+const { applyCors }    = require('../_lib/cors');
+const { verifyToken }  = require('../_lib/auth');
+const { admin, db }    = require('../_lib/firebase-admin');
+
 const PLANS = {
   starter: { name: 'Starter', priceInCents: 990,  maxStudents: 5  },
   pro:     { name: 'Pro',     priceInCents: 1990, maxStudents: 15 },
   elite:   { name: 'Elite',   priceInCents: 4940, maxStudents: 40 },
 };
- 
+
 const GRACE_PERIOD_DAYS = 3;
- 
-async function verifyToken(admin, req) {
-  const authHeader = req.headers.authorization || '';
-  if (!authHeader.startsWith('Bearer ')) return null;
-  try {
-    return await admin.auth().verifyIdToken(authHeader.slice(7));
-  } catch {
-    return null;
-  }
-}
- 
+
 module.exports = async function handler(req, res) {
-  // ── CORS ──────────────────────────────────────────────────────
+  // ── CORS ──────────────────────────────────────────────────────────────────
   try {
     applyCors(req, res, 'GET, OPTIONS');
   } catch (err) {
     console.error('[subscription-status] CORS error:', err.message);
     return res.status(403).json({ error: 'Origin não permitida' });
   }
- 
+
   res.setHeader('Cache-Control', 'no-store');
- 
+
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'GET') return res.status(405).json({ error: 'Método não permitido' });
- 
-  // ── Firebase ──────────────────────────────────────────────────
-  let admin, db;
-  try {
-    ({ admin, db } = getFirebaseAdmin());
-  } catch (err) {
-    console.error('[subscription-status] Firebase init error:', err.message);
-    return res.status(500).json({
-      error: 'Erro de configuração do servidor',
-      detail: err.message,
-    });
-  }
- 
-  // ── Autenticar ────────────────────────────────────────────────
-  const decoded = await verifyToken(admin, req);
+
+  // ── CORREÇÃO 3.9: verifyToken centralizado ────────────────────────────────
+  const decoded = await verifyToken(req);
   if (!decoded) {
     return res.status(401).json({ error: 'Não autenticado' });
   }
- 
+
   const uid = decoded.uid;
- 
-  // ── Buscar assinatura ─────────────────────────────────────────
+
+  // ── Buscar assinatura ─────────────────────────────────────────────────────
   let subSnap;
   try {
     subSnap = await db.collection('subscriptions').doc(uid).get();
   } catch (err) {
     console.error('[subscription-status] Firestore error:', err.message);
-    return res.status(500).json({
-      error: 'Erro ao consultar banco de dados',
-      detail: err.message,
-    });
+    return res.status(500).json({ error: 'Erro ao consultar banco de dados' });
   }
- 
+
   if (!subSnap.exists) {
     return res.status(200).json({
       status:          'no_subscription',
@@ -117,24 +60,24 @@ module.exports = async function handler(req, res) {
       warningLevel:    null,
     });
   }
- 
+
   const sub = subSnap.data();
   const now = new Date();
- 
+
   const expiresAt   = sub.expiresAt?.toDate?.() || new Date(0);
   const graceCutoff = new Date(expiresAt);
   graceCutoff.setDate(graceCutoff.getDate() + GRACE_PERIOD_DAYS);
- 
+
   const msUntilExpiry   = expiresAt   - now;
   const msUntilGrace    = graceCutoff - now;
   const daysUntilExpiry = Math.ceil(msUntilExpiry / (1000 * 60 * 60 * 24));
- 
+
   let computedStatus;
   if (now < expiresAt)        computedStatus = 'active';
   else if (now < graceCutoff) computedStatus = 'grace_period';
   else                        computedStatus = 'expired';
- 
-  // ── Sincronizar se mudou ──────────────────────────────────────
+
+  // ── Sincronizar se mudou ──────────────────────────────────────────────────
   if (sub.status !== computedStatus) {
     try {
       await subSnap.ref.update({
@@ -148,14 +91,14 @@ module.exports = async function handler(req, res) {
       console.warn('[subscription-status] Sync update failed (non-critical):', err.message);
     }
   }
- 
+
   const isActive   = ['active', 'grace_period'].includes(computedStatus);
   const planConfig = PLANS[sub.planId] || {};
- 
+
   let showWarning    = false;
   let warningMessage = null;
   let warningLevel   = null;
- 
+
   if (computedStatus === 'expired') {
     showWarning    = true;
     warningLevel   = 'danger';
@@ -170,7 +113,7 @@ module.exports = async function handler(req, res) {
     warningLevel   = daysUntilExpiry <= 3 ? 'warning' : 'info';
     warningMessage = `Sua assinatura vence em ${daysUntilExpiry} dia(s). Renove para não interromper o acesso dos alunos.`;
   }
- 
+
   return res.status(200).json({
     status:          computedStatus,
     isActive,

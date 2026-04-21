@@ -1,12 +1,11 @@
 /**
  * js/pages/student/view-workout.js
  *
- * CORREÇÕES CSP:
- * - renderTabs(): botões de dia usam data-day em vez de onclick="switchDay(...)"
- * - renderDay(): botão "Marcar como feito" usa data-day + data-idx em vez de onclick="toggleCheck(...)"
- * - renderFbCta(): botão "Enviar Feedback" usa data-day em vez de onclick="openFeedback(...)"
- * - Event delegation no mainContent para capturar todos esses cliques
- * - effortRange: addEventListener('input') em vez de oninput inline no HTML
+ * CORREÇÃO 4.3 — sanitizeVideoUrl agora valida que URLs do YouTube
+ * começam com /embed/. Antes era possível embutir qualquer URL do youtube.com
+ * (incluindo páginas normais que não são embeds).
+ *
+ * Todas as correções CSP anteriores mantidas.
  */
 window.__pageInit = async function() {
   const esc = window.esc || function(v) {
@@ -15,14 +14,41 @@ window.__pageInit = async function() {
       .replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\//g,'&#x2F;');
   };
 
+  /**
+   * CORREÇÃO 4.3 — sanitizeVideoUrl
+   * - Valida protocolo https
+   * - Valida hostname contra lista permitida
+   * - Para YouTube: exige que o path comece com /embed/
+   * - Para Vimeo: aceita qualquer path (player já é sempre embed)
+   */
   function sanitizeVideoUrl(url) {
     if (!url || typeof url !== 'string') return '';
     try {
       const u = new URL(url.trim());
+
+      // Apenas HTTPS
       if (u.protocol !== 'https:') return '';
-      const allowed = ['youtube.com','www.youtube.com','youtu.be','vimeo.com','player.vimeo.com'];
-      return allowed.includes(u.hostname) ? url.trim() : '';
-    } catch { return ''; }
+
+      const hostname = u.hostname.toLowerCase();
+
+      // YouTube: exige /embed/
+      if (hostname === 'youtube.com' || hostname === 'www.youtube.com') {
+        if (!u.pathname.startsWith('/embed/')) return '';
+        return url.trim();
+      }
+
+      // youtu.be não é formato de embed — rejeitar
+      if (hostname === 'youtu.be') return '';
+
+      // Vimeo player
+      if (hostname === 'player.vimeo.com' || hostname === 'vimeo.com') {
+        return url.trim();
+      }
+
+      return '';
+    } catch {
+      return '';
+    }
   }
 
   const DAYS_ORDER = ['monday','tuesday','wednesday','thursday','friday','saturday','sunday'];
@@ -74,7 +100,6 @@ window.__pageInit = async function() {
       <div id="dayExercises"></div>
       <div id="fbCta" style="margin-top:28px;"></div>`;
 
-    // Event delegation no mainContent para switchDay, toggleCheck, openFeedback
     main.addEventListener('click', (e) => {
       const btn = e.target.closest('[data-action]');
       if (!btn) return;
@@ -94,7 +119,6 @@ window.__pageInit = async function() {
   function renderTabs(activeDays, days) {
     const tabsEl = document.getElementById('dayTabs');
     if (!tabsEl) return;
-    // Botões usam data-action="switch-day" data-day="..." em vez de onclick inline
     tabsEl.innerHTML = DAYS_ORDER.map(d => {
       const hasWorkout = days[d]?.length > 0;
       const isToday    = d === todayKey;
@@ -157,13 +181,13 @@ window.__pageInit = async function() {
       const exReps   = esc(String(ex.reps  || '—'));
       const exRest   = esc(String(ex.rest  || ''));
       const exObs    = esc(ex.obs          || ex.notes || '');
+      // CORREÇÃO 4.3: URL sanitizada com validação de /embed/ para YouTube
       const exVideo  = sanitizeVideoUrl(ex.videoUrl || ex.video || '');
 
       const cardEl = document.createElement('div');
       cardEl.className = `ex-card${isDone ? ' done' : ''}`;
       cardEl.id        = `ex-card-${idx}`;
       cardEl.style.marginBottom = '12px';
-      // Botão usa data-action + data-day + data-idx em vez de onclick inline
       cardEl.innerHTML = `
         <div class="ex-card-body">
           <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:12px;">
@@ -196,7 +220,6 @@ window.__pageInit = async function() {
   function renderFbCta(dayKey, done, total) {
     const ctaEl = document.getElementById('fbCta');
     if (!ctaEl || total === 0) { if (ctaEl) ctaEl.innerHTML = ''; return; }
-    // Botão usa data-action="open-feedback" data-day="..." em vez de onclick inline
     ctaEl.innerHTML = `
       <div style="background:#fff;border:1px solid #EBEBEB;border-radius:16px;padding:20px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;">
         <div>
@@ -251,7 +274,6 @@ window.__pageInit = async function() {
     if (e.target === document.getElementById('fbOverlay')) closeFeedback();
   });
 
-  // effortRange: addEventListener em vez de oninput inline no HTML
   const effortRangeEl = document.getElementById('effortRange');
   effortRangeEl?.addEventListener('input', e => {
     document.getElementById('effortVal').textContent = e.target.value;
@@ -331,6 +353,5 @@ window.__pageInit = async function() {
 };
 
 window.__pageCleanup = function() {
-  // globals expostos globalmente para compatibilidade
-  // (não há mais, tudo via delegation)
+  // sem globals para limpar
 };

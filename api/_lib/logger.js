@@ -1,21 +1,24 @@
 /**
- * api/_lib/logger.js
+ * api/_lib/logger.js — v2
  *
- * Helper de logging estruturado para as serverless functions.
+ * CORREÇÃO 3.13 — Logs agora incluem requestId (correlation ID).
+ * Antes: impossível rastrear uma requisição específica em produção
+ * com múltiplas instâncias.
+ * Agora: cada handler pode criar um requestId e passá-lo nos logs.
  *
- * Em produção: emite JSON indexável pelo Vercel Log Drain.
- * Em desenvolvimento: emite texto legível no terminal.
+ * Uso nos handlers:
  *
- * Níveis:
- *   info     — eventos normais de negócio
- *   warn     — situações inesperadas não críticas
- *   error    — erros que afetam o usuário
- *   security — tentativas de ataque, violações de acesso (prioridade de monitoramento)
+ *   const { logger, createRequestLogger } = require('../_lib/logger');
  *
- * Uso:
- *   const { logger } = require('./_lib/logger');
- *   logger.info('create-charge', 'Cobrança criada', { uid, planId });
- *   logger.security('simulate-payment', 'Ownership violation', { uid, billingPersonalId });
+ *   module.exports = async function handler(req, res) {
+ *     const { randomUUID } = require('crypto');
+ *     const requestId = randomUUID();
+ *     res.setHeader('X-Request-Id', requestId);
+ *     const log = createRequestLogger(requestId);
+ *
+ *     log.info('create-charge', 'Iniciando cobrança', { uid });
+ *     log.security('create-charge', 'Rate limit atingido', { uid, reason });
+ *   };
  */
 
 const isProd = process.env.NODE_ENV === 'production';
@@ -24,23 +27,22 @@ const isProd = process.env.NODE_ENV === 'production';
  * Formata e emite um log.
  *
  * @param {'info'|'warn'|'error'|'security'} level
- * @param {string} service  - nome do endpoint/serviço (ex: 'create-charge')
- * @param {string} message  - mensagem legível
- * @param {object} [data]   - dados adicionais estruturados (sem dados sensíveis)
+ * @param {string} service    - nome do endpoint/serviço
+ * @param {string} message    - mensagem legível
+ * @param {object} [data]     - dados adicionais estruturados
+ * @param {string} [requestId] - correlation ID do request (opcional)
  */
-function log(level, service, message, data = {}) {
+function log(level, service, message, data = {}, requestId = null) {
   const entry = {
     level,
     service,
     message,
     timestamp: new Date().toISOString(),
+    ...(requestId ? { requestId } : {}),
     ...data,
   };
 
   if (isProd) {
-    // JSON em produção — indexável pelo Vercel Log Drain e ferramentas externas
-    // Use console.error para 'error' e 'security' para garantir que apareçam
-    // mesmo em ambientes que filtram console.log por padrão
     const output = JSON.stringify(entry);
     if (level === 'error' || level === 'security') {
       console.error(output);
@@ -50,7 +52,6 @@ function log(level, service, message, data = {}) {
       console.log(output);
     }
   } else {
-    // Texto legível em desenvolvimento
     const prefix = {
       info:     '📋',
       warn:     '⚠️ ',
@@ -58,9 +59,8 @@ function log(level, service, message, data = {}) {
       security: '🚨',
     }[level] || '📋';
 
-    const dataStr = Object.keys(data).length > 0
-      ? ' ' + JSON.stringify(data)
-      : '';
+    const reqStr  = requestId ? ` [${requestId.slice(0, 8)}]` : '';
+    const dataStr = Object.keys(data).length > 0 ? ' ' + JSON.stringify(data) : '';
 
     const fn = level === 'error' || level === 'security'
       ? console.error
@@ -68,35 +68,31 @@ function log(level, service, message, data = {}) {
         ? console.warn
         : console.log;
 
-    fn(`${prefix} [${service}] ${message}${dataStr}`);
+    fn(`${prefix}${reqStr} [${service}] ${message}${dataStr}`);
   }
 }
 
 const logger = {
-  /**
-   * Eventos normais de negócio.
-   * Ex: cobrança criada, assinatura ativada.
-   */
-  info: (service, message, data) => log('info', service, message, data),
-
-  /**
-   * Situações inesperadas não críticas.
-   * Ex: QR Code expirado, rate limit atingido.
-   */
-  warn: (service, message, data) => log('warn', service, message, data),
-
-  /**
-   * Erros que afetam o usuário.
-   * Ex: Firebase indisponível, AbacatePay com erro.
-   */
-  error: (service, message, data) => log('error', service, message, data),
-
-  /**
-   * Tentativas de ataque ou violações de acesso.
-   * PRIORIDADE MÁXIMA de monitoramento — spike = alguém explorando.
-   * Ex: HMAC inválido no webhook, ownership violation, CORS bloqueado.
-   */
+  info:     (service, message, data) => log('info',     service, message, data),
+  warn:     (service, message, data) => log('warn',     service, message, data),
+  error:    (service, message, data) => log('error',    service, message, data),
   security: (service, message, data) => log('security', service, message, data),
 };
 
-module.exports = { logger };
+/**
+ * CORREÇÃO 3.13 — Cria um logger com requestId fixo para um handler específico.
+ * Todas as chamadas incluirão automaticamente o correlation ID.
+ *
+ * @param {string} requestId - UUID do request
+ * @returns {{ info, warn, error, security }} logger com requestId embutido
+ */
+function createRequestLogger(requestId) {
+  return {
+    info:     (service, message, data = {}) => log('info',     service, message, data, requestId),
+    warn:     (service, message, data = {}) => log('warn',     service, message, data, requestId),
+    error:    (service, message, data = {}) => log('error',    service, message, data, requestId),
+    security: (service, message, data = {}) => log('security', service, message, data, requestId),
+  };
+}
+
+module.exports = { logger, createRequestLogger };

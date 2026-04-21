@@ -1,59 +1,29 @@
 /**
- * POST /api/webhook/abacatepay — v4
+ * POST /api/webhook/abacatepay — v5
  *
- * CORREÇÕES v4:
- * ─────────────────────────────────────────────────────────────────────────────
- * 1. HMAC usa process.env.ABACATEPAY_WEBHOOK_SECRET (não a chave pública hardcoded)
- *    A chave pública anterior era usada erroneamente como segredo HMAC —
- *    qualquer pessoa com acesso ao código podia forjar webhooks.
+ * CORREÇÃO 3.2 — Timeout para estado "processing".
+ * Antes: se o handler crashava após reservar o slot, o documento ficava em
+ * "processing" para sempre, bloqueando retries legítimos do webhook.
+ * Agora: verifica idade do documento; se > 30s, considera expirado e permite
+ * reprocessamento.
  *
- * 2. Proteção contra replay attack via timestamp no header:
- *    - AbacatePay deve enviar X-Webhook-Timestamp (epoch segundos)
- *    - Rejeita payloads com timestamp > 5 minutos no passado
- *    - HMAC é calculado sobre rawBody + timestamp (impede reutilização)
- *
- * 3. Idempotência garantida: processedWebhooks bloqueado ANTES de qualquer
- *    operação de negócio (não depois).
- *
- * 4. Validação cruzada com Firestore: confirmedAmount == billingData.amountInCents
- *    (mantida da v3)
- *
- * 5. Fallback de HMAC legado: se ABACATEPAY_WEBHOOK_SECRET não estiver
- *    configurada, rejeita com 500 (fail-closed) em produção.
- * ─────────────────────────────────────────────────────────────────────────────
- *
- * Variável de ambiente obrigatória:
- *   ABACATEPAY_WEBHOOK_SECRET — segredo compartilhado com AbacatePay
- *   (configure no painel da AbacatePay e adicione na Vercel)
+ * Todas as correções v4 mantidas.
  */
 
 const crypto = require('crypto');
-const admin  = require('firebase-admin');
+const { admin, db } = require('../_lib/firebase-admin');
 
 module.exports.config = {
   api: { bodyParser: false },
 };
 
-if (!admin.apps.length) {
-  admin.initializeApp({
-    credential: admin.credential.cert({
-      projectId:   process.env.FIREBASE_PROJECT_ID,
-      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-      privateKey:  process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-    }),
-  });
-}
-
-const db      = admin.firestore();
-const isProd  = process.env.NODE_ENV === 'production';
+const isProd = process.env.NODE_ENV === 'production';
 
 const PLANS = {
   starter: { maxStudents: 5,  durationDays: 30 },
   pro:     { maxStudents: 15, durationDays: 30 },
   elite:   { maxStudents: 40, durationDays: 30 },
 };
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
 
 function getRawBody(req, maxBytes = 1_000_000) {
   return new Promise((resolve, reject) => {
@@ -69,27 +39,14 @@ function getRawBody(req, maxBytes = 1_000_000) {
   });
 }
 
-/**
- * Valida assinatura HMAC-SHA256.
- *
- * AbacatePay envia:
- *   X-Webhook-Signature: base64(HMAC-SHA256(secret, rawBody))
- *   X-Webhook-Timestamp: epoch_seconds  (opcional mas recomendado)
- *
- * Se timestamp disponível, inclui no payload assinado para prevenir replay:
- *   HMAC(secret, timestamp + "." + rawBody)
- *
- * Compatibilidade retroativa: se não houver timestamp, assina só o rawBody.
- */
 function validateHmac(rawBodyBuffer, signatureFromHeader, timestampHeader) {
   const secret = process.env.ABACATEPAY_WEBHOOK_SECRET;
 
   if (!secret) {
     if (isProd) {
       console.error('[webhook] CRÍTICO: ABACATEPAY_WEBHOOK_SECRET não configurada');
-      return false; // fail-closed
+      return false;
     }
-    // Em dev sem segredo configurado: aceitar (mas logar)
     console.warn('[webhook] AVISO: ABACATEPAY_WEBHOOK_SECRET não configurada — validação HMAC desativada em dev');
     return true;
   }
@@ -97,7 +54,6 @@ function validateHmac(rawBodyBuffer, signatureFromHeader, timestampHeader) {
   try {
     let payload;
     if (timestampHeader) {
-      // Payload assinado inclui timestamp para prevenir replay
       payload = Buffer.concat([
         Buffer.from(String(timestampHeader) + '.'),
         rawBodyBuffer,
@@ -120,16 +76,12 @@ function validateHmac(rawBodyBuffer, signatureFromHeader, timestampHeader) {
   }
 }
 
-/**
- * Proteção anti-replay: rejeita webhooks com timestamp > 5 minutos no passado.
- * Retorna true se o timestamp é válido (recente).
- */
 function isTimestampFresh(timestampHeader) {
-  if (!timestampHeader) return true; // timestamp não obrigatório ainda (compatibilidade)
-  const ts   = parseInt(timestampHeader, 10);
+  if (!timestampHeader) return true;
+  const ts = parseInt(timestampHeader, 10);
   if (isNaN(ts)) return false;
   const ageSecs = Math.floor(Date.now() / 1000) - ts;
-  return ageSecs >= -30 && ageSecs <= 300; // aceita até 5 min no passado, 30s no futuro
+  return ageSecs >= -30 && ageSecs <= 300;
 }
 
 async function confirmPixViaAPI(pixId) {
@@ -161,8 +113,6 @@ async function securityLog(type, data) {
   } catch { /* não crítico */ }
 }
 
-// ── Handler ───────────────────────────────────────────────────────────────────
-
 async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
 
@@ -179,11 +129,10 @@ async function handler(req, res) {
   // ── Camada 1: secret na query string ──────────────────────────────────────
   const webhookSecret = req.query.webhookSecret || '';
   if (webhookSecret !== process.env.ABACATEPAY_WEBHOOK_SECRET) {
-    // Em dev sem segredo, permitir (já logado acima)
     if (isProd || process.env.ABACATEPAY_WEBHOOK_SECRET) {
       await securityLog('WEBHOOK_INVALID_SECRET', { ip });
       console.warn('[webhook] Secret inválido rejeitado');
-      return res.status(200).json({ received: true }); // 200 para não revelar ao atacante
+      return res.status(200).json({ received: true });
     }
   }
 
@@ -231,24 +180,50 @@ async function handler(req, res) {
     return res.status(200).json({ received: true });
   }
 
-  // ── Idempotência: verificar ANTES de qualquer operação de negócio ──────────
-  // Isso previne processamento duplo mesmo sob condições de concorrência
+  // ── Idempotência com CORREÇÃO 3.2: timeout para estado "processing" ────────
   const processedRef = db.collection('processedWebhooks').doc(pixId);
 
-  // Usar transação para marcar como processado atomicamente
   let alreadyProcessed = false;
   try {
     await db.runTransaction(async (t) => {
       const doc = await t.get(processedRef);
+
       if (doc.exists) {
-        alreadyProcessed = true;
-        return;
+        const status = doc.data().status;
+
+        if (status === 'done') {
+          // Já processado com sucesso — ignorar
+          alreadyProcessed = true;
+          return;
+        }
+
+        if (status === 'processing') {
+          // CORREÇÃO 3.2: verificar idade do lock
+          const reservedAt = doc.data().reservedAt?.toMillis?.() || 0;
+          const ageMs = Date.now() - reservedAt;
+          const PROCESSING_TIMEOUT_MS = 30_000; // 30 segundos
+
+          if (ageMs < PROCESSING_TIMEOUT_MS) {
+            // Lock ainda válido — outro handler está processando
+            alreadyProcessed = true;
+            return;
+          }
+
+          // Lock expirado — o handler anterior crashou; permitir reprocessamento
+          console.warn(`[webhook] Lock expirado (${ageMs}ms) para pixId=${pixId}, reprocessando`);
+        }
+
+        if (status === 'failed') {
+          // Falha anterior — permitir retry
+          console.log(`[webhook] Retry de webhook com falha anterior: pixId=${pixId}`);
+        }
       }
-      // Reservar o slot ANTES de processar (previne race condition)
+
+      // Reservar o slot
       t.set(processedRef, {
-        reservedAt:  admin.firestore.FieldValue.serverTimestamp(),
+        reservedAt: admin.firestore.FieldValue.serverTimestamp(),
         pixId,
-        status:      'processing',
+        status:     'processing',
         ip,
       });
     });
@@ -269,7 +244,6 @@ async function handler(req, res) {
   if (!['PAID', 'paid'].includes(confirmedStatus)) {
     await securityLog('WEBHOOK_UNCONFIRMED', { pixId, confirmedStatus, eventType });
     console.warn('[webhook] Pagamento não confirmado via API:', confirmedStatus);
-    // Liberar slot de idempotência para não bloquear retry legítimo futuro
     await processedRef.delete().catch(() => {});
     return res.status(200).json({ received: true });
   }
@@ -295,7 +269,7 @@ async function handler(req, res) {
     return res.status(200).json({ received: true });
   }
 
-  // ── Validação cruzada de valor (previne upgrade de plano fraudulento) ───────
+  // ── Validação cruzada de valor ─────────────────────────────────────────────
   const confirmedAmount = confirmed?.amount;
   const expectedAmount  = billingData?.amountInCents;
 
@@ -307,9 +281,7 @@ async function handler(req, res) {
       personalId: billingData.personalId,
       planId:     billingData.planId,
     });
-    console.error('[webhook] FRAUDE DETECTADA: Valor divergente:', {
-      pixId, esperado: expectedAmount, confirmado: confirmedAmount,
-    });
+    console.error('[webhook] FRAUDE DETECTADA: Valor divergente:', { pixId, esperado: expectedAmount, confirmado: confirmedAmount });
     await processedRef.delete().catch(() => {});
     return res.status(200).json({ received: true });
   }
@@ -318,7 +290,6 @@ async function handler(req, res) {
 
   // ── Processar pagamento ────────────────────────────────────────────────────
   try {
-    // Atualizar status do processedWebhooks para 'done'
     await processedRef.update({
       status:       'done',
       processedAt:  admin.firestore.FieldValue.serverTimestamp(),
@@ -327,14 +298,12 @@ async function handler(req, res) {
       pixId,
     });
 
-    // Atualizar cobrança
     await billingDoc.ref.update({
       status:    'paid',
       gatewayId: pixId,
       paidAt:    admin.firestore.FieldValue.serverTimestamp(),
     });
 
-    // Criar/atualizar assinatura
     const planConfig = PLANS[planId] || PLANS.starter;
     const newExpiry  = calcExpiry(planId);
     const subRef     = db.collection('subscriptions').doc(personalId);
@@ -368,8 +337,11 @@ async function handler(req, res) {
 
   } catch (error) {
     console.error('[webhook] Erro ao processar pagamento:', error.message);
-    // Marcar como falha para permitir retry
-    await processedRef.update({ status: 'failed', error: error.message }).catch(() => {});
+    // CORREÇÃO 3.2: garantir que o status seja atualizado para 'failed'
+    // Se isso também falhar, um retry futuro encontrará o documento em 'processing'
+    // mas será tratado como expirado após 30s
+    await processedRef.update({ status: 'failed', error: error.message })
+      .catch(e => console.error('[webhook] Falha ao marcar como failed:', e.message));
     return res.status(500).json({ error: 'Erro ao processar pagamento' });
   }
 }

@@ -67,6 +67,14 @@
       ]
     },
     {
+      "collectionGroup": "billings",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "personalId", "order": "ASCENDING" },
+        { "fieldPath": "status",     "order": "ASCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "subscriptions",
       "queryScope": "COLLECTION",
       "fields": [

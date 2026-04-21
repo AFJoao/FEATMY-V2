@@ -1,35 +1,16 @@
 /**
- * POST /api/activation/activate — v2
+ * POST /api/activation/activate — v3
  *
- * CORREÇÕES v2:
- * ─────────────────────────────────────────────────────────────────────────────
- * 1. Rate limiting distribuído via Upstash Redis (funciona em múltiplas instâncias
- *    serverless — o rate limiting in-memory anterior não era eficaz)
+ * CORREÇÃO 3.4  — validateContentType adicionado.
+ * CORREÇÃO 3.10 — Firebase Admin via _lib/firebase-admin.js centralizado.
  *
- * 2. Fallback in-memory para dev (sem Redis configurado)
- *
- * 3. Token limpo da memória após uso (não fica em variáveis globais)
- *
- * 4. Validação mais robusta de inputs antes de qualquer acesso ao Firestore
- * ─────────────────────────────────────────────────────────────────────────────
+ * Todas as correções v2 mantidas (rate limiting distribuído, lock atômico, etc.)
  */
 
-const admin = require('firebase-admin');
+const { validateContentType } = require('../_lib/validateContentType');
+const { admin, db }           = require('../_lib/firebase-admin');
 
-if (!admin.apps.length) {
-  admin.initializeApp({
-    credential: admin.credential.cert({
-      projectId:   process.env.FIREBASE_PROJECT_ID,
-      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-      privateKey:  process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-    }),
-  });
-}
-
-const db = admin.firestore();
-
-// ── Rate limiting ─────────────────────────────────────────────────────────────
-// Tenta usar Upstash Redis; cai para in-memory em dev
+// ── Rate limiting ─────────────────────────────────────────────────────────
 let Ratelimit, Redis;
 try {
   ({ Ratelimit } = require('@upstash/ratelimit'));
@@ -45,17 +26,16 @@ function getRateLimiter() {
   const redis = new Redis({ url, token });
   _rl = new Ratelimit({
     redis,
-    limiter:   Ratelimit.slidingWindow(5, '60 s'), // 5 ativações/min por IP
+    limiter:   Ratelimit.slidingWindow(5, '60 s'),
     analytics: false,
     prefix:    'featym_rl_activate',
   });
   return _rl;
 }
 
-// Fallback in-memory para dev
 const memHits = new Map();
 function isMemRateLimited(ip) {
-  const now = Date.now();
+  const now  = Date.now();
   const hits = (memHits.get(ip) || []).filter(t => now - t < 60_000);
   if (hits.length >= 5) return true;
   hits.push(now);
@@ -77,16 +57,19 @@ async function checkRateLimit(ip) {
   return isMemRateLimited(ip);
 }
 
-// ── Handler ───────────────────────────────────────────────────────────────────
+// ── Handler ───────────────────────────────────────────────────────────────
 
 module.exports = async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
 
   if (req.method !== 'POST') return res.status(405).end();
 
+  // ── CORREÇÃO 3.4: Content-Type validation ─────────────────────────────────
+  if (!validateContentType(req, res)) return;
+
   const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || 'unknown';
 
-  // Rate limiting
+  // ── Rate limiting ─────────────────────────────────────────────────────────
   try {
     const limited = await checkRateLimit(ip);
     if (limited) {
@@ -116,9 +99,26 @@ module.exports = async function handler(req, res) {
   }
 
   const normalizedEmail = email.toLowerCase().trim();
-  const emailKey        = normalizedEmail.replace(/[^a-z0-9]/g, '_');
-  const lockRef         = db.collection('activationLocks').doc(emailKey);
-  const activationRef   = db.collection('pendingActivations').doc(emailKey);
+
+  // NOTA: emailKey agora é gerado server-side via SHA-256 (alinhado com js/auth.js v8)
+  // O servidor recebe o token e busca por ele diretamente na collection,
+  // não precisa recalcular o emailKey para encontrar o documento.
+  const lockRef       = db.collection('activationLocks').doc(
+    // Usar hash do token como chave do lock (único e seguro)
+    require('crypto').createHash('sha256').update(token).digest('hex').slice(0, 32)
+  );
+  const activationRef = await (async () => {
+    // Buscar documento de ativação pelo token (índice composto garante eficiência)
+    const snap = await db.collection('pendingActivations')
+      .where('activationToken', '==', token)
+      .limit(1)
+      .get();
+    return snap.empty ? null : snap.docs[0].ref;
+  })();
+
+  if (!activationRef) {
+    return res.status(404).json({ error: 'Link de ativação inválido.' });
+  }
 
   let studentData;
   let activationData;
@@ -131,14 +131,12 @@ module.exports = async function handler(req, res) {
         t.get(activationRef),
       ]);
 
-      // Verificar lock existente (válido por 5 minutos)
       if (lockDoc.exists) {
-        const lockTime = lockDoc.data().createdAt?.toDate() || new Date(0);
+        const lockTime       = lockDoc.data().createdAt?.toDate() || new Date(0);
         const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
         if (lockTime > fiveMinutesAgo) {
           throw new Error('CONCURRENT_ACTIVATION');
         }
-        // Lock expirado — continuar (será sobrescrito abaixo)
       }
 
       if (!activationDoc.exists) throw new Error('TOKEN_NOT_FOUND');
@@ -151,7 +149,6 @@ module.exports = async function handler(req, res) {
       const expiresAt = activationData.expiresAt?.toDate() || new Date(0);
       if (new Date() > expiresAt) throw new Error('TOKEN_EXPIRED');
 
-      // Adquirir lock + marcar token como em-uso (atômico)
       t.set(lockRef, {
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
         email:     normalizedEmail,
@@ -160,7 +157,7 @@ module.exports = async function handler(req, res) {
       t.update(activationRef, { status: 'activating' });
     });
 
-    // ── Buscar dados do aluno (fora da transação) ──────────────────────────
+    // ── Buscar dados do aluno ──────────────────────────────────────────────
     const studentDoc = await db.collection('users').doc(activationData.studentDocId).get();
     if (!studentDoc.exists) throw new Error('STUDENT_NOT_FOUND');
     studentData = studentDoc.data();
@@ -176,7 +173,6 @@ module.exports = async function handler(req, res) {
     } catch (authError) {
       if (authError.code === 'auth/email-already-exists') {
         userRecord = await admin.auth().getUserByEmail(normalizedEmail);
-        // Verificar se conta já ativa
         const existingDoc = await db.collection('users').doc(userRecord.uid).get();
         if (existingDoc.exists && existingDoc.data().status === 'active') {
           await lockRef.delete();
@@ -184,7 +180,6 @@ module.exports = async function handler(req, res) {
           return res.status(200).json({ success: true, customToken });
         }
       } else {
-        // Reverter lock e status
         await Promise.allSettled([
           lockRef.delete(),
           activationRef.update({ status: 'pending' }),
@@ -193,10 +188,9 @@ module.exports = async function handler(req, res) {
       }
     }
 
-    // ── Batch final — finalizar ativação atomicamente ──────────────────────
+    // ── Batch final ────────────────────────────────────────────────────────
     const batch = db.batch();
 
-    // Criar doc do aluno com uid real
     batch.set(db.collection('users').doc(userRecord.uid), {
       ...studentData,
       uid:         userRecord.uid,
@@ -205,45 +199,38 @@ module.exports = async function handler(req, res) {
       activatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
 
-    // Remover doc provisório (se diferente do uid real)
     if (activationData.studentDocId !== userRecord.uid) {
       batch.delete(db.collection('users').doc(activationData.studentDocId));
     }
 
-    // Atualizar array de alunos do personal (remover id provisório)
     if (studentData.personalId && activationData.studentDocId !== userRecord.uid) {
       batch.update(db.collection('users').doc(studentData.personalId), {
         students: admin.firestore.FieldValue.arrayRemove(activationData.studentDocId),
       });
     }
 
-    // Marcar token como usado
     batch.update(activationRef, {
       status:    'used',
       usedAt:    admin.firestore.FieldValue.serverTimestamp(),
       usedByUid: userRecord.uid,
     });
 
-    // Liberar lock
     batch.delete(lockRef);
 
     await batch.commit();
 
-    // Adicionar novo uid ao array de alunos (fora do batch por limitação do Firestore)
     if (studentData.personalId && activationData.studentDocId !== userRecord.uid) {
       await db.collection('users').doc(studentData.personalId).update({
         students: admin.firestore.FieldValue.arrayUnion(userRecord.uid),
       });
     }
 
-    // Gerar custom token para login automático
     const customToken = await admin.auth().createCustomToken(userRecord.uid);
 
     console.log(`[activate] ✓ Conta ativada: ${normalizedEmail} uid=${userRecord.uid}`);
     return res.status(200).json({ success: true, customToken });
 
   } catch (error) {
-    // Limpar lock em caso de erro inesperado
     const knownErrors = [
       'TOKEN_NOT_FOUND', 'TOKEN_INVALID', 'TOKEN_USED',
       'TOKEN_EXPIRED', 'CONCURRENT_ACTIVATION', 'STUDENT_NOT_FOUND',

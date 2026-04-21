@@ -1,8 +1,8 @@
 /**
  * js/pages/personal/dashboard.js
  *
- * Lógica do dashboard do personal trainer.
- * Migrado de script inline (pages/personal/dashboard.html) para arquivo externo.
+ * CORREÇÃO 1.4 — regenerateActivationLink agora usa SHA-256 para gerar emailKey,
+ * alinhado com a mudança em js/auth.js.
  */
 
 window.__pageInit = async function() {
@@ -14,6 +14,19 @@ window.__pageInit = async function() {
       .replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#x27;')
       .replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\//g, '&#x2F;');
   };
+
+  // ── Helpers ────────────────────────────────────────────────────────────────
+
+  /**
+   * CORREÇÃO 1.4 — emailKey via SHA-256, sem colisões.
+   */
+  async function emailToKey(normalizedEmail) {
+    const encoder = new TextEncoder();
+    const data    = encoder.encode(normalizedEmail);
+    const hashBuf = await crypto.subtle.digest('SHA-256', data);
+    const hashArr = Array.from(new Uint8Array(hashBuf));
+    return hashArr.map(b => b.toString(16).padStart(2, '0')).join('');
+  }
 
   // ── Logout ──────────────────────────────────────────────────
   document.getElementById('logoutBtn').onclick = async () => {
@@ -50,7 +63,9 @@ window.__pageInit = async function() {
     crypto.getRandomValues(bytes);
     const newToken  = Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-    const emailKey  = studentEmail.toLowerCase().replace(/[^a-z0-9]/g, '_');
+
+    // CORREÇÃO 1.4: usar SHA-256 em vez de replace()
+    const emailKey = await emailToKey(studentEmail.toLowerCase().trim());
 
     await db.collection('pendingActivations').doc(emailKey).set({
       studentDocId,
@@ -321,7 +336,6 @@ window.__pageInit = async function() {
       list.appendChild(card);
     });
 
-    // ── Event listeners dos botões de ação ──────────────────────
     document.querySelectorAll('[data-action]').forEach(btn => {
       btn.onclick = async (e) => {
         e.stopPropagation();
@@ -457,12 +471,10 @@ window.__pageInit = async function() {
     overlay.classList.add('open');
   }
 
-  // ── Inicialização ─────────────────────────────────────────────
   await subscriptionGuard.init();
   await loadStudents();
 };
 
-// Cleanup: cancelar operações pendentes ao sair da página
 window.__pageCleanup = function() {
   subscriptionGuard.destroy();
 };
