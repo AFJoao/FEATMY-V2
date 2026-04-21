@@ -9,6 +9,10 @@
  * - Race condition no auth resolvida
  * - Botões "voltar" via data-action (sem onclick inline)
  * - Limpeza de scripts inline
+ *
+ * CORREÇÃO v5:
+ * - Adicionada entrada '/' em pageScripts para que __pageInit do login
+ *   seja executado ao acessar /#/ diretamente.
  */
 
 class Router {
@@ -31,6 +35,7 @@ class Router {
     };
 
     this.pageScripts = {
+      '/':                       'js/pages/login.js',
       '/login':                  'js/pages/login.js',
       '/signup':                 'js/pages/signup.js',
       '/primeiro-acesso':        'js/pages/primeiro-acesso.js',
@@ -385,7 +390,6 @@ class Router {
     const container = document.getElementById('app');
     if (!container) return;
 
-    // Construir via DOM API — NUNCA usar innerHTML com dados externos
     const wrapper = document.createElement('div');
     wrapper.style.cssText = [
       'max-width:600px',
@@ -399,11 +403,11 @@ class Router {
 
     const h2 = document.createElement('h2');
     h2.style.cssText = 'color:#cc0000;margin-bottom:12px;';
-    h2.textContent = 'Erro ao carregar página'; // textContent — imune a XSS
+    h2.textContent = 'Erro ao carregar página';
 
     const p = document.createElement('p');
     p.style.cssText = 'color:#666;margin-bottom:20px;';
-    p.textContent = message; // textContent — seguro mesmo com <script> ou outros tags
+    p.textContent = message;
 
     const btn = document.createElement('button');
     btn.style.cssText = [
@@ -416,7 +420,7 @@ class Router {
       'font-size:15px',
     ].join(';');
     btn.textContent = 'Recarregar';
-    btn.addEventListener('click', () => window.location.reload()); // addEventListener — sem onclick inline
+    btn.addEventListener('click', () => window.location.reload());
 
     wrapper.appendChild(h2);
     wrapper.appendChild(p);
