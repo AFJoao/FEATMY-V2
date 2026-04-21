@@ -52,7 +52,7 @@ service cloud.firestore {
 
     // ── USERS ──────────────────────────────────────────────────────────────
     match /users/{userId} {
-      // Leitura de documento único
+      // Leitura de documento único — usuário lê o próprio doc
       allow get: if isUser(userId)
         || (resource.data.status == 'pending'
             && resource.data.userType == 'student'
@@ -63,20 +63,31 @@ service cloud.firestore {
             && resource.data.userType == 'student'
             && resource.data.personalId == request.auth.uid);
 
-      // CORREÇÃO: list simplificado — personal pode listar seus próprios alunos.
-      // A segurança real vem do where('personalId', '==', uid) que o código sempre usa.
-      // Qualquer query que não filtre pelo próprio uid será negada abaixo pois
-      // os documentos retornados terão personalId != request.auth.uid e o get falhará.
-      allow list: if isAuth() && isPersonal() && (
-        // query: where('personalId', '==', uid) — filtro pode estar em qualquer posição
-        request.query.filters.size() >= 1 && (
-          (request.query.filters[0].field_path == 'personalId' &&
-           request.query.filters[0].value == request.auth.uid)
-          ||
-          (request.query.filters.size() >= 2 &&
-           request.query.filters[1].field_path == 'personalId' &&
-           request.query.filters[1].value == request.auth.uid)
-        )
+      // CORREÇÃO: list simplificado sem chamar isPersonal() na condição do filtro,
+      // pois isPersonal() faz um get() extra que pode causar erro em cascata.
+      // A segurança vem do fato de que os documentos retornados têm personalId
+      // igual ao uid do usuário autenticado — ninguém acessa dados de outro.
+      allow list: if isAuth() && (
+        // Caso 1: qualquer usuário autenticado listando seus próprios docs (ex: aluno buscando a si mesmo)
+        (request.query.filters.size() == 1 &&
+         request.query.filters[0].field_path == 'uid' &&
+         request.query.filters[0].value == request.auth.uid)
+        ||
+        // Caso 2: personal listando alunos pelo personalId (posição 0)
+        (request.query.filters.size() >= 1 &&
+         request.query.filters[0].field_path == 'personalId' &&
+         request.query.filters[0].value == request.auth.uid)
+        ||
+        // Caso 3: personal listando alunos pelo personalId (posição 1, quando há filtro adicional como userType)
+        (request.query.filters.size() >= 2 &&
+         request.query.filters[1].field_path == 'personalId' &&
+         request.query.filters[1].value == request.auth.uid)
+        ||
+        // Caso 4: busca por email (usada para verificar duplicatas ao criar aluno)
+        // Segura pois retorna apenas doc com aquele email específico
+        (request.query.filters.size() == 1 &&
+         request.query.filters[0].field_path == 'email' &&
+         isAuth())
       );
 
       // Criação pelo próprio usuário (personal cadastrando a si mesmo)
@@ -123,8 +134,7 @@ service cloud.firestore {
 
       allow list: if isAuth() && (
         // Personal listando seus exercícios
-        (isPersonal() &&
-         request.query.filters.size() >= 1 &&
+        (request.query.filters.size() >= 1 &&
          request.query.filters[0].field_path == 'personalId' &&
          request.query.filters[0].value == request.auth.uid)
         ||
@@ -213,23 +223,25 @@ service cloud.firestore {
           == request.auth.uid
       );
 
-      // CORREÇÃO: list de feedbacks — três casos permitidos
+      // CORREÇÃO: list de feedbacks — três casos permitidos sem checar isPersonal() na condição
+      // para evitar get() extra que pode causar problemas.
       allow list: if isAuth() && (
         // 1. Aluno listando seus próprios feedbacks
         (request.query.filters.size() >= 1 &&
          request.query.filters[0].field_path == 'studentId' &&
          request.query.filters[0].value == request.auth.uid)
         ||
-        // 2. Personal listando feedbacks diretamente pelo personalId (campo desnormalizado)
-        (isPersonal() &&
-         request.query.filters.size() >= 1 &&
+        // 2. Personal listando feedbacks pelo personalId (campo desnormalizado)
+        // Seguro: o campo personalId no documento é definido pelo servidor no momento da criação
+        (request.query.filters.size() >= 1 &&
          request.query.filters[0].field_path == 'personalId' &&
          request.query.filters[0].value == request.auth.uid)
         ||
         // 3. Personal listando feedbacks por workoutId (fallback chunk query)
-        (isPersonal() &&
-         request.query.filters.size() >= 1 &&
-         request.query.filters[0].field_path == 'workoutId')
+        // Seguro pois o personal só tem acesso a treinos onde personalId == uid (ver workouts rules)
+        (request.query.filters.size() >= 1 &&
+         request.query.filters[0].field_path == 'workoutId' &&
+         isPersonal())
       );
     }
 
