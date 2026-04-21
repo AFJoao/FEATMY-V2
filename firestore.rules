@@ -52,7 +52,7 @@ service cloud.firestore {
 
     // ── USERS ──────────────────────────────────────────────────────────────
     match /users/{userId} {
-      // CORREÇÃO 2.3: get de users agora exige userType == 'student' para personals
+      // Leitura de documento único
       allow get: if isUser(userId)
         || (resource.data.status == 'pending'
             && resource.data.userType == 'student'
@@ -63,41 +63,46 @@ service cloud.firestore {
             && resource.data.userType == 'student'
             && resource.data.personalId == request.auth.uid);
 
-      // CORREÇÃO 2.2 (mantida): filtros por personalId com hasAll para evitar
-      // dependência de posição de filtro
+      // CORREÇÃO: list simplificado — personal pode listar seus próprios alunos.
+      // A segurança real vem do where('personalId', '==', uid) que o código sempre usa.
+      // Qualquer query que não filtre pelo próprio uid será negada abaixo pois
+      // os documentos retornados terão personalId != request.auth.uid e o get falhará.
       allow list: if isAuth() && isPersonal() && (
-        (request.query.filters.size() == 1 &&
-         request.query.filters[0].field_path == 'personalId' &&
-         request.query.filters[0].value == request.auth.uid)
-        ||
-        (request.query.filters.size() == 2 &&
-         request.query.filters[0].field_path == 'personalId' &&
-         request.query.filters[0].value == request.auth.uid)
-        ||
-        (request.query.filters.size() == 2 &&
-         request.query.filters[1].field_path == 'personalId' &&
-         request.query.filters[1].value == request.auth.uid)
+        // query: where('personalId', '==', uid) — filtro pode estar em qualquer posição
+        request.query.filters.size() >= 1 && (
+          (request.query.filters[0].field_path == 'personalId' &&
+           request.query.filters[0].value == request.auth.uid)
+          ||
+          (request.query.filters.size() >= 2 &&
+           request.query.filters[1].field_path == 'personalId' &&
+           request.query.filters[1].value == request.auth.uid)
+        )
       );
 
+      // Criação pelo próprio usuário (personal cadastrando a si mesmo)
       allow create: if isUser(userId);
 
+      // Personal criando conta de aluno
       allow create: if isPersonal()
         && request.resource.data.userType == 'student'
         && request.resource.data.personalId == request.auth.uid
         && hasActiveSubscription(request.auth.uid)
         && isWithinStudentLimit(request.auth.uid);
 
+      // Aluno ativando sua própria conta
       allow create: if isAuth()
         && request.resource.data.userType == 'student'
         && request.resource.data.authUid == request.auth.uid;
 
-      // CORREÇÃO 2.1 (mantida): aluno não pode modificar assignedWorkouts, personalId, etc.
+      // Aluno editando só campos seguros do próprio perfil
       allow update: if isUser(userId)
         && !request.resource.data.diff(resource.data).affectedKeys()
             .hasAny(['assignedWorkouts', 'personalId', 'userType', 'authUid', 'uid', 'email']);
 
+      // Personal editando dados do próprio aluno
       allow update: if isMyStudentDoc() || isOwnStudentDoc();
 
+      // Deleção
       allow delete: if isUser(userId)
         || isMyStudentDoc()
         || isOwnStudentDoc()
@@ -116,8 +121,24 @@ service cloud.firestore {
         )
       );
 
+      allow list: if isAuth() && (
+        // Personal listando seus exercícios
+        (isPersonal() &&
+         request.query.filters.size() >= 1 &&
+         request.query.filters[0].field_path == 'personalId' &&
+         request.query.filters[0].value == request.auth.uid)
+        ||
+        // Aluno listando exercícios do seu personal
+        (getUserData().userType == 'student' &&
+         request.query.filters.size() >= 1 &&
+         request.query.filters[0].field_path == 'personalId' &&
+         request.query.filters[0].value == getUserData().personalId)
+      );
+
       allow create: if isAuth() && isPersonal()
         && request.resource.data.personalId == request.auth.uid
+        && request.resource.data.name.size() <= 200
+        && (!('description' in request.resource.data) || request.resource.data.description.size() <= 2000)
         && hasActiveSubscription(request.auth.uid);
 
       allow update: if isAuth() && isPersonal()
@@ -137,11 +158,12 @@ service cloud.firestore {
       );
 
       allow list: if isAuth() && (
+        // Personal listando seus treinos
         (request.query.filters.size() >= 1 &&
          request.query.filters[0].field_path == 'personalId' &&
          request.query.filters[0].value == request.auth.uid)
         ||
-        // CORREÇÃO 2.5: aluno só lista treinos com assinatura ativa
+        // Aluno listando seus treinos (com assinatura ativa do personal)
         (request.query.filters.size() >= 1 &&
          request.query.filters[0].field_path == 'studentId' &&
          request.query.filters[0].value == request.auth.uid &&
@@ -163,7 +185,7 @@ service cloud.firestore {
 
     // ── FEEDBACKS ──────────────────────────────────────────────────────────
     match /feedbacks/{feedbackId} {
-      // CORREÇÃO 2.4: validação de campos nas rules
+      // Aluno criando feedback com validação completa dos campos
       allow create: if isAuth()
         && request.resource.data.studentId == request.auth.uid
         && request.resource.data.effortLevel is int
@@ -180,26 +202,34 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/workouts/$(request.resource.data.workoutId)).data.studentId
            == request.auth.uid;
 
+      // Aluno lendo/editando seus próprios feedbacks
       allow get, update: if isAuth()
         && resource.data.studentId == request.auth.uid;
 
+      // Personal lendo/deletando feedbacks dos seus treinos
       allow get, delete: if isAuth() && isPersonal() && (
         exists(/databases/$(database)/documents/workouts/$(resource.data.workoutId)) &&
         get(/databases/$(database)/documents/workouts/$(resource.data.workoutId)).data.personalId
           == request.auth.uid
       );
 
+      // CORREÇÃO: list de feedbacks — três casos permitidos
       allow list: if isAuth() && (
+        // 1. Aluno listando seus próprios feedbacks
         (request.query.filters.size() >= 1 &&
          request.query.filters[0].field_path == 'studentId' &&
          request.query.filters[0].value == request.auth.uid)
         ||
-        (isPersonal() && request.query.filters.size() >= 1 &&
-         request.query.filters[0].field_path == 'workoutId')
-        ||
-        (isPersonal() && request.query.filters.size() >= 1 &&
+        // 2. Personal listando feedbacks diretamente pelo personalId (campo desnormalizado)
+        (isPersonal() &&
+         request.query.filters.size() >= 1 &&
          request.query.filters[0].field_path == 'personalId' &&
          request.query.filters[0].value == request.auth.uid)
+        ||
+        // 3. Personal listando feedbacks por workoutId (fallback chunk query)
+        (isPersonal() &&
+         request.query.filters.size() >= 1 &&
+         request.query.filters[0].field_path == 'workoutId')
       );
     }
 
@@ -232,13 +262,11 @@ service cloud.firestore {
 
     // ── PENDING ACTIVATIONS ─────────────────────────────────────────────────
     match /pendingActivations/{emailKey} {
-      // CORREÇÃO 1.9: get agora exige createdBy == request.auth.uid
       allow get: if isAuth() && isPersonal()
         && resource.data.createdBy == request.auth.uid;
 
       allow list: if false;
 
-      // CORREÇÃO 2.6: validação de campos adicionais na rule de create
       allow create: if isAuth() && isPersonal()
         && request.resource.data.createdBy == request.auth.uid
         && request.resource.data.status == 'pending'
@@ -255,17 +283,6 @@ service cloud.firestore {
 
       allow delete: if isAuth() && isPersonal()
         && resource.data.createdBy == request.auth.uid;
-    }
-
-    // ── CORREÇÃO 2.7: Limite de tamanho em campos de texto ──────────────────
-    // Aplicado nas rules de feedbacks (comment <= 1000) e pendingActivations acima.
-    // Para users, exercises e workouts: os campos de texto mais críticos:
-    match /exercises/{exerciseId} {
-      allow create: if isAuth() && isPersonal()
-        && request.resource.data.personalId == request.auth.uid
-        && request.resource.data.name.size() <= 200
-        && (!('description' in request.resource.data) || request.resource.data.description.size() <= 2000)
-        && hasActiveSubscription(request.auth.uid);
     }
 
     // ── DEFAULT BLOCK ───────────────────────────────────────────────────────
